@@ -74,9 +74,11 @@ onMounted(() => {
 }
 
 .discover-title {
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
 

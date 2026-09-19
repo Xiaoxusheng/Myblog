@@ -1,26 +1,24 @@
 <template>
-  <article class="post-card card">
-    <div class="post-card-main">
-      <div class="post-card-flags">
+  <article class="post-row">
+    <div class="post-row-main">
+      <h2 class="post-row-title">
         <span v-if="post.isTop" class="pin">置顶</span>
-        <RouterLink v-if="post.category" :to="`/category/${post.category.slug}`" class="chip cat">
-          {{ post.category.name }}
-        </RouterLink>
-      </div>
-      <h2 class="post-card-title">
         <!-- eslint-disable-next-line vue/no-v-html：内容已 HTML 转义，仅注入 <mark> -->
         <RouterLink :to="`/post/${post.slug}`" v-html="titleHtml"></RouterLink>
       </h2>
-      <p class="post-card-summary" :class="{ placeholder: !post.summary }">
+      <p class="post-row-summary" :class="{ placeholder: !post.summary }">
         <!-- eslint-disable-next-line vue/no-v-html：同上 -->
         <span v-html="summaryHtml"></span>
       </p>
-      <div class="post-card-meta">
-        <span class="meta-item">{{ displayDate }}</span>
-        <span class="meta-dot">·</span>
-        <span class="meta-item">阅读 {{ formatNumber(post.viewCount) }}</span>
-        <span class="meta-dot">·</span>
-        <span class="meta-item">{{ formatNumber(post.likeCount) }} 赞</span>
+      <div class="post-row-meta">
+        <span class="meta-date">{{ displayDate }}</span>
+        <RouterLink
+          v-if="post.category"
+          :to="`/category/${post.category.slug}`"
+          class="meta-cat"
+        >
+          {{ post.category.name }}
+        </RouterLink>
         <span v-if="post.tags.length" class="meta-tags">
           <RouterLink
             v-for="tag in post.tags"
@@ -31,12 +29,17 @@
             # {{ tag.name }}
           </RouterLink>
         </span>
+        <span class="meta-tail">
+          <span>阅读 {{ formatNumber(post.viewCount) }}</span>
+          <span class="meta-dot">·</span>
+          <span>{{ formatNumber(post.likeCount) }} 赞</span>
+        </span>
       </div>
     </div>
     <RouterLink
       v-if="post.cover"
       :to="`/post/${post.slug}`"
-      class="post-card-cover"
+      class="post-row-cover"
       tabindex="-1"
       aria-hidden="true"
     >
@@ -73,67 +76,53 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.post-card {
+/* 编辑部式列表行：无卡片，hairline 分隔 */
+.post-row {
   display: flex;
-  gap: 20px;
-  padding: 20px;
-  transition: border-color var(--transition);
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-/* hover 克制：不整卡上浮，只做边界/标题/封面的联动反馈 */
-.post-card:hover {
-  border-color: var(--border-strong);
-}
-
-.post-card-main {
+.post-row-main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.post-card-flags {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+.post-row-title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .pin {
-  padding: 0 8px;
+  margin-right: 8px;
+  padding: 1px 8px;
   border: 1px solid var(--brand-soft-border);
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--brand-soft);
   color: var(--brand);
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  vertical-align: 2px;
 }
 
-.post-card-title {
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.5;
-  letter-spacing: 0.1px;
-}
-
-.post-card-title a {
+.post-row-title a {
   color: var(--text-1);
-  background-image: linear-gradient(var(--brand), var(--brand));
-  background-size: 0% 2px;
-  background-repeat: no-repeat;
-  background-position: 0 calc(100% - 1px);
-  transition: background-size 0.3s var(--ease-out-quart), color var(--transition);
+  transition: color var(--transition);
 }
 
-.post-card-title a:hover {
+.post-row-title a:hover {
   color: var(--brand);
-  background-size: 100% 2px;
 }
 
-.post-card-summary {
-  margin-top: 8px;
+.post-row-summary {
+  margin-top: 7px;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.75;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -142,27 +131,42 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.post-card-summary.placeholder {
+.post-row-summary.placeholder {
   color: var(--text-3);
 }
 
-.post-card-meta {
-  margin-top: auto;
-  padding-top: 12px;
+.post-row-meta {
+  margin-top: 10px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
   font-size: 12.5px;
   color: var(--text-3);
 }
 
-.meta-dot {
-  color: var(--border-strong);
+/* 日期走 mono + 等宽数字，编辑感 */
+.meta-date {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.meta-cat {
+  color: var(--text-2);
+}
+
+.meta-cat:hover {
+  color: var(--brand);
+}
+
+.meta-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .meta-tag {
-  margin-left: 8px;
   color: var(--text-3);
 }
 
@@ -170,41 +174,51 @@ onMounted(() => {
   color: var(--brand);
 }
 
-.post-card-cover {
+.meta-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-dot {
+  color: var(--border-strong);
+}
+
+.post-row-cover {
   flex-shrink: 0;
   align-self: center;
-  width: 168px;
-  height: 112px;
-  border-radius: var(--radius-sm);
+  width: 136px;
+  height: 90px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-2);
 }
 
-.post-card-cover img {
+.post-row-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transform: scale(1);
-  transition: opacity 0.45s ease-out, transform 0.35s var(--ease-out-quart);
+  transition: opacity 0.45s ease-out, transform 0.4s var(--ease-out-quart);
 }
 
-.post-card-cover img.loaded {
+.post-row-cover img.loaded {
   opacity: 1;
 }
 
-.post-card:hover .post-card-cover img.loaded {
-  transform: scale(1.04);
+.post-row:hover .post-row-cover img.loaded {
+  transform: scale(1.03);
 }
 
 @media (max-width: 640px) {
-  .post-card {
+  .post-row {
     flex-direction: column-reverse;
     gap: 12px;
-    padding: 16px;
+    padding: 18px 0;
   }
 
-  .post-card-cover {
+  .post-row-cover {
     width: 100%;
     height: 150px;
     align-self: stretch;

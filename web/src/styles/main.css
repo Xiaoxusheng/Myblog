@@ -206,7 +206,6 @@ html.dark ::selection {
   top: calc(var(--header-height) + 24px);
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 .page-title-bar {

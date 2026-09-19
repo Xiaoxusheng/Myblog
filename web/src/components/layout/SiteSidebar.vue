@@ -1,12 +1,12 @@
 <template>
   <aside class="page-aside sidebar">
-    <section v-if="site.settings.notice" v-reveal class="side-card notice-card">
-      <h3 class="side-title">公告</h3>
+    <section v-if="site.settings.notice" v-reveal class="side-section">
+      <h3 class="side-title">Notice</h3>
       <p class="notice">{{ site.settings.notice }}</p>
     </section>
 
-    <section v-reveal="{ delay: 60 }" class="side-card">
-      <h3 class="side-title">热门文章</h3>
+    <section v-reveal="{ delay: 60 }" class="side-section">
+      <h3 class="side-title">Trending</h3>
       <div v-if="hotLoading" class="hot-skeletons" aria-hidden="true">
         <div v-for="i in 5" :key="i" class="hot-skeleton">
           <span class="skeleton sk-line"></span>
@@ -26,8 +26,8 @@
       <p v-else class="side-empty">暂无热门文章</p>
     </section>
 
-    <section v-if="navSeries.length" v-reveal="{ delay: 90 }" class="side-card">
-      <h3 class="side-title">专题</h3>
+    <section v-if="navSeries.length" v-reveal="{ delay: 90 }" class="side-section">
+      <h3 class="side-title">Series</h3>
       <ul class="series-list">
         <li v-for="item in navSeries" :key="item.id" class="series-row">
           <RouterLink :to="`/series/${item.slug}`" class="series-item">
@@ -36,11 +36,11 @@
           </RouterLink>
         </li>
       </ul>
-      <RouterLink to="/series" class="tag-more">全部专题 →</RouterLink>
+      <RouterLink to="/series" class="side-more">全部专题 →</RouterLink>
     </section>
 
-    <section v-if="cloudTags.length" v-reveal="{ delay: 120 }" class="side-card">
-      <h3 class="side-title">标签</h3>
+    <section v-if="cloudTags.length" v-reveal="{ delay: 120 }" class="side-section">
+      <h3 class="side-title">Tags</h3>
       <div class="tag-cloud">
         <RouterLink
           v-for="tag in cloudTags"
@@ -51,7 +51,7 @@
           {{ tag.name }}
         </RouterLink>
       </div>
-      <RouterLink v-if="site.tags.length > 24" to="/tags" class="tag-more">更多标签 →</RouterLink>
+      <RouterLink v-if="site.tags.length > 24" to="/tags" class="side-more">更多标签 →</RouterLink>
     </section>
   </aside>
 </template>
@@ -106,36 +106,35 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.side-card {
-  padding: 16px 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+/* 文字栏：无卡片，区块以 hairline 分隔 */
+.side-section + .side-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
 }
 
-/* 公告：弱底色与列表卡区分层级 */
-.notice-card {
-  background: var(--brand-soft);
-  border-color: transparent;
-}
-
-/* 编辑感小标题：字距 + 弱化色，替代左侧竖条 */
+/* 编辑感栏头：mono 大写字距 */
 .side-title {
-  margin: 0 0 12px;
-  font-size: 12px;
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
 
+/* 公告：左侧 accent 竖线引用式，无底色 */
 .notice {
+  padding-left: 12px;
+  border-left: 2px solid var(--brand-soft-border);
   font-size: 13.5px;
   color: var(--text-2);
   line-height: 1.8;
   white-space: pre-wrap;
 }
 
-/* 热门文章：真正的列表结构 */
+/* 热门文章：mono 编号榜单 */
 .hot-list {
   list-style: none;
   margin: 0;
@@ -163,8 +162,9 @@ onBeforeUnmount(() => {
 
 .hot-rank {
   flex-shrink: 0;
-  width: 22px;
-  font-size: 12.5px;
+  width: 24px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -191,7 +191,8 @@ onBeforeUnmount(() => {
 
 .hot-views {
   flex-shrink: 0;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -219,7 +220,7 @@ onBeforeUnmount(() => {
   width: 55%;
 }
 
-/* 专题：名称 + 篇数的轻量列表 */
+/* 专题：名称 + mono 篇数 */
 .series-list {
   list-style: none;
   margin: 0;
@@ -254,7 +255,8 @@ onBeforeUnmount(() => {
 
 .series-count {
   flex-shrink: 0;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -264,21 +266,21 @@ onBeforeUnmount(() => {
   color: var(--text-3);
 }
 
-/* 标签：轻量 chip + 更多入口 */
+/* 标签：纯文字 chip + 更多入口 */
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px 12px;
 }
 
-.tag-more {
+.side-more {
   display: inline-block;
   margin-top: 12px;
   font-size: 12.5px;
   color: var(--text-3);
 }
 
-.tag-more:hover {
+.side-more:hover {
   color: var(--brand);
 }
 </style>

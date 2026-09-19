@@ -2,16 +2,15 @@
   <div class="container page-layout">
     <section class="page-main">
       <header v-reveal class="hero">
-        <p class="hero-kicker">PERSONAL BLOG</p>
         <h1 class="hero-title">{{ site.settings.siteName || 'MyBlog' }}</h1>
         <p class="hero-desc">{{ site.settings.siteDescription || '记录、思考与分享' }}</p>
-        <div class="hero-stats">
-          <span class="hero-stat"><strong>{{ total }}</strong> 文章</span>
+        <p class="hero-stats">
+          <span><strong>{{ total }}</strong> POSTS</span>
           <span class="hero-sep"></span>
-          <span class="hero-stat"><strong>{{ site.categories.length }}</strong> 分类</span>
+          <span><strong>{{ site.categories.length }}</strong> CATEGORIES</span>
           <span class="hero-sep"></span>
-          <span class="hero-stat"><strong>{{ site.tags.length }}</strong> 标签</span>
-        </div>
+          <span><strong>{{ site.tags.length }}</strong> TAGS</span>
+        </p>
       </header>
 
       <ListSkeleton v-if="loading" />
@@ -164,85 +163,61 @@ onMounted(async () => {
 
 .hero {
   position: relative;
-  padding: 10px 0 30px;
-  margin-bottom: 28px;
+  padding: 18px 0 30px;
+  margin-bottom: 2px;
   border-bottom: 1px solid var(--border);
 }
 
-/* 品牌色的一抹柔光，只作为 Hero 的背景点缀 */
-.hero::before {
-  content: '';
-  position: absolute;
-  inset: -28px -20px auto;
-  height: 180px;
-  background: radial-gradient(
-    480px 160px at 12% 0%,
-    var(--brand-soft),
-    transparent 72%
-  );
-  pointer-events: none;
-}
-
-.hero > * {
-  position: relative;
-}
-
-.hero-kicker {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  color: var(--brand);
-}
-
 .hero-title {
-  margin-top: 8px;
-  font-size: clamp(26px, 4vw, 32px);
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  line-height: 1.3;
+  font-size: var(--fs-display);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.22;
 }
 
 .hero-desc {
-  margin-top: 8px;
+  margin-top: 12px;
   max-width: 560px;
-  font-size: 15px;
+  font-size: 15.5px;
   color: var(--text-2);
   line-height: 1.75;
 }
 
+/* mono 大写统计行：编辑感弱信息 */
 .hero-stats {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 16px;
-  font-size: 13px;
+  gap: 12px;
+  margin-top: 20px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
-.hero-stat strong {
-  color: var(--text-1);
+.hero-stats strong {
+  color: var(--text-2);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .hero-sep {
   width: 1px;
-  height: 12px;
+  height: 10px;
   background: var(--border-strong);
 }
 
 .post-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
 /* Featured：置顶文章的第一层级 */
 .featured {
   display: flex;
   gap: 28px;
-  padding: 4px 0 26px;
-  margin-bottom: 26px;
+  padding: 26px 0;
   border-bottom: 1px solid var(--border);
   align-items: stretch;
 }
@@ -261,6 +236,7 @@ onMounted(async () => {
 }
 
 .featured-kicker {
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -269,10 +245,10 @@ onMounted(async () => {
 
 .featured-title {
   margin-top: 10px;
-  font-size: clamp(20px, 2.6vw, 24px);
+  font-size: clamp(22px, 2.8vw, 26px);
   font-weight: 650;
-  line-height: 1.45;
-  letter-spacing: 0.2px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .featured-title a {
@@ -321,7 +297,7 @@ onMounted(async () => {
   align-self: center;
   width: 344px;
   aspect-ratio: 16 / 10;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-2);
 }
