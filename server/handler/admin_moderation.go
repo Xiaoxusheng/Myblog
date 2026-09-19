@@ -3,6 +3,7 @@ package handler
 // 评论防护（黑名单/批量，契约 #69-72）与通知中心（契约 #73-75）。
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -118,10 +119,13 @@ func AdminBatchComments(c *gin.Context) {
 	switch req.Action {
 	case "approve":
 		batchUpdateCommentStatus(req.IDs, model.CommentApproved)
+		writeAudit(c, "comment.batch", "comment", "", fmt.Sprintf("approve %d 条", len(req.IDs)))
 	case "reject":
 		batchUpdateCommentStatus(req.IDs, model.CommentRejected)
+		writeAudit(c, "comment.batch", "comment", "", fmt.Sprintf("reject %d 条", len(req.IDs)))
 	case "spam":
 		batchUpdateCommentStatus(req.IDs, model.CommentSpam)
+		writeAudit(c, "comment.batch", "comment", "", fmt.Sprintf("spam %d 条", len(req.IDs)))
 	case "delete":
 		ids, err := collectCommentSubtree(req.IDs)
 		if err != nil {

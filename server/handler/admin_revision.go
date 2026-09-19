@@ -170,6 +170,7 @@ func AdminRestoreRevision(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "post.restore", "post", c.Param("id"), fmt.Sprintf("恢复自 v%d", version))
 	respondAdminPost(c, id)
 }
 

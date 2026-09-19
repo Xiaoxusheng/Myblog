@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -90,6 +91,7 @@ func AdminUpdateCommentStatus(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "comment.status", "comment", c.Param("id"), fmt.Sprintf("status=%d", req.Status))
 	common.OK(c, nil)
 }
 
@@ -180,5 +182,6 @@ func AdminDeleteComment(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "comment.delete", "comment", c.Param("id"), "删除评论及子孙")
 	common.OK(c, nil)
 }

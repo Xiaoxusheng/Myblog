@@ -258,6 +258,7 @@ func AdminCreatePost(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "post.create", "post", fmt.Sprint(post.ID), post.Title)
 
 	// 重新加载关联后返回
 	if err := model.DB.Preload("Category").Preload("Tags").First(&post, post.ID).Error; err != nil {
@@ -362,6 +363,7 @@ func AdminUpdatePost(c *gin.Context) {
 		return
 	}
 
+	writeAudit(c, "post.update", "post", c.Param("id"), strings.TrimSpace(req.Title))
 	if err := model.DB.Preload("Category").Preload("Tags").First(&post, post.ID).Error; err != nil {
 		common.ServerError(c, err)
 		return
@@ -430,6 +432,7 @@ func AdminUpdatePostStatus(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "post.status", "post", c.Param("id"), fmt.Sprintf("status=%d", req.Status))
 	common.OK(c, nil)
 }
 
@@ -462,6 +465,7 @@ func AdminDeletePost(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	writeAudit(c, "post.delete", "post", c.Param("id"), post.Title)
 	common.OK(c, nil)
 }
 

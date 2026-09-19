@@ -28,6 +28,7 @@ var (
 func SetConfig(cfg *config.Config) {
 	uploadDir = cfg.UploadDir
 	jwtSecret = cfg.JWTSecret
+	appCfg = cfg
 	if cfg.CryptoKey != "" {
 		model.SetHashSecret(cfg.CryptoKey)
 	} else {

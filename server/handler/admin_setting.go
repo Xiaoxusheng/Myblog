@@ -129,5 +129,6 @@ func AdminUpdateSettings(c *gin.Context) {
 		upsertSetting(db, "autoRedirectOnSlugChange", "false")
 	}
 
+	writeAudit(c, "setting.update", "setting", "", "更新系统设置")
 	common.OK(c, nil)
 }
