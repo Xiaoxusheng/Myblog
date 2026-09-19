@@ -45,7 +45,7 @@ function submit(): void {
 }
 
 .search-box:focus-within {
-  border-color: var(--brand);
+  border-color: var(--border-strong);
   background: var(--surface);
 }
 

@@ -115,19 +115,13 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
-  box-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
-  transition: background 0.25s ease-out, border-color 0.25s ease-out,
-    box-shadow 0.25s ease-out;
+  transition: background 0.25s ease-out, border-color 0.25s ease-out;
 }
 
+/* 滚动后只出现 hairline，不加投影——编辑部式分层 */
 .site-header.scrolled {
   background: var(--header-bg-scrolled);
   border-bottom-color: var(--border);
-  box-shadow: 0 4px 16px -8px rgba(16, 24, 40, 0.12);
-}
-
-html.dark .site-header.scrolled {
-  box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.5);
 }
 
 .header-inner {
@@ -143,8 +137,8 @@ html.dark .site-header.scrolled {
   gap: 8px;
   flex-shrink: 0;
   color: var(--text-1);
-  font-weight: 700;
-  font-size: 17px;
+  font-weight: 650;
+  font-size: 16.5px;
   letter-spacing: 0.2px;
 }
 
@@ -153,35 +147,45 @@ html.dark .site-header.scrolled {
 }
 
 .brand img {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   object-fit: cover;
 }
 
 .main-nav {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   margin-left: 6px;
 }
 
+/* 编辑部式导航：hover 与 active 只动文字与下划线，不做底色胶囊 */
 .nav-link {
-  padding: 6px 12px;
-  border-radius: 8px;
+  position: relative;
+  padding: 6px 10px;
   color: var(--text-2);
   font-size: 14px;
-  transition: background var(--transition), color var(--transition);
+  transition: color var(--transition);
 }
 
 .nav-link:hover {
   color: var(--text-1);
-  background: var(--surface-2);
 }
 
 .nav-link.active {
-  color: var(--brand);
-  background: var(--brand-soft);
+  color: var(--text-1);
   font-weight: 500;
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--brand);
 }
 
 .header-actions {
@@ -215,8 +219,8 @@ html.dark .site-header.scrolled {
 
   .mobile-panel {
     display: block;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
     padding: 12px 20px 16px;
   }
 
@@ -227,7 +231,7 @@ html.dark .site-header.scrolled {
   }
 
   .mobile-nav a {
-    padding: 11px 4px;
+    padding: 12px 4px;
     color: var(--text-1);
     font-size: 15px;
     border-bottom: 1px solid var(--border);

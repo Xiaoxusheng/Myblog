@@ -32,14 +32,14 @@ const copyright = computed(
 </script>
 
 <style scoped>
+/* 与页面同底色，仅一条 hairline 分隔——纸面延续 */
 .site-footer {
   border-top: 1px solid var(--border);
-  background: var(--surface);
-  margin-top: 24px;
+  background: var(--bg);
 }
 
 .footer-inner {
-  padding: 26px 20px;
+  padding: 28px 20px 40px;
   text-align: center;
 }
 
