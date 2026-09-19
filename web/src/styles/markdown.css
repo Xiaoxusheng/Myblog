@@ -1,35 +1,40 @@
 /* ============================================================
    文章 Markdown 排版 + 代码高亮（浅色/暗色两套 token 配色，随 html.dark 切换）
+   高亮配色：Flexoki（stephango.com/flexoki，MIT）暖纸墨水体系——
+   结构用墨（标点/注释=暖灰），语义用色（关键字红/字符串绿/数字蓝/函数紫），
+   与全站暖纸 Token 同源（docs/07 §4）
    ============================================================ */
 
 :root {
-  --hl-comment: #6a737d;
-  --hl-keyword: #cf222e;
-  --hl-string: #0a3069;
-  --hl-number: #0550ae;
-  --hl-title: #8250df;
-  --hl-attr: #0550ae;
-  --hl-tag: #116329;
-  --hl-variable: #953800;
-  --hl-meta: #0550ae;
-  --hl-builtin: #0550ae;
-  --hl-add: #116329;
-  --hl-del: #cf222e;
+  --hl-comment: #6f6e69;
+  --hl-keyword: #af3029;
+  --hl-string: #66800b;
+  --hl-number: #205ea6;
+  --hl-title: #5e409d;
+  --hl-attr: #24837b;
+  --hl-name: #af3029;
+  --hl-tag: #6f6e69;
+  --hl-variable: #8e6b01;
+  --hl-meta: #205ea6;
+  --hl-builtin: #24837b;
+  --hl-add: #66800b;
+  --hl-del: #af3029;
 }
 
 html.dark {
-  --hl-comment: #8b949e;
-  --hl-keyword: #ff7b72;
-  --hl-string: #a5d6ff;
-  --hl-number: #79c0ff;
-  --hl-title: #d2a8ff;
-  --hl-attr: #79c0ff;
-  --hl-tag: #7ee787;
-  --hl-variable: #ffa657;
-  --hl-meta: #79c0ff;
-  --hl-builtin: #79c0ff;
-  --hl-add: #7ee787;
-  --hl-del: #ff7b72;
+  --hl-comment: #878580;
+  --hl-keyword: #d14d41;
+  --hl-string: #879a39;
+  --hl-number: #4385be;
+  --hl-title: #8b7ec8;
+  --hl-attr: #3aa99f;
+  --hl-name: #d14d41;
+  --hl-tag: #878580;
+  --hl-variable: #d0a215;
+  --hl-meta: #4385be;
+  --hl-builtin: #3aa99f;
+  --hl-add: #879a39;
+  --hl-del: #d14d41;
 }
 
 /* ---------- 排版 ---------- */
@@ -223,7 +228,7 @@ html.dark .markdown-body blockquote {
   padding: 3px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
-  background: var(--surface);
+  background: var(--popover);
   color: var(--text-3);
   font-size: 12px;
   line-height: 1.6;
@@ -269,6 +274,29 @@ html.dark .markdown-body blockquote {
   background: var(--code-bg);
   overflow-x: auto;
   line-height: 1.7;
+}
+
+/* 代码选区与全局同语言：品牌柔底（docs/07 §5.1） */
+.markdown-body pre ::selection {
+  background: var(--brand-soft);
+}
+
+/* 横向滚动条（Safari 走 webkit 伪元素）：胶囊 thumb，墨色渐进 */
+.markdown-body pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.markdown-body pre::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+.markdown-body pre:hover::-webkit-scrollbar-thumb {
+  background: var(--text-3);
+}
+
+.markdown-body pre::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* 带语言标签/复制按钮的代码块：顶部预留头部条，避免标签与首行代码重叠 */
@@ -357,9 +385,13 @@ html.dark .markdown-body blockquote {
 
 .hljs-attr,
 .hljs-attribute,
-.hljs-selector-attr,
-.hljs-name {
+.hljs-selector-attr {
   color: var(--hl-attr);
+}
+
+/* HTML 标签名归「结构红」，与关键字同族；标点走 --hl-tag 暖墨（docs/07 §4.3） */
+.hljs-name {
+  color: var(--hl-name);
 }
 
 .hljs-tag {
