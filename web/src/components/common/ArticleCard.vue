@@ -8,10 +8,12 @@
         </RouterLink>
       </div>
       <h2 class="post-card-title">
-        <RouterLink :to="`/post/${post.slug}`">{{ post.title }}</RouterLink>
+        <!-- eslint-disable-next-line vue/no-v-html：内容已 HTML 转义，仅注入 <mark> -->
+        <RouterLink :to="`/post/${post.slug}`" v-html="titleHtml"></RouterLink>
       </h2>
       <p class="post-card-summary" :class="{ placeholder: !post.summary }">
-        {{ post.summary || '暂无摘要' }}
+        <!-- eslint-disable-next-line vue/no-v-html：同上 -->
+        <span v-html="summaryHtml"></span>
       </p>
       <div class="post-card-meta">
         <span class="meta-item">{{ displayDate }}</span>
@@ -47,8 +49,14 @@
 import { computed, onMounted, ref } from 'vue'
 import type { PostSummary } from '@/types'
 import { formatDate, formatNumber } from '@/utils/format'
+import { highlightText } from '@/utils/highlight'
 
-const props = defineProps<{ post: PostSummary }>()
+const props = withDefaults(defineProps<{ post: PostSummary; keyword?: string }>(), {
+  keyword: ''
+})
+
+const titleHtml = computed(() => highlightText(props.post.title, props.keyword))
+const summaryHtml = computed(() => highlightText(props.post.summary || '暂无摘要', props.keyword))
 
 const displayDate = computed(() => formatDate(props.post.publishedAt || props.post.createdAt))
 
@@ -69,13 +77,12 @@ onMounted(() => {
   display: flex;
   gap: 20px;
   padding: 20px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out, transform 0.2s ease-out;
+  transition: border-color var(--transition);
 }
 
+/* hover 克制：不整卡上浮，只做边界/标题/封面的联动反馈 */
 .post-card:hover {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .post-card-main {
@@ -103,9 +110,10 @@ onMounted(() => {
 }
 
 .post-card-title {
-  font-size: 17.5px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.5;
+  letter-spacing: 0.1px;
 }
 
 .post-card-title a {

@@ -22,7 +22,7 @@ type Post struct {
 	LikeCount   int        `gorm:"default:0" json:"likeCount"`
 	Status      int8       `gorm:"index;default:0" json:"status"`
 	IsTop       bool       `json:"isTop"`
-	PublishedAt *time.Time `json:"publishedAt"` // 首次置为已发布时写入
+	PublishedAt *time.Time `gorm:"index" json:"publishedAt"` // 首次置为已发布时写入；列表/RSS/sitemap 按此排序
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
 

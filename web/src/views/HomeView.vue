@@ -17,9 +17,47 @@
       <ListSkeleton v-if="loading" />
       <ErrorState v-else-if="error" :message="error" @retry="reload" />
       <template v-else>
-        <div v-if="items.length" class="post-list">
+        <!-- 置顶文章升级为 Featured 层级（仅第一页） -->
+        <article v-if="featured" v-reveal class="featured" itemscope itemtype="https://schema.org/BlogPosting">
+          <div class="featured-main">
+            <div class="featured-flags">
+              <span class="featured-kicker">FEATURED</span>
+              <RouterLink
+                v-if="featured.category"
+                :to="`/category/${featured.category.slug}`"
+                class="chip cat"
+              >
+                {{ featured.category.name }}
+              </RouterLink>
+            </div>
+            <h2 class="featured-title" itemprop="headline">
+              <RouterLink :to="`/post/${featured.slug}`">{{ featured.title }}</RouterLink>
+            </h2>
+            <p class="featured-summary" :class="{ placeholder: !featured.summary }">
+              {{ featured.summary || '暂无摘要' }}
+            </p>
+            <div class="featured-meta">
+              <span>{{ formatDate(featured.publishedAt || featured.createdAt) }}</span>
+              <span class="meta-dot">·</span>
+              <span>阅读 {{ formatNumber(featured.viewCount) }}</span>
+              <span class="meta-dot">·</span>
+              <span>{{ formatNumber(featured.likeCount) }} 赞</span>
+            </div>
+          </div>
+          <RouterLink
+            v-if="featured.cover"
+            :to="`/post/${featured.slug}`"
+            class="featured-cover"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+            <img :src="featured.cover" :alt="featured.title" loading="lazy" />
+          </RouterLink>
+        </article>
+
+        <div v-if="restPosts.length" class="post-list">
           <div
-            v-for="(post, index) in items"
+            v-for="(post, index) in restPosts"
             :key="post.id"
             v-reveal="{ delay: Math.min(index * 55, 275) }"
           >
@@ -27,8 +65,8 @@
           </div>
         </div>
         <EmptyState
-          v-else
-          title="还没有文章"
+          v-else-if="!featured"
+          title="这里还没有文章"
           description="博主尚未发布内容，过段时间再来看看吧。"
         />
         <Pagination
@@ -37,6 +75,7 @@
           :total-pages="totalPages"
           @change="handlePageChange"
         />
+        <MobileDiscover />
       </template>
     </section>
     <SiteSidebar />
@@ -57,6 +96,8 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import SiteSidebar from '@/components/layout/SiteSidebar.vue'
+import MobileDiscover from '@/components/common/MobileDiscover.vue'
+import { formatDate, formatNumber } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,6 +110,13 @@ const list = usePagedList<PostSummary>(
 const { loading, error, items, total, page } = list
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / list.pageSize.value)))
+
+/** 第一页的首篇置顶文章作为 Featured；无置顶时为 null，列表保持原样 */
+const featured = computed<PostSummary | null>(() =>
+  page.value === 1 && items.value[0]?.isTop ? (items.value[0] ?? null) : null
+)
+
+const restPosts = computed<PostSummary[]>(() => (featured.value ? items.value.slice(1) : items.value))
 
 async function reload(): Promise<void> {
   await site.ensureLoaded()
@@ -187,5 +235,116 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+/* Featured：置顶文章的第一层级 */
+.featured {
+  display: flex;
+  gap: 28px;
+  padding: 4px 0 26px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+  align-items: stretch;
+}
+
+.featured-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.featured-flags {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.featured-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--brand);
+}
+
+.featured-title {
+  margin-top: 10px;
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: 0.2px;
+}
+
+.featured-title a {
+  color: var(--text-1);
+  transition: color var(--transition);
+}
+
+.featured-title a:hover {
+  color: var(--brand);
+}
+
+.featured-summary {
+  margin-top: 10px;
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.featured-summary.placeholder {
+  color: var(--text-3);
+}
+
+.featured-meta {
+  margin-top: auto;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-dot {
+  color: var(--border-strong);
+}
+
+.featured-cover {
+  flex-shrink: 0;
+  align-self: center;
+  width: 344px;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.featured-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s var(--ease-out-quart);
+}
+
+.featured:hover .featured-cover img {
+  transform: scale(1.03);
+}
+
+@media (max-width: 900px) {
+  .featured {
+    flex-direction: column-reverse;
+    gap: 14px;
+  }
+
+  .featured-cover {
+    width: 100%;
+  }
 }
 </style>

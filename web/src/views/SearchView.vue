@@ -17,7 +17,7 @@
         <button class="btn btn-primary" type="submit">搜索</button>
       </form>
       <p v-if="keyword" class="page-sub result-stat">
-        “{{ keyword }}” 的搜索结果：共 {{ total }} 条
+        “{{ keyword }}” 的搜索结果：共 {{ total }} 条<span v-if="elapsedMs !== null">，耗时 {{ elapsedText }}</span>
       </p>
       <p v-else class="page-sub">支持搜索文章标题、摘要与正文内容</p>
     </header>
@@ -27,14 +27,17 @@
 
     <template v-else>
       <div v-if="keyword && items.length" class="post-list">
-        <ArticleCard v-for="post in items" :key="post.id" :post="post" />
+        <ArticleCard v-for="post in items" :key="post.id" :post="post" :keyword="keyword" />
       </div>
       <EmptyState
         v-else-if="keyword"
         title="没有找到相关文章"
-        description="换个关键词试试，或者浏览全部文章。"
+        description="没有找到与关键词相关的内容，换个关键词，或从下面继续浏览。"
       >
-        <RouterLink class="btn" to="/">返回首页</RouterLink>
+        <div class="empty-actions">
+          <RouterLink class="btn" to="/">查看全部文章</RouterLink>
+          <RouterLink class="btn btn-ghost" to="/categories">浏览分类</RouterLink>
+        </div>
       </EmptyState>
       <EmptyState
         v-else
@@ -79,6 +82,22 @@ const list = usePagedList<PostSummary>(
 const { loading, error, items, total, page } = list
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / list.pageSize.value)))
+
+/** 客户端感知的搜索耗时（请求发出到当前列表就绪） */
+const elapsedMs = ref<number | null>(null)
+const elapsedText = computed(() =>
+  elapsedMs.value === null ? '' : elapsedMs.value >= 1000 ? `${(elapsedMs.value / 1000).toFixed(1)} 秒` : `${elapsedMs.value} 毫秒`
+)
+
+let searchStartedAt = 0
+watch(loading, (isLoading) => {
+  if (isLoading) {
+    searchStartedAt = performance.now()
+  } else if (searchStartedAt) {
+    elapsedMs.value = Math.max(1, Math.round(performance.now() - searchStartedAt))
+    searchStartedAt = 0
+  }
+})
 
 function submitSearch(): void {
   const kw = input.value.trim()
@@ -149,5 +168,19 @@ watch(
   flex-direction: column;
   gap: 16px;
   margin-top: 20px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 关键词命中标记：低饱和品牌底，避免刺眼 */
+:deep(mark) {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
 }
 </style>

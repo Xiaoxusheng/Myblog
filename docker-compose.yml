@@ -37,8 +37,9 @@ services:
     volumes:
       - upload-data:/app/uploads
       - server-data:/app/data
-    ports:
-      - "8080:8080"
+    # 安全：API 不映射到宿主机端口，仅 docker 内网可达（nginx 反代访问）
+    expose:
+      - "8080"
     depends_on:
       mysql:
         # required:false：模式 B（无 bundled mysql）时跳过该依赖
@@ -50,9 +51,12 @@ services:
     build:
       context: .
       dockerfile: deploy/Dockerfile
+    # 安全：默认仅绑定宿主机回环地址（本机/SSH 隧道可访问，外网不可达）。
+    # 需要局域网访问时在 .env 设置 BLOG_BIND=<内网IP，如 192.168.1.10>；
+    # 切勿设为 0.0.0.0（等于向公网开放）。
     ports:
-      - "80:80" # 前台
-      - "8081:8081" # 管理端
+      - "${BLOG_BIND:-127.0.0.1}:80:80" # 前台
+      - "${BLOG_BIND:-127.0.0.1}:8081:8081" # 管理端
     depends_on:
       - server
     restart: unless-stopped

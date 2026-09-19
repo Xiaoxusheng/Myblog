@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
 .backtop:hover {
   color: var(--brand);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .backtop:active {

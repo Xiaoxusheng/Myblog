@@ -1,4 +1,41 @@
-/* 全局基础样式：尽量少，布局交给 Ant Design 组件 */
+/* ==========================================================================
+   MyBlog Admin Design Tokens（--admin-*）
+   风格基调：Linear/Vercel 式克制后台 —— 亮色、低阴影、小圆角、层级靠背景/边框
+   间距只用 8 / 12 / 16 / 20 / 24；圆角 6 / 8；阴影两档低强度
+   ========================================================================== */
+
+:root {
+  /* 色彩：中性层 */
+  --admin-bg: #f5f6f8;            /* 页面底色 */
+  --admin-surface: #ffffff;       /* 卡片/面板 */
+  --admin-surface-2: #f8f9fb;     /* 次级表面（缩略图底、状态栏等内嵌区域） */
+  --admin-border: #e6e8eb;        /* 分隔线/卡片描边 */
+  --admin-text: rgba(0, 0, 0, 0.88);
+  --admin-muted: rgba(0, 0, 0, 0.45);
+
+  /* 色彩：品牌（沿用 AntD 蓝体系） */
+  --admin-brand: #1677ff;
+  --admin-brand-hover: #4096ff;
+  --admin-brand-bg: #e6f4ff;
+
+  /* 色彩：语义 */
+  --admin-warning: #fa8c16;
+  --admin-warning-text: #d46b08;
+  --admin-warning-bg: #fff7e6;
+  --admin-danger: #ff4d4f;
+  --admin-success: #52c41a;
+
+  /* 深色导航 */
+  --admin-sidebar: #001529;
+
+  /* 圆角 */
+  --admin-radius-sm: 6px;
+  --admin-radius-md: 8px;
+
+  /* 阴影：仅两档低强度 */
+  --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --admin-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
 
 html,
 body,
@@ -8,8 +45,28 @@ body,
 
 body {
   margin: 0;
-  background-color: #f0f2f5;
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
   -webkit-font-smoothing: antialiased;
+}
+
+/* 数字型数据对齐 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   卡片层次：内容区卡片 = 白底 + 细描边 + 极轻投影，与 #f5f6f8 页面底形成层次
+   -------------------------------------------------------------------------- */
+.admin-content .ant-card {
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+/* 区块标题小而精（14px / 600） */
+.ant-card .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* 标准页面容器 */
@@ -60,13 +117,26 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: #f0f2f5;
+  background: var(--admin-bg);
+}
+
+.login-page .ant-card {
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-md);
 }
 
 /* 表格单元格内的辅助文字 */
 .cell-secondary {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--admin-muted);
+}
+
+/* 两行截断 */
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {

@@ -34,10 +34,16 @@ html.dark {
 
 /* ---------- 排版 ---------- */
 .markdown-body {
-  font-size: 15.5px;
-  line-height: 1.85;
+  font-size: 16.5px;
+  line-height: 1.9;
   color: var(--text-1);
   overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .markdown-body {
+    font-size: 15.5px;
+  }
 }
 
 /* 首尾元素不留额外空隙，避免与卡片 padding 叠加 */
@@ -140,9 +146,21 @@ html.dark {
   position: relative;
 }
 
+.markdown-body .code-lang {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  user-select: none;
+  pointer-events: none;
+}
+
 .markdown-body .code-copy {
   position: absolute;
-  top: 8px;
+  top: 6px;
   right: 8px;
   z-index: 1;
   padding: 3px 10px;

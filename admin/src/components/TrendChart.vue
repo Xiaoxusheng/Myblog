@@ -16,7 +16,7 @@ let chart: echarts.ECharts | null = null
 function render() {
   if (!chart) return
   chart.setOption({
-    color: ['#1677ff', '#52c41a'],
+    color: ['#4096ff', '#a6adb8'],
     tooltip: {
       trigger: 'axis',
     },
@@ -24,6 +24,10 @@ function render() {
       data: ['发布文章', '新增评论'],
       top: 0,
       right: 8,
+      icon: 'roundRect',
+      itemWidth: 8,
+      itemHeight: 8,
+      textStyle: { color: 'rgba(0,0,0,0.65)', fontSize: 12 },
     },
     grid: {
       left: 16,
@@ -35,25 +39,34 @@ function render() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
+      axisLine: { lineStyle: { color: '#e6e8eb' } },
+      axisTick: { show: false },
+      axisLabel: { color: 'rgba(0,0,0,0.45)' },
       data: props.data.map((point) => point.date.slice(5)),
     },
     yAxis: {
       type: 'value',
       minInterval: 1,
+      axisLabel: { color: 'rgba(0,0,0,0.45)' },
+      splitLine: { lineStyle: { color: '#f0f1f3' } },
     },
     series: [
       {
         name: '发布文章',
         type: 'line',
         smooth: true,
-        areaStyle: { opacity: 0.08 },
+        showSymbol: false,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.06 },
         data: props.data.map((point) => point.posts),
       },
       {
         name: '新增评论',
         type: 'line',
         smooth: true,
-        areaStyle: { opacity: 0.08 },
+        showSymbol: false,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.06 },
         data: props.data.map((point) => point.comments),
       },
     ],

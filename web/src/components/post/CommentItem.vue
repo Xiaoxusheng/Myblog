@@ -174,14 +174,19 @@ const displayWebsite = computed(() =>
   color: var(--brand);
 }
 
-/* 二级回复 */
+/* 二级回复：缩进 + 左侧细线表达层级，不做卡片套卡片 */
 .comment-children {
   list-style: none;
-  margin: 10px 0 0;
-  padding: 0 0 0 50px;
+  margin: 12px 0 0;
+  padding: 2px 0 2px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
+  border-left: 2px solid var(--border);
+}
+
+.comment-children .comment-item + .comment-item {
+  border-top: 1px solid var(--border);
 }
 
 .comment-children .avatar {
@@ -191,14 +196,15 @@ const displayWebsite = computed(() =>
 }
 
 .comment-children .comment-main {
-  padding: 12px 14px;
-  background: var(--bg);
-  border-color: var(--border);
+  padding: 12px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 @media (max-width: 640px) {
   .comment-children {
-    padding-left: 20px;
+    padding-left: 12px;
   }
 }
 </style>

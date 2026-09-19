@@ -88,6 +88,49 @@ md.renderer.rules.heading_open = (tokens, idx) => {
   return md.renderer.renderToken(tokens, idx, md.options)
 }
 
+// fence 覆写：代码块包一层带语言标签的 .code-block（语言名取自 info 串，未知语言原样显示）
+const LANG_LABEL: Record<string, string> = {
+  go: 'Go',
+  js: 'JavaScript',
+  javascript: 'JavaScript',
+  ts: 'TypeScript',
+  typescript: 'TypeScript',
+  vue: 'Vue',
+  html: 'HTML',
+  xml: 'XML',
+  css: 'CSS',
+  scss: 'SCSS',
+  json: 'JSON',
+  yaml: 'YAML',
+  yml: 'YAML',
+  toml: 'TOML',
+  bash: 'Shell',
+  sh: 'Shell',
+  shell: 'Shell',
+  sql: 'SQL',
+  python: 'Python',
+  py: 'Python',
+  java: 'Java',
+  c: 'C',
+  cpp: 'C++',
+  rust: 'Rust',
+  dockerfile: 'Dockerfile',
+  diff: 'Diff',
+  markdown: 'Markdown'
+}
+
+md.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx]
+  const info = (token.info || '').trim().split(/\s+/)[0].toLowerCase()
+  const label = LANG_LABEL[info] ?? (info || '')
+  const langLabel = label ? `<span class="code-lang">${md.utils.escapeHtml(label)}</span>` : ''
+  // highlight 选项已在 md.options.highlight 中处理高亮
+  const highlighted = md.options.highlight?.(token.content, token.info, '') ?? ''
+  const cls = info ? ` class="language-${md.utils.escapeHtml(info)}"` : ''
+  return `<div class="code-block">${langLabel}<button class="code-copy" type="button">复制</button><pre><code${cls}>${highlighted}</code></pre></div>
+`
+}
+
 // 代码高亮：命中已注册语言时返回标记片段，由 fence 规则包裹 <pre><code class="language-xx">
 md.options.highlight = (code, lang) => {
   if (lang && hljs.getLanguage(lang)) {
@@ -112,8 +155,5 @@ export function renderMarkdown(source: string): RenderedMarkdown {
   // 外链新窗口;图片懒加载（渲染后的确定性字符串处理）
   html = html.replace(/<a\s+href=/g, '<a target="_blank" rel="noopener noreferrer" href=')
   html = html.replace(/<img\s/g, '<img loading="lazy" ')
-  // 代码块包一层，便于放复制按钮（点击行为在 useMarkdownActions 里委托处理）
-  html = html.replace(/<pre>/g, '<div class="code-block"><button class="code-copy" type="button">复制</button><pre>')
-  html = html.replace(/<\/pre>/g, '</pre></div>')
   return { html, toc: tocResult }
 }

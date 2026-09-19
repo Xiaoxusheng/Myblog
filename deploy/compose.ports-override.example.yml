@@ -1,16 +1,16 @@
-# 端口冲突覆盖示例
-# 场景：宿主机 80 / 8080 端口已被其他服务占用时（如已有站点、已有 API 服务），
-# 把本文件复制到项目根目录并命名为 docker-compose.override.yml，
-# compose 会自动合并加载，无需改动 docker-compose.yml。
+# 端口/绑定地址覆盖示例
+# 把本文件复制到项目根目录并命名为 docker-compose.override.yml，compose 会自动合并加载：
 #
 #   cp deploy/compose.ports-override.example.yml docker-compose.override.yml
 #
-# 效果：博客 API(8080) 不再对宿主机暴露（仅由 nginx 容器在内部网络反代访问），
-#       前台与管理端改用下面自定义端口，按需修改左侧宿主端口即可。
+# 说明：
+# - 主 compose 中 server(API 8080) 已不再映射宿主机端口，仅 docker 内网由 nginx 反代访问，无需覆盖；
+# - nginx 宿主端口的绑定地址由 .env 的 BLOG_BIND 控制（默认 127.0.0.1 仅本机可访问）；
+#   局域网访问：.env 设置 BLOG_BIND=<内网IP，如 192.168.1.10>
+#   （切勿设 0.0.0.0 —— 等于向公网开放，Docker 发布端口不经过 firewalld/ufw 的 INPUT 规则）
+# - 宿主机 80/8081 端口被其他服务占用时，用本文件改左侧宿主端口（示例 8091/8092）：
 services:
-  server:
-    ports: !reset [] # 清空 compose 主文件中 server 的端口映射（需 Compose v2.24+）
   nginx:
     ports: !override
-      - "8091:80" # 前台
-      - "8092:8081" # 管理端
+      - "${BLOG_BIND:-127.0.0.1}:8091:80" # 前台
+      - "${BLOG_BIND:-127.0.0.1}:8092:8081" # 管理端

@@ -44,6 +44,12 @@
             <span>阅读 {{ formatNumber(post.viewCount) }}</span>
             <span class="dot">·</span>
             <span>约 {{ readingMinutes }} 分钟</span>
+            <button v-if="toc.length" class="toc-toggle" type="button" @click="tocOpen = true">
+              目录
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -85,19 +91,19 @@
 
         <nav v-if="prev || next" v-reveal class="post-nav" aria-label="上下篇">
           <RouterLink v-if="prev" :to="`/post/${prev.slug}`" class="nav-card card">
-            <span class="nav-label">上一篇</span>
+            <span class="nav-label"><span class="nav-arrow">←</span>上一篇</span>
             <span class="nav-title">{{ prev.title }}</span>
           </RouterLink>
           <span v-else class="nav-card card placeholder">
-            <span class="nav-label">上一篇</span>
+            <span class="nav-label"><span class="nav-arrow">←</span>上一篇</span>
             <span class="nav-title">没有更多了</span>
           </span>
           <RouterLink v-if="next" :to="`/post/${next.slug}`" class="nav-card card next">
-            <span class="nav-label">下一篇</span>
+            <span class="nav-label">下一篇<span class="nav-arrow">→</span></span>
             <span class="nav-title">{{ next.title }}</span>
           </RouterLink>
           <span v-else class="nav-card card placeholder">
-            <span class="nav-label">下一篇</span>
+            <span class="nav-label">下一篇<span class="nav-arrow">→</span></span>
             <span class="nav-title">没有更多了</span>
           </span>
         </nav>
@@ -129,6 +135,29 @@
     </aside>
 
     <Lightbox :src="preview?.src ?? ''" :alt="preview?.alt" @close="closePreview" />
+
+    <!-- 移动端目录抽屉 -->
+    <Teleport to="body">
+      <Transition name="toc-drawer">
+        <div v-if="tocOpen" class="toc-mask" @click="tocOpen = false">
+          <nav class="toc-panel" role="dialog" aria-modal="true" aria-label="文章目录" @click.stop>
+            <p class="toc-panel-title">目录</p>
+            <ul class="toc-panel-list">
+              <li v-for="item in toc" :key="item.id">
+                <a
+                  :href="`#${item.id}`"
+                  class="toc-panel-link"
+                  :class="[`level-${item.level}`, { active: activeTocId === item.id }]"
+                  @click.prevent="goToTocItem(item.id)"
+                >
+                  {{ item.text }}
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -171,6 +200,8 @@ const error = ref('')
 const notFound = ref(false)
 const liked = ref(false)
 const likeCount = ref(0)
+const tocOpen = ref(false)
+const activeTocId = ref('')
 const bursting = ref(false)
 let burstTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -214,6 +245,13 @@ async function load(): Promise<void> {
       description: data.post.summary,
       keywords: data.post.tags.map((t) => t.name).join(','),
       ogType: 'article',
+      article: {
+        headline: data.post.title,
+        publishedAt: data.post.publishedAt || data.post.createdAt,
+        modifiedAt: data.post.updatedAt,
+        author: site.settings.siteName,
+        cover: data.post.cover,
+      },
     })
   } catch (e) {
     if (e instanceof ApiError && e.code === 10004) {
@@ -265,7 +303,37 @@ onBeforeUnmount(() => {
   if (burstTimer) clearTimeout(burstTimer)
 })
 
-watch(slug, () => void load(), { immediate: true })
+/** 移动端目录抽屉内点击：关闭后平滑滚动到对应小节 */
+function goToTocItem(id: string): void {
+  tocOpen.value = false
+  activeTocId.value = id
+  window.setTimeout(() => {
+    const el = document.getElementById(id)
+    if (!el) return
+    const top = el.getBoundingClientRect().top + window.scrollY - 76
+    window.scrollTo({ top, behavior: 'smooth' })
+  }, 220)
+}
+
+// Esc 关闭目录抽屉；路由切换时一并关闭
+function onDrawerKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') tocOpen.value = false
+}
+
+onMounted(() => window.addEventListener('keydown', onDrawerKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onDrawerKeydown)
+  document.body.style.overflow = ''
+})
+
+watch(tocOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+watch(slug, () => {
+  tocOpen.value = false
+  void load()
+}, { immediate: true })
 </script>
 
 <style scoped>
@@ -316,9 +384,9 @@ watch(slug, () => void load(), { immediate: true })
 }
 
 .post-title {
-  font-size: 27px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: clamp(28px, 4.2vw, 40px);
+  font-weight: 650;
+  line-height: 1.35;
   letter-spacing: 0.2px;
 }
 
@@ -351,6 +419,32 @@ watch(slug, () => void load(), { immediate: true })
   object-fit: cover;
   opacity: 0;
   transition: opacity 0.5s ease-out;
+}
+
+/* 正文阅读列宽：不占满整屏，保证行长舒适 */
+.post-content .markdown-body {
+  max-width: var(--reading-width);
+}
+
+/* 移动端目录按钮（桌面隐藏，桌面用右侧吸附 TOC） */
+.toc-toggle {
+  display: none;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.7;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.toc-toggle:hover {
+  color: var(--brand);
+  border-color: var(--brand);
 }
 
 .post-cover img.loaded {
@@ -495,6 +589,20 @@ watch(slug, () => void load(), { immediate: true })
   color: var(--text-3);
 }
 
+.nav-arrow {
+  display: inline-block;
+  margin: 0 4px;
+  transition: transform var(--transition);
+}
+
+a.nav-card:hover .nav-arrow {
+  transform: translateX(-2px);
+}
+
+a.nav-card.next:hover .nav-arrow {
+  transform: translateX(2px);
+}
+
 .nav-title {
   font-size: 14.5px;
   font-weight: 500;
@@ -572,6 +680,90 @@ a.nav-card.next:hover .nav-title {
   margin-top: 8px;
   font-size: 12px;
   color: var(--text-3);
+}
+
+@media (max-width: 1199px) {
+  .toc-toggle {
+    display: inline-flex;
+  }
+}
+
+/* 移动端目录抽屉 */
+.toc-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.toc-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 68vh;
+  overflow-y: auto;
+  padding: 18px 20px 26px;
+  border-radius: 16px 16px 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.toc-panel-title {
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+}
+
+.toc-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc-panel-link {
+  display: block;
+  padding: 9px 4px;
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.toc-panel-link.level-3 {
+  padding-left: 20px;
+}
+
+.toc-panel-link.level-4 {
+  padding-left: 36px;
+}
+
+.toc-panel-link:hover,
+.toc-panel-link.active {
+  color: var(--brand);
+}
+
+.toc-drawer-enter-active,
+.toc-drawer-leave-active {
+  transition: opacity 0.2s ease-out;
+}
+
+.toc-drawer-enter-active .toc-panel,
+.toc-drawer-leave-active .toc-panel {
+  transition: transform 0.22s var(--ease-out-quart);
+}
+
+.toc-drawer-enter-from,
+.toc-drawer-leave-to {
+  opacity: 0;
+}
+
+.toc-drawer-enter-from .toc-panel,
+.toc-drawer-leave-to .toc-panel {
+  transform: translateY(40%);
 }
 
 @media (max-width: 640px) {

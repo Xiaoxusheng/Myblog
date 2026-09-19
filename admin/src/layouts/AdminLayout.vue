@@ -39,16 +39,45 @@ interface MenuItem {
   icon: typeof DashboardOutlined
 }
 
-const menuItems: MenuItem[] = [
-  { key: '/dashboard', title: '仪表盘', icon: DashboardOutlined },
-  { key: '/posts', title: '文章管理', icon: FileTextOutlined },
-  { key: '/comments', title: '评论管理', icon: CommentOutlined },
-  { key: '/categories', title: '分类管理', icon: AppstoreOutlined },
-  { key: '/tags', title: '标签管理', icon: TagsOutlined },
-  { key: '/pages', title: '页面管理', icon: ProfileOutlined },
-  { key: '/links', title: '友链管理', icon: LinkOutlined },
-  { key: '/media', title: '媒体库', icon: PictureOutlined },
-  { key: '/settings', title: '系统设置', icon: SettingOutlined },
+interface MenuGroup {
+  key: string
+  label: string
+  items: MenuItem[]
+}
+
+/** 侧边栏视觉分组：内容 / 互动 / 资源 / 系统 */
+const menuGroups: MenuGroup[] = [
+  {
+    key: 'content',
+    label: '内容',
+    items: [
+      { key: '/dashboard', title: '仪表盘', icon: DashboardOutlined },
+      { key: '/posts', title: '文章管理', icon: FileTextOutlined },
+      { key: '/pages', title: '页面管理', icon: ProfileOutlined },
+    ],
+  },
+  {
+    key: 'interact',
+    label: '互动',
+    items: [
+      { key: '/comments', title: '评论管理', icon: CommentOutlined },
+      { key: '/links', title: '友链管理', icon: LinkOutlined },
+    ],
+  },
+  {
+    key: 'resource',
+    label: '资源',
+    items: [
+      { key: '/categories', title: '分类管理', icon: AppstoreOutlined },
+      { key: '/tags', title: '标签管理', icon: TagsOutlined },
+      { key: '/media', title: '媒体库', icon: PictureOutlined },
+    ],
+  },
+  {
+    key: 'system',
+    label: '系统',
+    items: [{ key: '/settings', title: '系统设置', icon: SettingOutlined }],
+  },
 ]
 
 const activeKey = computed(() => (route.meta.activeMenu as string) || route.path)
@@ -123,16 +152,19 @@ onBeforeUnmount(() => {
       breakpoint="lg"
       :width="208"
       theme="dark"
+      class="admin-sider"
     >
       <div class="sider-logo">
         <span v-if="!collapsed">MyBlog 管理后台</span>
         <span v-else>MB</span>
       </div>
       <a-menu theme="dark" mode="inline" :selected-keys="[activeKey]">
-        <a-menu-item v-for="item in menuItems" :key="item.key" @click="onMenuClick(item)">
-          <component :is="item.icon" />
-          <span>{{ item.title }}</span>
-        </a-menu-item>
+        <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
+          <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
+            <component :is="item.icon" />
+            <span>{{ item.title }}</span>
+          </a-menu-item>
+        </a-menu-item-group>
       </a-menu>
     </a-layout-sider>
 
@@ -155,10 +187,12 @@ onBeforeUnmount(() => {
         :selected-keys="[activeKey]"
         style="border-inline-end: 0"
       >
-        <a-menu-item v-for="item in menuItems" :key="item.key" @click="onMenuClick(item)">
-          <component :is="item.icon" />
-          <span>{{ item.title }}</span>
-        </a-menu-item>
+        <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
+          <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
+            <component :is="item.icon" />
+            <span>{{ item.title }}</span>
+          </a-menu-item>
+        </a-menu-item-group>
       </a-menu>
     </a-drawer>
 
@@ -213,6 +247,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .admin-layout {
   min-height: 100%;
+  background: var(--admin-bg);
+}
+
+/* 内层 a-layout 的 colorBgLayout 对齐页面底色 token */
+.admin-layout :deep(.ant-layout) {
+  background: var(--admin-bg);
 }
 
 .sider-logo {
@@ -229,10 +269,14 @@ onBeforeUnmount(() => {
 }
 
 .admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   height: 56px;
   line-height: normal;
   padding: 0 24px;
-  background: #fff;
+  background: var(--admin-surface);
+  border-bottom: 1px solid var(--admin-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -250,7 +294,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--admin-radius-sm);
 }
 
 .admin-header__user:hover {
@@ -258,7 +302,7 @@ onBeforeUnmount(() => {
 }
 
 .admin-header__username {
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--admin-text);
 }
 
 .admin-content {
@@ -289,7 +333,7 @@ onBeforeUnmount(() => {
 /* 抽屉传送到 body，需全局样式：深色底 + 菜单贴合边缘 */
 .admin-drawer .ant-drawer-body {
   padding: 0;
-  background: #001529;
+  background: var(--admin-sidebar);
 }
 
 .admin-drawer .drawer-logo {
@@ -302,5 +346,20 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 1px;
   white-space: nowrap;
+}
+
+/* 菜单分组标题：小号灰字，组间不加大留白 */
+.admin-sider .ant-menu-item-group-title,
+.admin-drawer .ant-menu-item-group-title {
+  padding: 10px 16px 4px;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* 折叠态隐藏分组标题，仅保留图标项 */
+.admin-sider .ant-menu-inline-collapsed .ant-menu-item-group-title {
+  display: none;
 }
 </style>
