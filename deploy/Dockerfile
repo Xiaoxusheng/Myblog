@@ -18,7 +18,9 @@ COPY admin/ .
 RUN npm run build
 
 # ---------- nginx 运行层 ----------
-FROM nginx:alpine
+# 钉住 1.25：nginx:alpine 会拉到最新 mainline，其 pid 写入方式在 CentOS 7 老内核(3.10)上
+# 会报 pwrite() "/run/nginx.pid" Operation not permitted
+FROM nginx:1.25-alpine
 
 COPY --from=web-builder /src/web/dist /usr/share/nginx/html/web
 COPY --from=admin-builder /src/admin/dist /usr/share/nginx/html/admin
