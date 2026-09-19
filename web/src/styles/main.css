@@ -255,9 +255,11 @@ html.dark ::selection {
 }
 
 .page-heading {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.35;
+  /* 列表页大标题：衬线 display 层（docs/05 §3.2） */
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(26px, 3.5vw, 30px);
+  line-height: 1.3;
 }
 
 .page-sub {

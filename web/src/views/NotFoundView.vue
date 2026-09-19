@@ -21,14 +21,20 @@
 }
 
 .code {
-  font-family: var(--font-mono);
-  font-size: 84px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(72px, 12vw, 96px);
   line-height: 1;
-  letter-spacing: 4px;
+  letter-spacing: -0.01em;
   color: var(--border-strong);
   font-variant-numeric: tabular-nums;
   user-select: none;
+}
+
+/* 与 Hero 同签名：尾部 accent 句点 */
+.code::after {
+  content: '.';
+  color: var(--brand);
 }
 
 .title {
