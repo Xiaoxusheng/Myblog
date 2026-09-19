@@ -99,12 +99,25 @@ html.dark {
   text-decoration: underline;
 }
 
-/* 编辑部式引用：竖线 + 弱化文字，无底色 */
+/* 编辑部式引用：衬线弱化文字 + 竖线，无底色 */
 .markdown-body blockquote {
-  margin: 1.4em 0;
+  margin: 1.5em 0;
   padding: 0.15em 0 0.15em 1.2em;
   border-left: 2px solid var(--border-strong);
   color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.8;
+}
+
+html.dark .markdown-body blockquote {
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .markdown-body blockquote {
+    font-size: 16px;
+  }
 }
 
 .markdown-body blockquote p:last-child {
@@ -121,10 +134,22 @@ html.dark {
   margin: 0.3em 0;
 }
 
+/* 分隔线：居中短横，编辑刊物式节奏 */
 .markdown-body hr {
-  margin: 2.2em 0;
+  margin: 2.4em auto;
+  width: 64px;
   border: none;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-strong);
+}
+
+/* 图注：mono 小字居中（markdown-it 渲染 figure/figcaption 时生效） */
+.markdown-body figcaption {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+  text-align: center;
 }
 
 .markdown-body img {

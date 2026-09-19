@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="一个安静的个人博客" />
     <title>MyBlog</title>
+    <!-- 衬线 display 字体：镜像源 + swap，加载失败时回落系统宋体（docs/05 §3.1） -->
+    <link rel="preconnect" href="https://fonts.loli.net" />
+    <link rel="preconnect" href="https://gstatic.loli.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@200..900&display=swap"
+    />
     <script>
       // 首帧前同步主题,避免暗色模式闪烁(与 stores/theme.ts 的 key 保持一致)
       ;(function () {

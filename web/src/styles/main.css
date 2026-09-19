@@ -8,6 +8,10 @@
     'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Consolas,
     'Liberation Mono', Menlo, monospace;
+  /* 衬线 display 层：仅用于大字号标题（docs/05 §3），正文/列表保持 sans */
+  --font-display: Georgia, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC',
+    'Songti SC', SimSun, serif;
+  --display-weight: 620;
 
   /* 中性层（纸感暖灰） */
   --bg: #f9f9f8;
@@ -55,7 +59,7 @@
   --fs-lg: 17px;
   --fs-xl: 20px;
   --fs-2xl: 26px;
-  --fs-display: clamp(32px, 5vw, 44px);
+  --fs-display: clamp(36px, 5vw, 52px);
 
   /* 动效：hover 快、进出场稳 */
   --transition: 0.16s ease-out;
@@ -64,6 +68,8 @@
 }
 
 html.dark {
+  /* 宋体暗色下加粗易糊，weight 降一档 */
+  --display-weight: 600;
   --bg: #121211;
   --surface: #1a1a18;
   --surface-2: #232320;
@@ -111,12 +117,47 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* 纸面颗粒：全屏固定纹理层，消除大面积纯色的塑料感（docs/05 §4） */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html.dark body::after {
+  opacity: 0.03;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  body::after {
+    display: none;
+  }
+}
+
 h1,
 h2,
 h3,
 h4,
 p {
   margin: 0;
+}
+
+/* 标题断行平衡、正文断行避孤字（渐进增强，不支持时无副作用） */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 a {
