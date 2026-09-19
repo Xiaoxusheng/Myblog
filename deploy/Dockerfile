@@ -5,7 +5,7 @@
 FROM node:20-alpine AS web-builder
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json* ./
-RUN npm install --registry=https://registry.npmmirror.com
+RUN npm ci --registry=https://registry.npmmirror.com
 COPY web/ .
 RUN npm run build
 
@@ -13,7 +13,7 @@ RUN npm run build
 FROM node:20-alpine AS admin-builder
 WORKDIR /src/admin
 COPY admin/package.json admin/package-lock.json* ./
-RUN npm install --registry=https://registry.npmmirror.com
+RUN npm ci --registry=https://registry.npmmirror.com
 COPY admin/ .
 RUN npm run build
 
