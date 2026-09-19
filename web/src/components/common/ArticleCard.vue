@@ -145,11 +145,16 @@ onMounted(() => {
   color: var(--text-3);
 }
 
-/* 日期走 mono + 等宽数字，编辑感 */
+/* 日期走 mono + 等宽数字，编辑感；行 hover 时与归档时间轴同语言变 accent（docs/07 §6.4） */
 .meta-date {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
+  transition: color var(--transition);
+}
+
+.post-row:hover .meta-date {
+  color: var(--brand);
 }
 
 .meta-cat {

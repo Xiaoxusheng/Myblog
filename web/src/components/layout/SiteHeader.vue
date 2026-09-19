@@ -195,7 +195,8 @@ onBeforeUnmount(() => {
   margin-left: 6px;
 }
 
-/* 编辑部式导航：hover 与 active 只动文字与下划线，不做底色胶囊 */
+/* 编辑部式导航：hover 与 active 只动文字与下划线，不做底色胶囊。
+   hover 是墨色下划线，active 才是 accent——弱化引导、强化当前位置（docs/07 §6.3） */
 .nav-link {
   position: relative;
   padding: 6px 10px;
@@ -204,8 +205,29 @@ onBeforeUnmount(() => {
   transition: color var(--transition);
 }
 
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-strong);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transform-origin: center;
+  transition: opacity var(--transition), transform var(--transition),
+    background var(--transition);
+}
+
 .nav-link:hover {
   color: var(--text-1);
+}
+
+.nav-link:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .nav-link.active {
@@ -214,13 +236,8 @@ onBeforeUnmount(() => {
 }
 
 .nav-link.active::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: -2px;
-  height: 2px;
-  border-radius: 1px;
+  opacity: 1;
+  transform: none;
   background: var(--brand);
 }
 
@@ -245,12 +262,16 @@ onBeforeUnmount(() => {
   color: var(--text-3);
   font-size: 13.5px;
   transition: border-color var(--transition), background var(--transition),
-    color var(--transition);
+    color var(--transition), transform var(--transition);
 }
 
 .search-trigger:hover {
   background: var(--border);
   color: var(--text-2);
+}
+
+.search-trigger:active {
+  transform: scale(0.96);
 }
 
 .st-text {

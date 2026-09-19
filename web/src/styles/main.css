@@ -196,6 +196,13 @@ ol {
   border-radius: 4px;
 }
 
+/* 主题切换圆形扩散：关掉默认交叉淡入，由 ThemeToggle 驱动 clip-path 动画（docs/07 §6.1） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 ::selection {
   background: var(--brand-soft);
   color: var(--brand-hover);
@@ -320,7 +327,7 @@ html.dark ::selection {
   font-size: 14px;
   line-height: 1;
   transition: background var(--transition), border-color var(--transition),
-    color var(--transition);
+    color var(--transition), transform var(--transition);
 }
 
 .btn:hover {
@@ -330,6 +337,12 @@ html.dark ::selection {
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* 按压反馈：按下去有物理感，松开即回（docs/07 §6.2） */
+.btn:active:not(:disabled),
+.icon-btn:active {
+  transform: scale(0.96);
 }
 
 .btn-primary {
@@ -367,7 +380,7 @@ html.dark ::selection {
   background: transparent;
   color: var(--text-2);
   transition: background var(--transition), color var(--transition),
-    border-color var(--transition);
+    border-color var(--transition), transform var(--transition);
 }
 
 .icon-btn:hover {

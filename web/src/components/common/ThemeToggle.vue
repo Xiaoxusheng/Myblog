@@ -1,5 +1,5 @@
 <template>
-  <button class="icon-btn" :title="title" :aria-label="title" @click="theme.cycle()">
+  <button class="icon-btn" :title="title" :aria-label="title" @click="onToggle">
     <Transition name="theme-icon" mode="out-in">
       <!-- 浅色：太阳 -->
       <svg
@@ -65,6 +65,47 @@ const title = computed(() => {
     theme.mode === 'auto' ? '跟随系统' : theme.mode === 'light' ? '浅色模式' : '深色模式'
     return `当前：${name}，点击切换`
   })
+
+/** 主题切换圆形扩散：View Transitions API 渐进增强（docs/07 §6.1）。
+ *  不支持或用户偏好减少动效时直接切换，行为与原来一致；圆心取按钮几何中心，
+ *  键盘 Enter 激活同样有正确圆心。 */
+function onToggle(e: MouseEvent): void {
+  const doc = document as Document & {
+    startViewTransition?: (cb: () => void) => { ready: Promise<void> }
+  }
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (typeof doc.startViewTransition !== 'function' || reduce) {
+    theme.cycle()
+    return
+  }
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const x = rect.left + rect.width / 2
+  const y = rect.top + rect.height / 2
+  const radius = Math.hypot(
+    Math.max(x, window.innerWidth - x),
+    Math.max(y, window.innerHeight - y)
+  )
+  const transition = doc.startViewTransition(() => theme.cycle())
+  void transition.ready
+    .then(() => {
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${radius}px at ${x}px ${y}px)`
+          ]
+        },
+        {
+          duration: 450,
+          easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+          pseudoElement: '::view-transition-new(root)'
+        }
+      )
+    })
+    .catch(() => {
+      /* ready 被跳过（上一次过渡未完成）时静默 */
+    })
+}
 </script>
 
 <style scoped>
