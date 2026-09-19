@@ -26,14 +26,20 @@ var (
 	loginFailures = make(map[string]*loginState)
 )
 
-// LoginRateLimit 登录限流中间件：锁定期内直接 20003，请求不进入 handler
+// LoginRateLimit 登录限流中间件：锁定期内直接 20003，请求不进入 handler。
+// 锁定期内仍持续尝试视为恶意爆破，向防护 Guard 计点，累积达阈值自动封禁该 IP。
 func LoginRateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ip := c.ClientIP()
 		loginMu.Lock()
-		st, ok := loginFailures[c.ClientIP()]
+		st, ok := loginFailures[ip]
 		blocked := ok && st.failures >= loginMaxFailures && time.Since(st.lastFail) < loginLockWindow
 		loginMu.Unlock()
 		if blocked {
+			if guard != nil {
+				guard.addEvent(ip, eventLoginBlock, "登录锁定期间继续尝试")
+				guard.addStrike(ip, "登录锁定期间持续尝试登录")
+			}
 			common.Fail(c, common.CodeTooFrequent, "登录失败次数过多，请稍后再试")
 			c.Abort()
 			return

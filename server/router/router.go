@@ -16,7 +16,10 @@ func Setup(cfg *config.Config) *gin.Engine {
 	handler.SetConfig(cfg)
 
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.CORSOrigins), middleware.SecurityHeaders())
+	// 防护 Guard（封禁 → WAF → 限流）放在 CORS/安全头之后：
+	// 被拦截的响应仍带安全头与 CORS 头，浏览器端能看到明确错误。
+	guard := middleware.InitGuard(cfg)
+	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.CORSOrigins), middleware.SecurityHeaders(), guard.Middleware())
 	// ClientIP 仅信任配置的代理（默认回环 + 内网段），
 	// 防止直连公网的请求伪造 X-Forwarded-For 绕过限流、污染评论 IP。
 	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
@@ -159,6 +162,12 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.POST("/uploads", handler.AdminUpload)
 		admin.GET("/uploads", handler.AdminListUploads)
 		admin.DELETE("/uploads/:id", handler.AdminDeleteUpload)
+
+		// 安全防护
+		admin.GET("/security/bans", handler.AdminListBans)
+		admin.POST("/security/bans", handler.AdminCreateBan)
+		admin.DELETE("/security/bans/:ip", handler.AdminDeleteBan)
+		admin.GET("/security/events", handler.AdminDefenseEvents)
 	}
 
 	return r

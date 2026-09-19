@@ -167,6 +167,16 @@ id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100
 | browser / os | string size:32 | UA 粗解析 |
 | created_at | time index | 事件时间（不可变行，无 updated_at） |
 
+## banned_ips（IP 封禁；自动/手动封禁均落库，重启后由防护中间件重新加载）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| ip | string size:64 uniqueIndex | 封禁的 IP（明文：需精确等值匹配，同 comment_blacklist 的 ip 值） |
+| reason | string size:200 | 封禁原因（WAF 特征 / 限流超限 / 管理员备注） |
+| source | string size:16 | auto（自动）/ manual（手动） |
+| created_at | time | |
+| expires_at | time *nullable* | nil = 永久；过期的行在防护加载时顺手清理 |
+
 ## Seed（首次启动写入，幂等）
 
 - 用户：`admin / admin123`（bcrypt）

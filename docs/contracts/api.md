@@ -8,6 +8,7 @@
 - 所有业务响应 HTTP 200，body：`{"code":0,"message":"ok","data":...}`
 - HTTP 401：未登录 / token 失效（前端统一跳登录）；HTTP 500：服务器错误
 - 错误码：`0` 成功；`10001` 参数错误；`10002` 未认证；`10003` 无权限；`10004` 资源不存在；`20001` 用户名或密码错误；`20002` 评论已关闭；`20003` 操作过于频繁
+- 防护层（反爬/恶意请求/自动封禁，环境变量 `BLOG_RATE_LIMIT_PER_MIN`/`BLOG_WAF_MODE`/`BLOG_BAN_*`）：命中封禁或 WAF 规则 → HTTP 403 + `{"code":10003,"message":"请求被拒绝"}`；超过全局限流 → HTTP 429 + `{"code":20003,...}` + `Retry-After`。违规按次计点，窗口内达阈值自动封禁（封禁持久化，重启不失效；防护事件仅内存）
 - 分页：query `page`(默认1)、`pageSize`(默认10，上限50)；响应 data：`{"list":[...],"total":123,"page":1,"pageSize":10}`
 - 时间：RFC3339 字符串（如 `2026-09-19T12:00:00+08:00`）
 - 鉴权：请求头 `Authorization: Bearer <token>`，仅 `/admin/*` 需要
@@ -158,6 +159,12 @@
 | 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
 | 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 
+### 安全防护（反爬 / 恶意请求 / IP 封禁）
+| 87 | GET `/admin/security/bans` | 生效中的封禁列表：`{list:[{ip,reason,source,createdAt,expiresAt}]}`；source：`auto`（自动）/`manual`（手动）；expiresAt `null` = 永久 |
+| 88 | POST `/admin/security/bans` | `{ip,durationMinutes?,reason?}` 手动封禁 → `{list}`；ip 必须合法；durationMinutes 缺省/`0`=永久，≤525600；**禁止封禁白名单 IP 与当前登录 IP** → 10001；写审计日志 `security.ban` |
+| 89 | DELETE `/admin/security/bans/:ip` | 解除封禁 → `{list}`；未封禁 → 10004；写审计日志 `security.unban` |
+| 90 | GET `/admin/security/events?limit=` | 最近防护事件（默认 100，≤300，仅进程内存、重启清零）：`{list:[{time,ip,kind,detail}]}`，kind：`waf`/`rate_limit`/`login_block`/`auto_ban`/`manual_ban`/`unban`，新→旧 |
+
 ## 联调冒烟清单（QA 用）
 
 1. `go run .` 启动后 `curl :8080/api/v1/site` → code 0
@@ -171,3 +178,4 @@
 9. 创建重定向 `/post/a → /post/b`（301）→ `/redirects/resolve?path=/post/a` 返回 target；再建 `/post/b → /post/a` → 10001 环检测
 10. 修改文章 slug → 自动出现旧 slug→新 slug 的 301 重定向
 11. 前台页面多次访问（/track 上报）→ `/admin/analytics` PV/UV/热门文章/来源/设备 与实际一致
+12. 防护：`curl -A sqlmap :8080/api/v1/site` → 403；快速请求超过 `BLOG_RATE_LIMIT_PER_MIN` → 429 且计点达阈值自动封禁 → 后续 403；登录拿 token → `POST /admin/security/bans` 手动封禁某 IP → 该 IP 请求 403 → `DELETE` 解封恢复；`GET /admin/security/events` 可见 waf/rate_limit/auto_ban 事件
