@@ -2,16 +2,17 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFeedback } from '@/composables/useFeedback'
-const { message } = useFeedback()
 import { LockOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
+const { message } = useFeedback()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
 const formRef = ref()
 const submitting = ref(false)
+const loginError = ref('')
 
 const formState = reactive({
   username: '',
@@ -25,6 +26,7 @@ const rules = {
 }
 
 async function handleSubmit() {
+  loginError.value = ''
   await formRef.value?.validate()
   submitting.value = true
   try {
@@ -32,8 +34,9 @@ async function handleSubmit() {
     message.success('登录成功')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     await router.replace(redirect)
-  } catch {
-    // 错误提示由 API 拦截器统一 message.error（如 20001 用户名或密码错误）
+  } catch (e) {
+    // 拦截器已 toast;行内 Alert 提供持续可见的错误态(docs/09 §9.1)
+    loginError.value = e instanceof Error && e.message ? e.message : '登录失败，请稍后重试'
   } finally {
     submitting.value = false
   }
@@ -44,9 +47,17 @@ async function handleSubmit() {
   <div class="login-page">
     <a-card class="login-card" :bordered="false">
       <div class="login-card__head">
-        <a-typography-title :level="3" style="margin: 0">MyBlog</a-typography-title>
-        <a-typography-text type="secondary">管理后台</a-typography-text>
+        <p class="login-card__brand">MyBlog</p>
+        <p class="login-card__sub">管理后台</p>
       </div>
+
+      <a-alert
+        v-if="loginError"
+        type="error"
+        :message="loginError"
+        show-icon
+        style="margin-bottom: 16px"
+      />
 
       <a-form
         ref="formRef"
@@ -103,5 +114,19 @@ async function handleSubmit() {
   align-items: center;
   gap: 4px;
   margin-bottom: 24px;
+}
+
+.login-card__brand {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--admin-text);
+}
+
+.login-card__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--admin-muted);
 }
 </style>

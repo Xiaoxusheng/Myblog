@@ -140,6 +140,11 @@ function goProfile() {
   void router.push('/profile')
 }
 
+/** 用户菜单触发器键盘路径:合成 click 交给 Dropdown 的 click 触发器(docs/09 §9.2) */
+function openUserMenu(e: KeyboardEvent) {
+  ;(e.currentTarget as HTMLElement)?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+}
+
 function onChangePassword() {
   // 个人资料页包含修改密码表单
   void router.push({ path: '/profile', query: { focus: 'password' } })
@@ -316,7 +321,10 @@ onBeforeUnmount(() => {
                   class="notif-panel__item"
                   :class="{ 'notif-panel__item--unread': !n.read }"
                   role="button"
+                  tabindex="0"
+                  :aria-label="`打开通知：${n.title}`"
                   @click="onOpenNotification(n)"
+                  @keydown.enter.prevent="onOpenNotification(n)"
                 >
                   <div class="notif-panel__title">
                     <a-badge v-if="!n.read" status="processing" />
@@ -336,7 +344,14 @@ onBeforeUnmount(() => {
         </a-popover>
 
         <a-dropdown>
-          <div class="admin-header__user" role="button" tabindex="0">
+          <div
+            class="admin-header__user"
+            role="button"
+            tabindex="0"
+            aria-label="账号菜单"
+            @keydown.enter.prevent="openUserMenu"
+            @keydown.space.prevent="openUserMenu"
+          >
             <a-avatar :size="28" :src="auth.user?.avatar || undefined">
               <template #icon><UserOutlined /></template>
             </a-avatar>
