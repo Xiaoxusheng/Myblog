@@ -80,7 +80,7 @@
 | 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags、评论与版本历史 |
 | 50 | GET `/admin/posts/:id/revisions?page=&pageSize=` | 分页 PostRevisionItem，version 倒序；仅内容真正变化才产生版本 |
 | 51 | GET `/admin/posts/:id/revisions/:version` | `{revision:PostRevisionDetail}`；版本不存在 → 10004 |
-| 52 | POST `/admin/posts/:id/revisions/:version/restore` | 恢复版本：事务内先将当前内容快照为新版本（remark=恢复前快照，与最新版本相同则跳过），再应用目标版本并生成新版本（remark=恢复自 vN）→ `{post:AdminPostItem}`；任何恢复均可通过恢复「恢复前快照」撤销 |
+| 52 | POST `/admin/posts/:id/revisions/:version/restore` | 恢复版本：事务内先将当前内容快照为新版本（remark=恢复前快照，与最新版本相同则跳过），再应用目标版本并生成新版本（remark=恢复自 vN）→ `{post:AdminPostItem}`；任何恢复均可通过恢复「恢复前快照」撤销。恢复仅应用内容字段（标题/Slug/摘要/封面/正文/分类/置顶），**不改变当前发布状态与 publishAt**；目标 Slug 已被其他文章占用 → 10001 并回滚 |
 
 ### 分类 / 标签
 | 22 | GET `/admin/categories?page=&pageSize=` | 分页，含 postCount |
