@@ -233,7 +233,7 @@ onMounted(() => {
                 {{ record.status === 1 ? '下架' : '发布' }}
               </a-button>
               <a-popconfirm
-                title="删除后该文章的标签关联与评论将一并删除，确定删除吗？"
+                title="删除后不可恢复，该文章的标签关联与评论将一并删除，确定删除吗？"
                 ok-text="删除"
                 cancel-text="取消"
                 @confirm="onDelete(record)"
@@ -250,10 +250,10 @@ onMounted(() => {
 
 <style scoped>
 .post-title {
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--admin-text);
 }
 
 .post-title:hover {
-  color: #1677ff;
+  color: var(--admin-brand);
 }
 </style>

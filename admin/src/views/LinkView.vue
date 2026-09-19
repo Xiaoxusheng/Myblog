@@ -210,7 +210,7 @@ onMounted(load)
           <template v-else-if="column.key === 'action'">
             <a-space :size="0">
               <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-              <a-popconfirm title="确定删除该友链吗？" ok-text="删除" cancel-text="取消" @confirm="onDelete(record)">
+              <a-popconfirm title="删除后不可恢复，确定删除该友链吗？" ok-text="删除" cancel-text="取消" @confirm="onDelete(record)">
                 <a-button type="link" size="small" danger>删除</a-button>
               </a-popconfirm>
             </a-space>

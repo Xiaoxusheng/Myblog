@@ -110,7 +110,7 @@ async function submitModal() {
 
 async function onDelete(record: Category) {
   await deleteCategory(record.id)
-  message.success('删除成功，该分类下的文章将变为未分类')
+  message.success('删除成功')
   if (list.value.length === 1 && page.value > 1) {
     page.value -= 1
   }
@@ -157,7 +157,7 @@ onMounted(load)
             <a-space :size="0">
               <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm
-                title="删除分类后，该分类下的文章将变为未分类，确定删除吗？"
+                title="删除后不可恢复，该分类下的文章将变为未分类，确定删除吗？"
                 ok-text="删除"
                 cancel-text="取消"
                 @confirm="onDelete(record)"

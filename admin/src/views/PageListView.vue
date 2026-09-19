@@ -110,7 +110,7 @@ onMounted(load)
               <a-button type="link" size="small" @click="router.push(`/pages/edit/${record.id}`)">
                 编辑
               </a-button>
-              <a-popconfirm title="确定删除该页面吗？" ok-text="删除" cancel-text="取消" @confirm="onDelete(record)">
+              <a-popconfirm title="删除后不可恢复，确定删除该页面吗？" ok-text="删除" cancel-text="取消" @confirm="onDelete(record)">
                 <a-button type="link" size="small" danger>删除</a-button>
               </a-popconfirm>
             </a-space>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -10,12 +11,25 @@ import type { CommentAdmin, CommentStatus } from '@/types/api'
 
 type TabKey = 'all' | '0' | '1' | '2'
 
-const activeTab = ref<TabKey>('all')
+const route = useRoute()
+const router = useRouter()
+
+// 支持仪表盘快捷入口 /comments?status=0 直达对应 Tab
+const initialTab = (() => {
+  const raw = route.query.status
+  return typeof raw === 'string' && ['0', '1', '2'].includes(raw) ? (raw as TabKey) : ('all' as TabKey)
+})()
+
+const activeTab = ref<TabKey>(initialTab)
 const loading = ref(false)
 const list = ref<CommentAdmin[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
+
+/** 仅看某篇文章的评论（drawer 入口） */
+const postFilter = ref<number | undefined>(undefined)
+const postFilterTitle = ref('')
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -32,7 +46,7 @@ const columns: TableColumnsType = [
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 120, ellipsis: true },
   { title: '状态', key: 'status', width: 90 },
   { title: '时间', key: 'createdAt', width: 140 },
-  { title: '操作', key: 'action', width: 220, fixed: 'right' },
+  { title: '操作', key: 'action', width: 250, fixed: 'right' },
 ]
 
 const pagination = computed<TablePaginationConfig>(() => ({
@@ -49,6 +63,7 @@ async function load() {
   try {
     const result = await getComments({
       status: activeTab.value === 'all' ? undefined : (Number(activeTab.value) as CommentStatus),
+      postId: postFilter.value,
       page: page.value,
       pageSize: pageSize.value,
     })
@@ -59,8 +74,18 @@ async function load() {
   }
 }
 
+function syncQuery() {
+  void router.replace({
+    query: {
+      status: activeTab.value !== 'all' ? activeTab.value : undefined,
+      postId: postFilter.value ? String(postFilter.value) : undefined,
+    },
+  })
+}
+
 function onTabChange() {
   page.value = 1
+  syncQuery()
   void load()
 }
 
@@ -73,7 +98,45 @@ function onTableChange(paginationConfig: TablePaginationConfig) {
 async function setStatus(record: CommentAdmin, status: 1 | 2) {
   await updateCommentStatus(record.id, status)
   message.success(status === 1 ? '已通过' : '已拒绝')
+  record.status = status
+  if (drawerRecord.value?.id === record.id) {
+    drawerRecord.value.status = status
+  }
   await load()
+}
+
+// 评论详情 Drawer（行点击 / 详情）
+const drawerOpen = ref(false)
+const drawerRecord = ref<CommentAdmin | null>(null)
+
+function openDrawer(record: CommentAdmin) {
+  drawerRecord.value = record
+  drawerOpen.value = true
+}
+
+function onRow(record: CommentAdmin) {
+  return { onClick: () => openDrawer(record), style: { cursor: 'pointer' } }
+}
+
+function initial(nickname: string): string {
+  return nickname.trim().charAt(0).toUpperCase()
+}
+
+function viewPostComments(record: CommentAdmin) {
+  postFilter.value = record.postId
+  postFilterTitle.value = record.postTitle
+  page.value = 1
+  drawerOpen.value = false
+  syncQuery()
+  void load()
+}
+
+function clearPostFilter() {
+  postFilter.value = undefined
+  postFilterTitle.value = ''
+  page.value = 1
+  syncQuery()
+  void load()
 }
 
 // 回复
@@ -109,6 +172,9 @@ async function submitReply() {
 async function onDelete(record: CommentAdmin) {
   await deleteComment(record.id)
   message.success('删除成功')
+  if (drawerRecord.value?.id === record.id) {
+    drawerOpen.value = false
+  }
   if (list.value.length === 1 && page.value > 1) {
     page.value -= 1
   }
@@ -127,12 +193,19 @@ onMounted(load)
         <a-tab-pane v-for="tab in tabs" :key="tab.key" :tab="tab.label" />
       </a-tabs>
 
+      <div v-if="postFilter" class="comment-post-filter">
+        <a-tag closable color="blue" @close.prevent="clearPostFilter">
+          仅看《{{ postFilterTitle }}》的评论
+        </a-tag>
+      </div>
+
       <a-table
         :columns="columns"
         :data-source="list"
         :loading="loading"
         :pagination="pagination"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 1280 }"
+        :custom-row="onRow"
         row-key="id"
         @change="onTableChange"
       >
@@ -162,7 +235,9 @@ onMounted(load)
           </template>
 
           <template v-else-if="column.key === 'action'">
-            <a-space :size="0" wrap>
+            <!-- 阻止冒泡：动作点击不应触发行打开详情 -->
+            <a-space :size="0" wrap @click.stop>
+              <a-button type="link" size="small" @click="openDrawer(record)">详情</a-button>
               <a-button v-if="record.status !== 1" type="link" size="small" @click="setStatus(record, 1)">
                 通过
               </a-button>
@@ -175,7 +250,12 @@ onMounted(load)
                 拒绝
               </a-button>
               <a-button type="link" size="small" @click="openReply(record)">回复</a-button>
-              <a-popconfirm title="该评论的回复将一并删除，确定删除吗？" ok-text="删除" cancel-text="取消" @confirm="onDelete(record)">
+              <a-popconfirm
+                title="删除后不可恢复，该评论的回复将一并删除，确定删除吗？"
+                ok-text="删除"
+                cancel-text="取消"
+                @confirm="onDelete(record)"
+              >
                 <a-button type="link" size="small" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
@@ -183,6 +263,76 @@ onMounted(load)
         </template>
       </a-table>
     </a-card>
+
+    <!-- 评论详情 -->
+    <a-drawer
+      v-model:open="drawerOpen"
+      title="评论详情"
+      width="min(480px, 92vw)"
+      class="comment-drawer"
+    >
+      <div v-if="drawerRecord" class="comment-detail">
+        <div class="comment-detail__head">
+          <a-avatar :size="36" class="comment-detail__avatar">{{ initial(drawerRecord.nickname) }}</a-avatar>
+          <div class="comment-detail__who">
+            <div class="comment-detail__name">
+              {{ drawerRecord.nickname }}
+              <a-tag v-if="drawerRecord.isAdmin" color="blue">管理员</a-tag>
+              <a-tag v-else-if="drawerRecord.parentId > 0">回复</a-tag>
+            </div>
+            <div class="comment-detail__time">{{ formatTime(drawerRecord.createdAt) }}</div>
+          </div>
+          <a-tag :color="COMMENT_STATUS_MAP[drawerRecord.status].color">
+            {{ COMMENT_STATUS_MAP[drawerRecord.status].text }}
+          </a-tag>
+        </div>
+
+        <div class="comment-detail__content">{{ drawerRecord.content }}</div>
+
+        <a-descriptions :column="1" size="small" class="comment-detail__meta">
+          <a-descriptions-item label="文章">《{{ drawerRecord.postTitle }}》</a-descriptions-item>
+          <a-descriptions-item label="邮箱">{{ drawerRecord.email || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="网站">
+            <a v-if="drawerRecord.website" :href="drawerRecord.website" target="_blank" rel="noopener noreferrer">
+              {{ drawerRecord.website }}
+            </a>
+            <span v-else>-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="IP">{{ drawerRecord.ip || '-' }}</a-descriptions-item>
+        </a-descriptions>
+
+        <a-space wrap class="comment-detail__actions">
+          <a-button
+            v-if="drawerRecord.status !== 1"
+            type="primary"
+            size="small"
+            @click="setStatus(drawerRecord, 1)"
+          >
+            通过
+          </a-button>
+          <a-button
+            v-if="drawerRecord.status !== 2 && !drawerRecord.isAdmin"
+            size="small"
+            @click="setStatus(drawerRecord, 2)"
+          >
+            拒绝
+          </a-button>
+          <a-button size="small" @click="openReply(drawerRecord)">回复</a-button>
+          <a-popconfirm
+            title="删除后不可恢复，该评论的回复将一并删除，确定删除吗？"
+            ok-text="删除"
+            cancel-text="取消"
+            @confirm="onDelete(drawerRecord)"
+          >
+            <a-button size="small" danger>删除</a-button>
+          </a-popconfirm>
+        </a-space>
+
+        <a-button type="link" size="small" class="comment-detail__same-post" @click="viewPostComments(drawerRecord)">
+          查看该文章的其他评论
+        </a-button>
+      </div>
+    </a-drawer>
 
     <a-modal
       v-model:open="replyOpen"
@@ -209,3 +359,63 @@ onMounted(load)
     </a-modal>
   </div>
 </template>
+
+<style scoped>
+.comment-post-filter {
+  margin-bottom: 12px;
+}
+
+.comment-detail__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.comment-detail__avatar {
+  flex: none;
+  background: var(--admin-brand-bg);
+  color: var(--admin-brand);
+  font-weight: 600;
+}
+
+.comment-detail__who {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-detail__name {
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.comment-detail__time {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+.comment-detail__content {
+  margin-top: 16px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--admin-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--admin-surface-2);
+  border-radius: var(--admin-radius-sm);
+}
+
+.comment-detail__meta {
+  margin-top: 16px;
+}
+
+.comment-detail__actions {
+  margin-top: 16px;
+}
+
+.comment-detail__same-post {
+  margin-top: 16px;
+  padding: 0;
+}
+</style>

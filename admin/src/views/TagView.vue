@@ -145,7 +145,7 @@ onMounted(load)
             <a-space :size="0">
               <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm
-                title="删除标签会同步解除文章关联，确定删除吗？"
+                title="删除后不可恢复，将同步解除文章关联，确定删除吗？"
                 ok-text="删除"
                 cancel-text="取消"
                 @confirm="onDelete(record)"

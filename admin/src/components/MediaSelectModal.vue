@@ -132,7 +132,7 @@ function beforeUpload(file: File) {
                       </a-button>
                     </a-tooltip>
                     <a-popconfirm
-                      title="确定删除该图片吗？"
+                      title="删除后不可恢复，确定删除该图片吗？"
                       ok-text="删除"
                       cancel-text="取消"
                       @confirm="onDelete(item)"
@@ -169,15 +169,15 @@ function beforeUpload(file: File) {
 }
 
 .media-select__item {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
   padding: 8px;
   cursor: pointer;
   transition: border-color 0.2s;
 }
 
 .media-select__item:hover {
-  border-color: #1677ff;
+  border-color: var(--admin-brand);
 }
 
 .media-select__thumb {
@@ -186,7 +186,7 @@ function beforeUpload(file: File) {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #fafafa;
+  background: var(--admin-surface-2);
   border-radius: 4px;
 }
 
@@ -205,7 +205,7 @@ function beforeUpload(file: File) {
 }
 
 .media-select__filename {
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--admin-text);
 }
 
 .media-select__meta {
@@ -214,7 +214,7 @@ function beforeUpload(file: File) {
   justify-content: space-between;
   margin-top: 4px;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--admin-muted);
 }
 
 .media-select__pager {
