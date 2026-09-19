@@ -11,8 +11,8 @@ export interface PageResult<T> {
   pageSize: number
 }
 
-/** post.status：0 草稿 1 已发布 2 隐藏 */
-export type PostStatus = 0 | 1 | 2
+/** post.status：0 草稿 1 已发布 2 隐藏 3 定时发布 */
+export type PostStatus = 0 | 1 | 2 | 3
 /** comment.status：0 待审核 1 已通过 2 已拒绝 */
 export type CommentStatus = 0 | 1 | 2
 /** page.status：0 草稿 1 已发布 */
@@ -68,12 +68,13 @@ export interface PostDetail extends PostSummary {
   updatedAt: string
 }
 
-/** 管理端文章对象：PostSummary + content + categoryId + tagNames + commentCount */
+/** 管理端文章对象：PostSummary + content + categoryId + tagNames + commentCount + publishAt */
 export interface AdminPostItem extends PostSummary {
   content: string
   categoryId: number
   tagNames: string[]
   commentCount: number
+  publishAt: string | null
   updatedAt?: string
 }
 
@@ -88,6 +89,32 @@ export interface PostPayload {
   tags: string[]
   status: PostStatus
   isTop: boolean
+  /** 定时发布计划时间（RFC3339）；status=3 必填，其余状态忽略 */
+  publishAt?: string | null
+  /** 自动保存标记：服务端据此做版本生成防抖 */
+  auto?: boolean
+}
+
+/** 文章版本列表项（不含 content） */
+export interface PostRevisionItem {
+  id: number
+  postId: number
+  version: number
+  /** 变更说明：首次保存 / 修改标题、正文 / 恢复前快照 / 恢复自 vN */
+  remark: string
+  createdAt: string
+}
+
+/** 文章版本详情：该版本保存时的文章全量快照 */
+export interface PostRevisionDetail extends PostRevisionItem {
+  title: string
+  slug: string
+  summary: string
+  cover: string
+  content: string
+  categoryId: number
+  isTop: boolean
+  status: PostStatus
 }
 
 /** 管理端评论 */
@@ -195,9 +222,17 @@ export interface RecentComment {
   createdAt: string
 }
 
+/** 计划发布中的文章（仪表盘用） */
+export interface ScheduledPost {
+  id: number
+  title: string
+  publishAt: string
+}
+
 export interface Stats {
   postCount: number
   draftCount: number
+  scheduledCount: number
   commentCount: number
   pendingCommentCount: number
   viewCount: number
@@ -205,4 +240,5 @@ export interface Stats {
   linkCount: number
   trend: TrendPoint[]
   recentComments: RecentComment[]
+  scheduledPosts: ScheduledPost[]
 }

@@ -10,6 +10,7 @@ export const POST_STATUS_MAP: Record<PostStatus, StatusMeta> = {
   0: { text: '草稿', color: 'default' },
   1: { text: '已发布', color: 'success' },
   2: { text: '隐藏', color: 'warning' },
+  3: { text: '定时发布', color: 'processing' },
 }
 
 /** comment.status → Tag 展示 */

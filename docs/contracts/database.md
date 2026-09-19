@@ -23,9 +23,28 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | cover | string size:512 | |
 | category_id | uint index | 0=未分类 |
 | view_count / like_count | int | 默认 0 |
-| status | tinyint index | 0草稿 1已发布 2隐藏 |
+| status | tinyint index | 0草稿 1已发布 2隐藏 3定时发布 |
 | is_top | bool | |
-| published_at | *time.Time | 首次置为已发布时写入 |
+| published_at | *time.Time | 首次置为已发布时写入；定时发布自动到点时写入计划时间 |
+| publish_at | *time.Time index | 仅 status=3 有值：计划发布时间；调度器按 `status=3 AND publish_at<=now` 扫描 |
+
+## post_revisions（文章版本历史，随文章删除级联删除）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| post_id | uint index | |
+| version | int | 文章内自 1 递增；唯一约束 (post_id, version) |
+| title | string size:200 | 该版本保存时的标题 |
+| slug | string size:200 | |
+| summary | string size:1000 | |
+| cover | string size:512 | |
+| content | text | Markdown 原文快照 |
+| category_id | uint | |
+| is_top | bool | |
+| status | tinyint | 保存时的文章状态 |
+| remark | string size:200 | 变更说明（首次保存 / 修改标题、正文 / 恢复前快照 / 恢复自 vN） |
+
+生成规则：仅当文章快照字段（title/slug/summary/cover/content/category_id/is_top/status）与最新版本不同才插入；`auto` 保存距最新版本 <120s 不插入（防抖）。
 
 ## categories
 id, name(uniqueIndex size:64), slug(size:64), description(size:500)

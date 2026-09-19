@@ -1,5 +1,12 @@
 import http from './http'
-import type { AdminPostItem, PageResult, PostPayload, PostStatus } from '@/types/api'
+import type {
+  AdminPostItem,
+  PageResult,
+  PostPayload,
+  PostRevisionDetail,
+  PostRevisionItem,
+  PostStatus,
+} from '@/types/api'
 
 export interface PostListParams {
   keyword?: string
@@ -31,4 +38,22 @@ export function updatePostStatus(id: number, status: PostStatus): Promise<null> 
 
 export function deletePost(id: number): Promise<null> {
   return http.delete(`/admin/posts/${id}`)
+}
+
+// ---------- 版本历史 ----------
+
+export function getRevisions(
+  postId: number,
+  params: { page?: number; pageSize?: number },
+): Promise<PageResult<PostRevisionItem>> {
+  return http.get(`/admin/posts/${postId}/revisions`, { params })
+}
+
+export function getRevision(postId: number, version: number): Promise<{ revision: PostRevisionDetail }> {
+  return http.get(`/admin/posts/${postId}/revisions/${version}`)
+}
+
+/** 恢复版本：服务端先快照当前内容，再应用目标版本 */
+export function restoreRevision(postId: number, version: number): Promise<{ post: AdminPostItem }> {
+  return http.post(`/admin/posts/${postId}/revisions/${version}/restore`)
 }

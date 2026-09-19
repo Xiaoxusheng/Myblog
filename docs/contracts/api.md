@@ -11,7 +11,7 @@
 - 分页：query `page`(默认1)、`pageSize`(默认10，上限50)；响应 data：`{"list":[...],"total":123,"page":1,"pageSize":10}`
 - 时间：RFC3339 字符串（如 `2026-09-19T12:00:00+08:00`）
 - 鉴权：请求头 `Authorization: Bearer <token>`，仅 `/admin/*` 需要
-- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏；comment.status `0`待审核 `1`已通过 `2`已拒绝
+- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；comment.status `0`待审核 `1`已通过 `2`已拒绝
 
 ## 对象结构
 
@@ -19,7 +19,11 @@
 
 **PostDetail**：PostSummary 全部字段 + `content`(Markdown 原文) + `updatedAt`
 
-**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount`
+**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`)
+
+**PostRevisionItem**（版本列表项，不含 content）：`{id,postId,version,remark,createdAt}`；`remark` 为该版本的变更说明（如 `首次保存`、`修改标题、正文`、`恢复自 v3`）
+
+**PostRevisionDetail**：PostRevisionItem + `{title,slug,summary,cover,content,categoryId,isTop,status}`（该版本保存时的文章全量快照）
 
 **Tag**：`{id,name,slug,postCount?}`；**Category**：`{id,name,slug,description?,postCount?}`
 
@@ -65,15 +69,18 @@
 | 14 | PUT `/admin/auth/profile` | `{nickname,email,avatar}` → `{user:User}` |
 
 ### 仪表盘
-| 15 | GET `/admin/stats` | `{postCount,draftCount,commentCount,pendingCommentCount,viewCount,likeCount,linkCount,trend:[{date:"2026-09-13",posts,comments}](近7天，按 created_at),recentComments:[{id,postTitle,nickname,content,status,createdAt}](5条)}` |
+| 15 | GET `/admin/stats` | `{postCount,draftCount,scheduledCount,commentCount,pendingCommentCount,viewCount,likeCount,linkCount,trend:[{date:"2026-09-13",posts,comments}](近7天，按 created_at),recentComments:[{id,postTitle,nickname,content,status,createdAt}](5条),scheduledPosts:[{id,title,publishAt}](计划发布文章 ≤5 条，publishAt 升序)}` |
 
 ### 文章
-| 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前 |
-| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert |
+| 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前；status 可为 `0/1/2/3` |
+| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；创建成功即写入首个版本（v1，remark=首次保存） |
 | 18 | GET `/admin/posts/:id` | `{post:AdminPostItem}` |
-| 19 | PUT `/admin/posts/:id` | 同 17，全量更新 |
-| 20 | PUT `/admin/posts/:id/status` | `{status}` → data:null |
-| 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags 与评论 |
+| 19 | PUT `/admin/posts/:id` | 同 17，全量更新；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空 |
+| 20 | PUT `/admin/posts/:id/status` | `{status,publishAt?}` → data:null；status=3 需 publishAt |
+| 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags、评论与版本历史 |
+| 50 | GET `/admin/posts/:id/revisions?page=&pageSize=` | 分页 PostRevisionItem，version 倒序；仅内容真正变化才产生版本 |
+| 51 | GET `/admin/posts/:id/revisions/:version` | `{revision:PostRevisionDetail}`；版本不存在 → 10004 |
+| 52 | POST `/admin/posts/:id/revisions/:version/restore` | 恢复版本：事务内先将当前内容快照为新版本（remark=恢复前快照，与最新版本相同则跳过），再应用目标版本并生成新版本（remark=恢复自 vN）→ `{post:AdminPostItem}`；任何恢复均可通过恢复「恢复前快照」撤销 |
 
 ### 分类 / 标签
 | 22 | GET `/admin/categories?page=&pageSize=` | 分页，含 postCount |
@@ -116,3 +123,5 @@
 3. 游客评论 → admin 待审 1 条 → 通过 → 公开可见且为树
 4. 上传图片 → 返回 url 可访问
 5. `curl :8080/rss` → XML
+6. 编辑文章改标题保存 → 版本列表 v2（remark 含 标题）→ 恢复 v1 → 文章标题还原且产生恢复版本
+7. 创建 status=3 文章（publishAt 过去时间）→ 等 1 个调度周期 → 自动变已发布且公开列表可见
