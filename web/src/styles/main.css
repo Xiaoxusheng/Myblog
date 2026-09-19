@@ -564,6 +564,16 @@ html.dark .skeleton::after {
     word-break: break-all;
   }
 
+  /* ext-link 的 ↗ 与锚点 # 均为屏幕工艺：打印时 ↗ 让位给 URL 落款，锚点隐藏（docs/08 §4.2） */
+  .markdown-body a.ext-link::after {
+    content: ' (' attr(href) ')';
+    transform: none;
+  }
+
+  .markdown-body .header-anchor {
+    display: none;
+  }
+
   .markdown-body a {
     text-decoration-color: #999;
   }

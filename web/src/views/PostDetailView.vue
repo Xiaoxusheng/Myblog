@@ -461,6 +461,9 @@ watch(slug, () => {
 
 .post-cover {
   margin-top: 28px;
+  /* 固定 16:10 比例：加载前后容器高度恒定，零 CLS（docs/08 §4.3） */
+  aspect-ratio: 16 / 9;
+  max-height: 430px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -470,7 +473,7 @@ watch(slug, () => {
 .post-cover img {
   display: block;
   width: 100%;
-  max-height: 430px;
+  height: 100%;
   object-fit: cover;
   opacity: 0;
   transition: opacity 0.5s ease-out;

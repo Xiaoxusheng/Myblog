@@ -92,6 +92,29 @@ html.dark {
   font-size: 16px;
 }
 
+/* 标题悬停锚点：# 悬挂于阅读列外左侧（docs/08 §4.1），hover 标题浮现 */
+.markdown-body .header-anchor {
+  float: left;
+  margin-left: -1em;
+  padding-right: 4px;
+  color: var(--text-3);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.markdown-body h2:hover .header-anchor,
+.markdown-body h3:hover .header-anchor,
+.markdown-body h4:hover .header-anchor,
+.markdown-body .header-anchor:focus-visible {
+  opacity: 1;
+}
+
+.markdown-body .header-anchor:hover {
+  color: var(--brand);
+  text-decoration: none;
+}
+
 .markdown-body p {
   margin: 0 0 1.15em;
 }
@@ -109,6 +132,21 @@ html.dark {
 .markdown-body a:hover {
   color: var(--brand-hover);
   text-decoration-color: var(--brand-hover);
+}
+
+/* 外链 ↗ 标识（docs/08 §4.2）：文字字符上移对齐 x-height，hover 才变 brand */
+.markdown-body a.ext-link::after {
+  content: "↗";
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 0.75em;
+  color: var(--text-3);
+  transform: translateY(-0.35em);
+  transition: color var(--transition);
+}
+
+.markdown-body a.ext-link:hover::after {
+  color: var(--brand);
 }
 
 /* 编辑部式引用：衬线弱化文字 + 竖线，无底色 */
@@ -187,6 +225,8 @@ html.dark .markdown-body blockquote {
 .markdown-body img {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  /* 加载中灰底占位：与纸面语言一致，减轻懒加载空窗感知（docs/08 §4.3） */
+  background: var(--surface-2);
   transition: border-color var(--transition);
 }
 

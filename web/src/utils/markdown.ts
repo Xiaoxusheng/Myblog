@@ -88,6 +88,23 @@ md.renderer.rules.heading_open = (tokens, idx) => {
   return md.renderer.renderToken(tokens, idx, md.options)
 }
 
+// heading_close：h2-h4 闭合前注入悬停锚点（# 悬挂于列外，不入正文文字流，选中复制不受影响）
+// token 流为 heading_open → inline → heading_close，向前查找最近的 heading_open 取 id
+md.renderer.rules.heading_close = (tokens, idx) => {
+  const level = Number(tokens[idx].tag.slice(1)) || 1
+  let id: string | null = null
+  for (let i = idx - 1; i >= 0; i--) {
+    if (tokens[i].type === 'heading_open') {
+      id = tokens[i].attrGet('id')
+      break
+    }
+  }
+  if (level >= 2 && level <= 4 && id) {
+    return `<a class="header-anchor" href="#${id}" aria-label="标题锚点">#</a>${md.renderer.renderToken(tokens, idx, md.options)}`
+  }
+  return md.renderer.renderToken(tokens, idx, md.options)
+}
+
 // fence 覆写：代码块包一层带语言标签的 .code-block（语言名取自 info 串，未知语言原样显示）
 const LANG_LABEL: Record<string, string> = {
   go: 'Go',
@@ -152,8 +169,12 @@ export function renderMarkdown(source: string): RenderedMarkdown {
   tocResult = []
   idCount = {}
   let html = md.render(source ?? '')
-  // 外链新窗口;图片懒加载（渲染后的确定性字符串处理）
-  html = html.replace(/<a\s+href=/g, '<a target="_blank" rel="noopener noreferrer" href=')
-  html = html.replace(/<img\s/g, '<img loading="lazy" ')
+  // 仅 http(s) 外链新窗口 + ↗ 标识；站内相对链接交由 SPA 接管、页内锚点原地跳转
+  html = html.replace(
+    /<a href="(https?:\/\/[^"]*)"([^>]*)>/g,
+    '<a class="ext-link" target="_blank" rel="noopener noreferrer" href="$1"$2>'
+  )
+  // 图片懒加载 + 异步解码（渲染后的确定性字符串处理）
+  html = html.replace(/<img\s/g, '<img loading="lazy" decoding="async" ')
   return { html, toc: tocResult }
 }
