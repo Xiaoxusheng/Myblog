@@ -476,6 +476,16 @@ onBeforeUnmount(() => {
   background: var(--admin-sidebar);
 }
 
+/* 侧栏/抽屉背景单一来源 --admin-sidebar（light #001529 / dark 面板色），菜单透明继承（docs/09 §8.1） */
+.admin-sider.ant-layout-sider-dark {
+  background: var(--admin-sidebar);
+}
+
+.admin-sider .ant-menu,
+.admin-drawer .ant-menu {
+  background: transparent;
+}
+
 .admin-drawer .drawer-logo {
   height: 56px;
   display: flex;
