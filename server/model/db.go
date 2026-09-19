@@ -90,6 +90,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&CommentBlacklist{},
 		&Notification{},
 		&AuditLog{},
+		&SearchLog{},
 	)
 }
 

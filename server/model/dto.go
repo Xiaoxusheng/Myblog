@@ -45,14 +45,18 @@ type PostDetailDTO struct {
 // AdminPostItemDTO = PostSummary + content + categoryId + tagNames + commentCount + publishAt + series
 type AdminPostItemDTO struct {
 	PostSummaryDTO
-	Content      string     `json:"content"`
-	CategoryID   uint       `json:"categoryId"`
-	TagNames     []string   `json:"tagNames"`
-	CommentCount int64      `json:"commentCount"`
-	PublishAt    *time.Time `json:"publishAt"` // 仅定时发布有值
-	SeriesID     uint       `json:"seriesId"`  // 0=不属于专题
-	SeriesSort   int        `json:"seriesSort"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	Content        string     `json:"content"`
+	CategoryID     uint       `json:"categoryId"`
+	TagNames       []string   `json:"tagNames"`
+	CommentCount   int64      `json:"commentCount"`
+	PublishAt      *time.Time `json:"publishAt"` // 仅定时发布有值
+	SeriesID       uint       `json:"seriesId"`  // 0=不属于专题
+	SeriesSort     int        `json:"seriesSort"`
+	SeoTitle       string     `json:"seoTitle"`
+	SeoDescription string     `json:"seoDescription"`
+	Canonical      string     `json:"canonical"`
+	OgImage        string     `json:"ogImage"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 }
 
 // PostRefDTO 上一篇/下一篇引用 {id,title,slug}|null
@@ -122,6 +126,10 @@ func ToAdminPostItem(p *Post, commentCount int64) AdminPostItemDTO {
 		PublishAt:      p.PublishAt,
 		SeriesID:       p.SeriesID,
 		SeriesSort:     p.SeriesSort,
+		SeoTitle:       p.SeoTitle,
+		SeoDescription: p.SeoDescription,
+		Canonical:      p.Canonical,
+		OgImage:        p.OgImage,
 		UpdatedAt:      p.UpdatedAt,
 	}
 }

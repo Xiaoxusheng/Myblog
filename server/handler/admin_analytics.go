@@ -270,3 +270,30 @@ func PostAnalytics(c *gin.Context) {
 		"devices": aggregateCount(rows, func(r pvRow) string { return r.DeviceType }),
 	})
 }
+
+// SearchAnalytics GET /api/v1/admin/analytics/searches?range=7d|30d|90d（契约 #85）
+func SearchAnalytics(c *gin.Context) {
+	start, end, name, ok := parseAnalyticsRange(c, false)
+	if !ok {
+		return
+	}
+	type searchRow struct {
+		Keyword       string `gorm:"column:keyword"`
+		Count         int64  `gorm:"column:cnt"`
+		NoResultCount int64  `gorm:"column:no_result"`
+	}
+	var rows []searchRow
+	if err := model.DB.Model(&model.SearchLog{}).
+		Select("keyword, COUNT(*) AS cnt, SUM(CASE WHEN result_count = 0 THEN 1 ELSE 0 END) AS no_result").
+		Where("created_at >= ? AND created_at < ?", start, end).
+		Group("keyword").Order("cnt DESC, keyword ASC").Limit(20).
+		Scan(&rows).Error; err != nil {
+		common.ServerError(c, err)
+		return
+	}
+	list := make([]gin.H, 0, len(rows))
+	for _, r := range rows {
+		list = append(list, gin.H{"keyword": r.Keyword, "count": r.Count, "noResultCount": r.NoResultCount})
+	}
+	common.OK(c, gin.H{"range": name, "list": list})
+}

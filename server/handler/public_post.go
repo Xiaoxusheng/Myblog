@@ -23,10 +23,11 @@ func ListPosts(c *gin.Context) {
 	}
 	tagID := queryUint(c, "tagId")
 
+	keyword := strings.TrimSpace(c.Query("keyword"))
 	buildQuery := func() *gorm.DB {
 		db := model.DB.Model(&model.Post{}).Where("status = ?", model.PostPublished)
-		if kw := strings.TrimSpace(c.Query("keyword")); kw != "" {
-			like := likeContains(kw)
+		if keyword != "" {
+			like := likeContains(keyword)
 			db = db.Where(
 				"(title "+likeEscapeClause+" OR summary "+likeEscapeClause+" OR content "+likeEscapeClause+")",
 				like, like, like,
@@ -54,6 +55,7 @@ func ListPosts(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
+	logSearchKeyword(keyword, int(total))
 	var posts []model.Post
 	if err := buildQuery().Preload("Category").Preload("Tags").
 		Offset(pq.Offset()).Limit(pq.PageSize).Find(&posts).Error; err != nil {
@@ -203,4 +205,18 @@ func LikePost(c *gin.Context) {
 	}
 	post.LikeCount++
 	common.OK(c, gin.H{"likeCount": post.LikeCount})
+}
+
+// logSearchKeyword 记录站内搜索词（契约 #85）：失败静默；超长截断
+func logSearchKeyword(keyword string, resultCount int) {
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return
+	}
+	// 归一化小写：规避 SQLite/MySQL 大小写分组差异；中文不受影响
+	keyword = strings.ToLower(keyword)
+	if r := []rune(keyword); len(r) > 200 {
+		keyword = string(r[:200])
+	}
+	_ = model.DB.Create(&model.SearchLog{Keyword: keyword, ResultCount: resultCount}).Error
 }

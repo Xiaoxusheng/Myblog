@@ -28,6 +28,11 @@ type postPayload struct {
 	Auto       bool       `json:"auto"`       // 前端自动保存标记：版本生成防抖
 	SeriesID   uint       `json:"seriesId"`   // 0=移出专题
 	SeriesSort int        `json:"seriesSort"` // 0=自动排到末尾（已是成员则保持原序号）
+	// SEO 扩展（契约：空串=用默认值；不参与版本快照）
+	SeoTitle       string `json:"seoTitle"`
+	SeoDescription string `json:"seoDescription"`
+	Canonical      string `json:"canonical"`
+	OgImage        string `json:"ogImage"`
 }
 
 func (p *postPayload) validate(c *gin.Context) bool {
@@ -42,6 +47,18 @@ func (p *postPayload) validate(c *gin.Context) bool {
 		common.Fail(c, common.CodeParamError, "slug 不能超过 200 字符")
 	case utf8.RuneCountInString(p.Cover) > 512:
 		common.Fail(c, common.CodeParamError, "封面地址过长")
+	case utf8.RuneCountInString(p.SeoTitle) > 200:
+		common.Fail(c, common.CodeParamError, "SEO 标题不能超过 200 字")
+	case utf8.RuneCountInString(p.SeoDescription) > 300:
+		common.Fail(c, common.CodeParamError, "SEO 描述不能超过 300 字")
+	case utf8.RuneCountInString(p.Canonical) > 512:
+		common.Fail(c, common.CodeParamError, "Canonical 地址过长")
+	case utf8.RuneCountInString(p.OgImage) > 512:
+		common.Fail(c, common.CodeParamError, "OG 图地址过长")
+	case p.Canonical != "" && !strings.HasPrefix(p.Canonical, "http"):
+		common.Fail(c, common.CodeParamError, "Canonical 需以 http(s):// 开头")
+	case p.OgImage != "" && !strings.HasPrefix(p.OgImage, "http") && !strings.HasPrefix(p.OgImage, "/"):
+		common.Fail(c, common.CodeParamError, "OG 图需为 http(s) 或站内路径")
 	case p.Status < model.PostDraft || p.Status > model.PostScheduled:
 		common.Fail(c, common.CodeParamError, "status 取值不合法")
 	case p.Status == model.PostScheduled && p.PublishAt == nil:
@@ -209,14 +226,18 @@ func AdminCreatePost(c *gin.Context) {
 	}
 
 	post := model.Post{
-		Title:      strings.TrimSpace(req.Title),
-		Summary:    strings.TrimSpace(req.Summary),
-		Content:    req.Content,
-		Cover:      strings.TrimSpace(req.Cover),
-		CategoryID: req.CategoryID,
-		Status:     req.Status,
-		IsTop:      req.IsTop,
-		SeriesID:   req.SeriesID,
+		Title:          strings.TrimSpace(req.Title),
+		Summary:        strings.TrimSpace(req.Summary),
+		Content:        req.Content,
+		Cover:          strings.TrimSpace(req.Cover),
+		CategoryID:     req.CategoryID,
+		Status:         req.Status,
+		IsTop:          req.IsTop,
+		SeriesID:       req.SeriesID,
+		SeoTitle:       strings.TrimSpace(req.SeoTitle),
+		SeoDescription: strings.TrimSpace(req.SeoDescription),
+		Canonical:      strings.TrimSpace(req.Canonical),
+		OgImage:        strings.TrimSpace(req.OgImage),
 		// 先用一次性临时占位 slug 插入（uniqueIndex 冲突规避），随后按契约规则定稿
 		Slug: fmt.Sprintf("post-tmp-%d-%s", time.Now().UnixNano(), randomHex(4)),
 	}
@@ -313,7 +334,11 @@ func AdminUpdatePost(c *gin.Context) {
 		"status":      req.Status,
 		"is_top":      req.IsTop,
 		// 定时发布写计划时间；离开定时状态置空
-		"publish_at": publishAtForStatus(req.Status, req.PublishAt),
+		"publish_at":      publishAtForStatus(req.Status, req.PublishAt),
+		"seo_title":       strings.TrimSpace(req.SeoTitle),
+		"seo_description": strings.TrimSpace(req.SeoDescription),
+		"canonical":       strings.TrimSpace(req.Canonical),
+		"og_image":        strings.TrimSpace(req.OgImage),
 	}
 	if err := applySeriesAssignment(model.DB, &post, &req, updates); err != nil {
 		common.ServerError(c, err)

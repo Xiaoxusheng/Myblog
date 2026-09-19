@@ -71,6 +71,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 		// 访问分析
 		admin.GET("/analytics", handler.Analytics)
 		admin.GET("/analytics/posts/:id", handler.PostAnalytics)
+		admin.GET("/analytics/searches", handler.SearchAnalytics)
 
 		// 系统健康
 		admin.GET("/health", handler.Health)
