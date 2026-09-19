@@ -26,6 +26,10 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | status | tinyint index | 0草稿 1已发布 2隐藏 3定时发布 |
 | is_top | bool | |
 | published_at | *time.Time | 首次置为已发布时写入；定时发布自动到点时写入计划时间 |
+| seo_title | string size:200 | SEO 标题（空=用文章标题） |
+| seo_description | string size:300 | SEO 描述（空=用摘要） |
+| canonical | string size:512 | Canonical URL（空=默认规则） |
+| og_image | string size:512 | OG 图（空=用封面） |
 | publish_at | *time.Time index | 仅 status=3 有值：计划发布时间；调度器按 `status=3 AND publish_at<=now` 扫描 |
 | series_id | uint index | 0=不属于专题（一文至多一专题） |
 | series_sort | int | 专题内序号，升序，同序按 id |
@@ -107,6 +111,14 @@ key string PK(size:64), value text。存储 Settings 结构化对象的各字段
 
 ## uploads
 id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100)
+
+## search_logs（站内搜索统计）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| keyword | string index size:200 | 搜索词（归一化：trim，≤200） |
+| result_count | int | 该次搜索命中的文章数（0=无结果） |
+| created_at | time index | |
 
 ## comment_blacklist（评论防护黑名单）
 | 列 | 类型 | 说明 |

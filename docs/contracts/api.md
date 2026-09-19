@@ -19,7 +19,7 @@
 
 **PostDetail**：PostSummary 全部字段 + `content`(Markdown 原文) + `updatedAt`
 
-**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`) + `seriesId`(0=不属于专题) + `seriesSort`(专题内序号)
+**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`) + `seriesId`(0=不属于专题) + `seriesSort`(专题内序号) + `seoTitle` + `seoDescription` + `canonical` + `ogImage`（SEO 扩展字段，均可空串）
 
 **PostRevisionItem**（版本列表项，不含 content）：`{id,postId,version,remark,createdAt}`；`remark` 为该版本的变更说明（如 `首次保存`、`修改标题、正文`、`恢复自 v3`）
 
@@ -66,6 +66,7 @@
 | 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
 | 49 | GET `/robots.txt`（根路径） | 纯文本：Allow 全站、Disallow /api/ 与 /admin、声明 Sitemap 地址 |
 | 83 | GET `/llms.txt`（根路径） | AEO：站点简介、核心页面、分类/专题（仅可见）、已发布文章索引（title+URL+摘要，≤200 篇），纯文本 |
+| 85 | GET `/admin/analytics/searches?range=7d\|30d\|90d` | 站内搜索统计（默认 30d）：`{list:[{keyword,count,noResultCount}](≤20，count 降序)}`；来自公开搜索接口的关键词记录 |
 | 84 | GET `/admin/health` | `{version,goVersion,dbType,dbStatus,postCount,commentCount,mediaCount,uploadSize,latestBackupAt}`；克制采集，不含磁盘空间等平台敏感信息 |
 | 53 | GET `/series` | `{list:[Series]}` 仅 visible，sort 升序，postCount=已发布文章数 |
 | 54 | GET `/series/:slug` | `{series:Series,posts:[PostSummary]}` 仅已发布文章，按专题内序号排列；404 → 10004 |
@@ -85,9 +86,9 @@
 
 ### 文章
 | 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前；status 可为 `0/1/2/3` |
-| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?,seriesId?,seriesSort?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；seriesId>0 加入该专题（seriesSort 0=自动排末尾）；创建成功即写入首个版本（v1，remark=首次保存） |
+| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?,seriesId?,seriesSort?,seoTitle?,seoDescription?,canonical?,ogImage?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；seriesId>0 加入该专题（seriesSort 0=自动排末尾）；创建成功即写入首个版本（v1，remark=首次保存） |
 | 18 | GET `/admin/posts/:id` | `{post:AdminPostItem}` |
-| 19 | PUT `/admin/posts/:id` | 同 17，全量更新；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空；seriesId 变更同步专题归属。**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动创建 `/post/旧slug → /post/新slug` 301 重定向** |
+| 19 | PUT `/admin/posts/:id` | 同 17，全量更新（含 SEO 四字段；版本快照不含 SEO 字段）；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空；seriesId 变更同步专题归属。**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动创建 `/post/旧slug → /post/新slug` 301 重定向** |
 | 20 | PUT `/admin/posts/:id/status` | `{status,publishAt?}` → data:null；status=3 需 publishAt；状态实际变化时生成版本（remark=修改状态），仅调整计划时间不生成版本 |
 | 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags、评论与版本历史 |
 | 50 | GET `/admin/posts/:id/revisions?page=&pageSize=` | 分页 PostRevisionItem，version 倒序；仅内容真正变化才产生版本 |
