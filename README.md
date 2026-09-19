@@ -2,7 +2,7 @@
 
 基于 **Go + Vue 3** 的个人博客系统，前后端分离：前台展示 + 访客互动 + 管理后台，单管理员模式，开箱即用。
 
-🔗 **在线示例**：[xyx.homes](https://xyx.homes)
+🔗 **在线示例**：[your-domain.com](https://your-domain.com)（部署后替换为你的域名）
 
 ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?logo=vue.js&logoColor=white)
