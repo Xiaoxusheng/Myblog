@@ -89,26 +89,6 @@ const draftKey = computed(() =>
   postId.value ? `${DRAFT_PREFIX}_${postId.value}` : `${DRAFT_PREFIX}_new`,
 )
 
-/** SEO 检查清单:随表单实时评估,不阻断保存(docs/09 §4.1) */
-const seoChecks = computed(() => {
-  const title = formState.seoTitle.trim() || formState.title.trim()
-  const desc = formState.seoDescription.trim() || formState.summary.trim()
-  return [
-    {
-      label: `页面标题 ${title.length} 字(建议 ≤60)`,
-      ok: title.length > 0 && title.length <= 60,
-    },
-    {
-      label: `页面描述 ${desc.length} 字(建议 80-160)`,
-      ok: desc.length > 0 && desc.length <= 160,
-    },
-    {
-      label: '封面 / OG 图已设置',
-      ok: Boolean(formState.cover.trim() || formState.ogImage.trim()),
-    },
-  ]
-})
-
 const autosaveReady = ref(false)
 const draftStatus = ref<DraftSaveStatus>('idle')
 const savedAtText = ref('')
