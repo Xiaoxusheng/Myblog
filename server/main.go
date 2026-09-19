@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -47,6 +48,9 @@ func main() {
 		}
 		if n > 0 {
 			log.Printf("scheduler: %s已发布 %d 篇到期定时文章", when, n)
+			// 通知中心：定时文章已上线（契约 #73 type=post_published）
+			_ = model.CreateNotification(db, "post_published", "定时发布完成",
+				fmt.Sprintf("%d 篇到期的定时文章已自动发布", n), "/posts?status=1")
 		}
 	}
 	publishDue("启动补跑：")

@@ -7,6 +7,8 @@ const (
 	CommentPending  int8 = 0 // 待审核
 	CommentApproved int8 = 1 // 已通过
 	CommentRejected int8 = 2 // 已拒绝
+	CommentSpam     int8 = 3 // 垃圾（黑名单/规则命中，前台不可见）
+	CommentTrash    int8 = 4 // 回收站（前台不可见）
 )
 
 // Comment 评论（两级树：parent_id=0 顶级，其余为回复）

@@ -176,6 +176,12 @@ func CreateComment(c *gin.Context) {
 		}
 	}
 
+	// 垃圾检测：黑名单/重复/链接过多/高频 → status=3（契约 #5）
+	status := model.CommentPending
+	if isSpam(model.DB, post.ID, req.Nickname, req.Email, req.Content, c.ClientIP()) {
+		status = model.CommentSpam
+	}
+
 	cm := model.Comment{
 		PostID:   post.ID,
 		ParentID: req.ParentID,
@@ -183,7 +189,7 @@ func CreateComment(c *gin.Context) {
 		Email:    req.Email,
 		Website:  req.Website,
 		Content:  req.Content,
-		Status:   model.CommentPending,
+		Status:   status,
 		IP:       c.ClientIP(),
 	}
 	if err := model.DB.Create(&cm).Error; err != nil {
@@ -193,6 +199,9 @@ func CreateComment(c *gin.Context) {
 
 	// 仅成功入库才占用限流窗口
 	middleware.MarkComment(c)
+
+	// 通知中心（契约 #73）：垃圾评论与待审评论分别提醒
+	notifyCommentCreated(model.DB, post.Title, req.Content, status == model.CommentSpam)
 
 	common.OK(c, gin.H{"comment": gin.H{
 		"id":        cm.ID,

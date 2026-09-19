@@ -111,8 +111,17 @@ func Setup(cfg *config.Config) *gin.Engine {
 		// 评论
 		admin.GET("/comments", handler.AdminListComments)
 		admin.PUT("/comments/:id/status", handler.AdminUpdateCommentStatus)
+		admin.POST("/comments/batch", handler.AdminBatchComments)
 		admin.POST("/comments/:id/reply", handler.AdminReplyComment)
 		admin.DELETE("/comments/:id", handler.AdminDeleteComment)
+		admin.GET("/comment-blacklist", handler.AdminListBlacklist)
+		admin.POST("/comment-blacklist", handler.AdminCreateBlacklist)
+		admin.DELETE("/comment-blacklist/:id", handler.AdminDeleteBlacklist)
+
+		// 通知
+		admin.GET("/notifications", handler.AdminListNotifications)
+		admin.PUT("/notifications/read-all", handler.AdminMarkAllNotificationsRead)
+		admin.PUT("/notifications/:id/read", handler.AdminMarkNotificationRead)
 
 		// 友链
 		admin.GET("/links", handler.AdminListLinks)

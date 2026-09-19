@@ -104,7 +104,7 @@
 
 ### 评论
 | 30 | GET `/admin/comments?status=&postId=&page=&pageSize=` | 分页 CommentAdmin，最新在前；status 支持 0待审/1通过/2拒绝/3垃圾/4回收站 |
-| 31 | PUT `/admin/comments/:id/status` | `{status:1\|2}` → data:null |
+| 31 | PUT `/admin/comments/:id/status` | `{status}` → data:null；status 允许 0~4（0 恢复待审、1 通过、2 拒绝、3 标垃圾、4 回收站） |
 | 32 | POST `/admin/comments/:id/reply` | `{content}`：以管理员身份（isAdmin=1，昵称取管理员 nickname，status=1 直接通过）回复，parentId=该评论 id，挂在其 postId 下 → `{comment:CommentAdmin}` |
 | 33 | DELETE `/admin/comments/:id` | 连同其 children 一起删 |
 

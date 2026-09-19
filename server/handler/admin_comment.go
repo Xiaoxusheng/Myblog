@@ -16,16 +16,20 @@ func AdminListComments(c *gin.Context) {
 	pq := common.ParsePage(c, 10)
 
 	statusParam := c.Query("status")
-	if statusParam != "" && statusParam != "0" && statusParam != "1" && statusParam != "2" {
-		common.Fail(c, common.CodeParamError, "status 参数不合法")
-		return
+	statusVal := int8(-1)
+	if statusParam != "" {
+		if len(statusParam) != 1 || statusParam[0] < '0' || statusParam[0] > '4' {
+			common.Fail(c, common.CodeParamError, "status 参数不合法")
+			return
+		}
+		statusVal = int8(statusParam[0] - '0')
 	}
 	postID := queryUint(c, "postId")
 
 	buildQuery := func() *gorm.DB {
 		db := model.DB.Model(&model.Comment{})
 		if statusParam != "" {
-			db = db.Where("status = ?", statusParam[0]-'0')
+			db = db.Where("status = ?", statusVal)
 		}
 		if postID > 0 {
 			db = db.Where("post_id = ?", postID)
@@ -58,7 +62,8 @@ func AdminListComments(c *gin.Context) {
 	common.OK(c, pq.Data(list, total))
 }
 
-// AdminUpdateCommentStatus PUT /api/v1/admin/comments/:id/status —— status 仅允许 1|2
+// AdminUpdateCommentStatus PUT /api/v1/admin/comments/:id/status —— status 允许 0~4
+// （0=恢复待审，3=标记垃圾，4=移入回收站；删除走 DELETE）
 func AdminUpdateCommentStatus(c *gin.Context) {
 	id, ok := parseIDParam(c)
 	if !ok {
@@ -71,8 +76,8 @@ func AdminUpdateCommentStatus(c *gin.Context) {
 		common.Fail(c, common.CodeParamError, "参数错误")
 		return
 	}
-	if req.Status != model.CommentApproved && req.Status != model.CommentRejected {
-		common.Fail(c, common.CodeParamError, "status 仅允许 1（通过）或 2（拒绝）")
+	if req.Status < model.CommentPending || req.Status > model.CommentTrash {
+		common.Fail(c, common.CodeParamError, "status 取值不合法")
 		return
 	}
 
