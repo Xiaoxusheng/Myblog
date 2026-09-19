@@ -137,9 +137,11 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex-shrink: 0;
   color: var(--text-1);
-  font-weight: 650;
-  font-size: 16.5px;
-  letter-spacing: 0.2px;
+  /* 报头化：衬线站名（docs/05 §5.1） */
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: 17.5px;
+  line-height: 1.3;
 }
 
 .brand:hover {

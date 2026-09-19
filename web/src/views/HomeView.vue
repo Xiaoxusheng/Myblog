@@ -169,16 +169,23 @@ onMounted(async () => {
 }
 
 .hero-title {
+  /* 衬线 display + 尾部 accent 句点（docs/05 §5.2） */
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: var(--fs-display);
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  line-height: 1.22;
+  letter-spacing: -0.01em;
+  line-height: 1.18;
+}
+
+.hero-title::after {
+  content: '.';
+  color: var(--brand);
 }
 
 .hero-desc {
-  margin-top: 12px;
+  margin-top: 14px;
   max-width: 560px;
-  font-size: 15.5px;
+  font-size: 16px;
   color: var(--text-2);
   line-height: 1.75;
 }
@@ -245,10 +252,10 @@ onMounted(async () => {
 
 .featured-title {
   margin-top: 10px;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
   font-size: clamp(22px, 2.8vw, 26px);
-  font-weight: 650;
   line-height: 1.4;
-  letter-spacing: -0.01em;
 }
 
 .featured-title a {
