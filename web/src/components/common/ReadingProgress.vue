@@ -53,7 +53,7 @@ onBeforeUnmount(() => {
   height: 100%;
   transform-origin: 0 50%;
   transform: scaleX(0);
-  background: linear-gradient(90deg, var(--brand), var(--brand-hover));
+  background: var(--brand);
   transition: transform 0.08s linear;
 }
 </style>

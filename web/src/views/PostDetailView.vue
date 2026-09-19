@@ -66,7 +66,7 @@
           <img ref="coverEl" :src="post.cover" :alt="post.title" @load="onImgLoad" />
         </div>
 
-        <div v-reveal class="post-content card">
+        <div v-reveal class="post-content">
           <!-- 内容由后台管理员通过 Markdown 维护，markdown-it 渲染时不放行内嵌 HTML -->
           <div class="markdown-body" v-html="html" @click="onContentClick"></div>
         </div>
@@ -99,19 +99,19 @@
         </div>
 
         <nav v-if="prev || next" v-reveal class="post-nav" aria-label="上下篇">
-          <RouterLink v-if="prev" :to="`/post/${prev.slug}`" class="nav-card card">
+          <RouterLink v-if="prev" :to="`/post/${prev.slug}`" class="nav-card">
             <span class="nav-label"><span class="nav-arrow">←</span>上一篇</span>
             <span class="nav-title">{{ prev.title }}</span>
           </RouterLink>
-          <span v-else class="nav-card card placeholder">
+          <span v-else class="nav-card placeholder">
             <span class="nav-label"><span class="nav-arrow">←</span>上一篇</span>
             <span class="nav-title">没有更多了</span>
           </span>
-          <RouterLink v-if="next" :to="`/post/${next.slug}`" class="nav-card card next">
+          <RouterLink v-if="next" :to="`/post/${next.slug}`" class="nav-card next">
             <span class="nav-label">下一篇<span class="nav-arrow">→</span></span>
             <span class="nav-title">{{ next.title }}</span>
           </RouterLink>
-          <span v-else class="nav-card card placeholder">
+          <span v-else class="nav-card placeholder">
             <span class="nav-label">下一篇<span class="nav-arrow">→</span></span>
             <span class="nav-title">没有更多了</span>
           </span>
@@ -121,19 +121,19 @@
         <div v-if="series && (seriesPrev || seriesNext)" v-reveal class="series-nav">
           <p class="series-nav-label">本专题</p>
           <nav class="post-nav" aria-label="本专题上下篇">
-            <RouterLink v-if="seriesPrev" :to="`/post/${seriesPrev.slug}`" class="nav-card card">
+            <RouterLink v-if="seriesPrev" :to="`/post/${seriesPrev.slug}`" class="nav-card">
               <span class="nav-label"><span class="nav-arrow">←</span>本专题上一篇</span>
               <span class="nav-title">{{ seriesPrev.title }}</span>
             </RouterLink>
-            <span v-else class="nav-card card placeholder">
+            <span v-else class="nav-card placeholder">
               <span class="nav-label"><span class="nav-arrow">←</span>本专题上一篇</span>
               <span class="nav-title">已是本专题第一篇</span>
             </span>
-            <RouterLink v-if="seriesNext" :to="`/post/${seriesNext.slug}`" class="nav-card card next">
+            <RouterLink v-if="seriesNext" :to="`/post/${seriesNext.slug}`" class="nav-card next">
               <span class="nav-label">本专题下一篇<span class="nav-arrow">→</span></span>
               <span class="nav-title">{{ seriesNext.title }}</span>
             </RouterLink>
-            <span v-else class="nav-card card placeholder">
+            <span v-else class="nav-card placeholder">
               <span class="nav-label">本专题下一篇<span class="nav-arrow">→</span></span>
               <span class="nav-title">已是本专题最后一篇</span>
             </span>
@@ -141,13 +141,13 @@
         </div>
 
         <section v-if="related.length" v-reveal="{ delay: 80 }" class="related">
-          <h2 class="related-heading">相关文章</h2>
+          <h2 class="related-heading">RELATED</h2>
           <div class="related-grid">
             <RouterLink
               v-for="item in related"
               :key="item.id"
               :to="`/post/${item.slug}`"
-              class="related-card card"
+              class="related-card"
             >
               <p class="related-title">{{ item.title }}</p>
               <p class="related-meta">
@@ -381,10 +381,10 @@ watch(slug, () => {
 .post-detail {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 36px;
+  gap: 56px;
   align-items: start;
-  padding-top: 28px;
-  padding-bottom: 56px;
+  padding-top: 36px;
+  padding-bottom: 64px;
 }
 
 .post-detail.with-toc {
@@ -416,28 +416,25 @@ watch(slug, () => {
 .post-cats {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
-}
-
-.chip.cat {
-  background: var(--brand-soft);
-  color: var(--brand);
+  margin-bottom: 14px;
 }
 
 .post-title {
-  font-size: clamp(28px, 4.2vw, 40px);
+  font-size: var(--fs-display);
   font-weight: 650;
-  line-height: 1.35;
-  letter-spacing: 0.2px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
 }
 
+/* meta 行：mono 字体给日期/数字以编辑感（中文回退 sans） */
 .post-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: 12px;
-  font-size: 13px;
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--text-3);
 }
 
@@ -455,7 +452,7 @@ watch(slug, () => {
 }
 
 .post-cover {
-  margin-top: 22px;
+  margin-top: 28px;
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -501,9 +498,9 @@ watch(slug, () => {
   opacity: 1;
 }
 
+/* 正文直接落纸面：无卡片包裹，底部 hairline 与 footer 区分隔 */
 .post-content {
-  margin-top: 24px;
-  padding: 28px 32px;
+  margin-top: 30px;
 }
 
 .post-footer {
@@ -512,13 +509,15 @@ watch(slug, () => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px;
-  margin-top: 26px;
+  margin-top: 40px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
 }
 
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px 14px;
 }
 
 .like-btn {
@@ -529,7 +528,7 @@ watch(slug, () => {
   padding: 0 18px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: var(--surface);
+  background: transparent;
   color: var(--text-2);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
@@ -613,24 +612,25 @@ watch(slug, () => {
   }
 }
 
-/* 上一篇/下一篇 */
+/* 上一篇/下一篇：hairline 分隔的区块，无卡片 */
 .post-nav {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 30px;
+  gap: 32px;
+  margin-top: 36px;
 }
 
-/* 本专题导航组：小标题 + 复用全局 nav-card 结构 */
+/* 本专题导航组：kicker 栏头 + 复用 nav-card 结构 */
 .series-nav {
-  margin-top: 30px;
+  margin-top: 32px;
 }
 
 .series-nav-label {
-  margin-bottom: 10px;
-  font-size: 12px;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--text-3);
 }
 
@@ -641,8 +641,9 @@ watch(slug, () => {
 .nav-card {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  padding: 14px 18px;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
   min-width: 0;
 }
 
@@ -697,40 +698,37 @@ a.nav-card.next:hover .nav-title {
   font-weight: 400;
 }
 
-/* 相关文章 */
+/* 相关文章：mono 栏头 + 文字条目，无卡片 */
 .related {
-  margin-top: 36px;
+  margin-top: 44px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
 }
 
 .related-heading {
-  font-size: 18px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
 }
 
 .related-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 14px;
+  gap: 24px;
+  margin-top: 16px;
 }
 
 .related-card {
-  padding: 14px 16px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out,
-    transform 0.2s var(--ease-out-quart);
-}
-
-.related-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  min-width: 0;
 }
 
 .related-title {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-1);
-  line-height: 1.55;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -744,8 +742,9 @@ a.nav-card.next:hover .nav-title {
 }
 
 .related-meta {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
 }
 
@@ -836,10 +835,12 @@ a.nav-card.next:hover .nav-title {
 @media (max-width: 640px) {
   .related-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .post-nav {
     grid-template-columns: 1fr;
+    gap: 0;
   }
 
   .nav-card.next {
@@ -847,16 +848,12 @@ a.nav-card.next:hover .nav-title {
     align-items: flex-start;
   }
 
-  .post-content {
-    padding: 20px 18px;
-  }
-
   .post-title {
-    font-size: 22px;
+    font-size: 28px;
   }
 }
 
-/* 详情骨架 */
+/* 详情骨架：与新正文版式同构（无卡片） */
 .post-skeleton {
   display: flex;
   flex-direction: column;
@@ -864,29 +861,25 @@ a.nav-card.next:hover .nav-title {
 
 .sk-chip {
   width: 72px;
-  height: 22px;
-  border-radius: 6px;
+  height: 20px;
+  border-radius: 5px;
 }
 
 .sk-title {
-  margin-top: 16px;
+  margin-top: 18px;
   width: 70%;
-  height: 30px;
+  height: 34px;
   border-radius: 8px;
 }
 
 .sk-meta {
-  margin-top: 14px;
+  margin-top: 16px;
   width: 40%;
-  height: 13px;
+  height: 12px;
 }
 
 .sk-body {
-  margin-top: 28px;
-  padding: 28px 32px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  margin-top: 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;
