@@ -207,7 +207,7 @@ import { renderMarkdown, type TocItem } from '@/utils/markdown'
 import { formatDate, formatNumber } from '@/utils/format'
 import { isPostLiked, markPostLiked } from '@/utils/storage'
 import { applyDocumentTitle } from '@/utils/title'
-import { setSeo } from '@/utils/seo'
+import { extractFaqFromMarkdown, setSeo } from '@/utils/seo'
 import { readPxVar } from '@/utils/metrics'
 import { useMarkdownActions } from '@/composables/useMarkdownActions'
 import type { PostDetail, PostNav, PostSeriesRef, PostSummary } from '@/types'
@@ -287,16 +287,22 @@ async function load(): Promise<void> {
     liked.value = isPostLiked(data.post.id)
     applyDocumentTitle(data.post.title)
     setSeo({
-      description: data.post.summary,
+      description: data.post.seoDescription || data.post.summary,
       keywords: data.post.tags.map((t) => t.name).join(','),
+      canonical: data.post.canonical || undefined,
+      ogImage: data.post.ogImage || undefined,
       ogType: 'article',
+      pageTitle: data.post.seoTitle
+        ? `${data.post.seoTitle} · ${site.settings.siteName}`
+        : undefined,
       article: {
-        headline: data.post.title,
+        headline: data.post.seoTitle || data.post.title,
         publishedAt: data.post.publishedAt || data.post.createdAt,
         modifiedAt: data.post.updatedAt,
         author: site.settings.siteName,
-        cover: data.post.cover,
+        cover: data.post.ogImage || data.post.cover,
       },
+      faq: extractFaqFromMarkdown(data.post.content ?? ''),
     })
   } catch (e) {
     if (e instanceof ApiError && e.code === 10004) {

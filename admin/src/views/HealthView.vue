@@ -39,7 +39,7 @@ onMounted(load)
 <template>
   <div class="page">
     <PageHeader title="系统状态" description="站点运行环境与内容概览（版本号由构建注入，开发环境显示 dev）">
-      <template #extra>
+      <template #actions>
         <a-button :loading="loading" @click="onRefresh">
           <template #icon><ReloadOutlined /></template>
           刷新

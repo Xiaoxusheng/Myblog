@@ -53,6 +53,11 @@ export interface PostSummary {
 export interface PostDetail extends PostSummary {
   content: string
   updatedAt: string
+  /** SEO 扩展（空串=用默认规则） */
+  seoTitle?: string
+  seoDescription?: string
+  canonical?: string
+  ogImage?: string
 }
 
 /** 上一篇/下一篇导航项 */

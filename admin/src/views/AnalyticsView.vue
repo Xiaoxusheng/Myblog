@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import type { TableColumnsType } from 'ant-design-vue'
 import { EyeOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { getSearchStats } from '@/api/analytics'
 import StatCard from '@/components/StatCard.vue'
 import PvTrendChart from '@/components/PvTrendChart.vue'
 import DistributionBars from '@/components/DistributionBars.vue'
@@ -39,6 +40,7 @@ async function load() {
 
 function onRangeChange() {
   void load()
+  void loadSearchStats()
 }
 
 /** 来源中文映射（契约取值 direct/search/github/social/other，未知值原样显示） */
@@ -81,6 +83,24 @@ const osItems = computed<AnalyticsDistItem[]>(() =>
   (data.value?.oses ?? []).map((item) => ({ name: item.os, pv: item.pv })),
 )
 
+// ---------- 搜索统计（契约 #85，range 联动） ----------
+const searchStats = ref<{ keyword: string; count: number; noResultCount: number }[]>([])
+const searchLoading = ref(false)
+
+async function loadSearchStats() {
+  if (range.value === 'today') {
+    searchStats.value = [] // 后端搜索统计最小粒度为 7d
+    return
+  }
+  searchLoading.value = true
+  try {
+    const result = await getSearchStats({ range: range.value as '7d' | '30d' | '90d' })
+    searchStats.value = result.list
+  } finally {
+    searchLoading.value = false
+  }
+}
+
 const topColumns: TableColumnsType = [
   { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
   { title: 'PV', dataIndex: 'pv', key: 'pv', width: 90 },
@@ -93,7 +113,10 @@ function goEditPost(postId: number) {
   void router.push(`/posts/edit/${postId}`)
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadSearchStats()
+})
 </script>
 
 <template>
@@ -183,6 +206,33 @@ onMounted(load)
           </a-table>
         </a-card>
 
+        <!-- 搜索统计 -->
+        <a-card title="搜索统计" class="analytics-section">
+          <a-spin :spinning="searchLoading">
+            <a-table
+              v-if="searchStats.length > 0"
+              :data-source="searchStats"
+              :pagination="false"
+              row-key="keyword"
+            >
+              <a-table-column title="关键词" data-index="keyword" />
+              <a-table-column title="搜索次数" key="count" :width="120">
+                <template #body="{ record }">
+                  <span class="tabular-nums">{{ record.count }}</span>
+                </template>
+              </a-table-column>
+              <a-table-column title="无结果次数" key="noResultCount" :width="120">
+                <template #body="{ record }">
+                  <span class="tabular-nums" :class="{ 'search-no-result': record.noResultCount > 0 }">
+                    {{ record.noResultCount }}
+                  </span>
+                </template>
+              </a-table-column>
+            </a-table>
+            <a-empty v-else description="暂无搜索记录" class="analytics-empty" />
+          </a-spin>
+        </a-card>
+
         <!-- 来源 / 设备 / 浏览器 / 操作系统 分布 -->
         <a-row :gutter="[16, 16]" class="analytics-section">
           <a-col :xs="24" :sm="12" :xl="6">
@@ -246,5 +296,10 @@ onMounted(load)
 
 .analytics-chart-skeleton {
   margin-top: 16px;
+}
+
+.search-no-result {
+  color: var(--admin-warning, #d46b08);
+  font-weight: 500;
 }
 </style>

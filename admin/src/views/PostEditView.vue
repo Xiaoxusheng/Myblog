@@ -52,6 +52,10 @@ const formState = reactive({
   seriesId: 0,
   /** 专题内序号；null = 自动排到专题末尾（提交时按契约转为 0） */
   seriesSort: null as number | null,
+  seoTitle: '',
+  seoDescription: '',
+  canonical: '',
+  ogImage: '',
 })
 
 const formRef = ref()
@@ -84,6 +88,26 @@ const DRAFT_PREFIX = 'blog_admin_post_draft'
 const draftKey = computed(() =>
   postId.value ? `${DRAFT_PREFIX}_${postId.value}` : `${DRAFT_PREFIX}_new`,
 )
+
+/** SEO 检查清单:随表单实时评估,不阻断保存(docs/09 §4.1) */
+const seoChecks = computed(() => {
+  const title = formState.seoTitle.trim() || formState.title.trim()
+  const desc = formState.seoDescription.trim() || formState.summary.trim()
+  return [
+    {
+      label: `页面标题 ${title.length} 字(建议 ≤60)`,
+      ok: title.length > 0 && title.length <= 60,
+    },
+    {
+      label: `页面描述 ${desc.length} 字(建议 80-160)`,
+      ok: desc.length > 0 && desc.length <= 160,
+    },
+    {
+      label: '封面 / OG 图已设置',
+      ok: Boolean(formState.cover.trim() || formState.ogImage.trim()),
+    },
+  ]
+})
 
 const autosaveReady = ref(false)
 const draftStatus = ref<DraftSaveStatus>('idle')
@@ -173,6 +197,10 @@ function snapshot(form: typeof formState, publishAt?: string | null): string {
     publishAt: publishAt ?? null,
     seriesId: form.seriesId,
     seriesSort: form.seriesSort,
+    seoTitle: form.seoTitle,
+    seoDescription: form.seoDescription,
+    canonical: form.canonical,
+    ogImage: form.ogImage,
   })
 }
 
@@ -312,13 +340,13 @@ function fillForm(post: AdminPostItem) {
   formState.summary = post.summary
   formState.cover = post.cover
   formState.content = post.content
-  // AdminPostItem 契约类型暂未声明 seriesId/seriesSort，后端详情已返回，读取时做安全收敛
-  const seriesFields = post as AdminPostItem & { seriesId?: number; seriesSort?: number }
-  formState.seriesId = seriesFields.seriesId ?? 0
+  formState.seoTitle = post.seoTitle ?? ''
+  formState.seoDescription = post.seoDescription ?? ''
+  formState.canonical = post.canonical ?? ''
+  formState.ogImage = post.ogImage ?? ''
+  formState.seriesId = post.seriesId ?? 0
   formState.seriesSort =
-    typeof seriesFields.seriesSort === 'number' && seriesFields.seriesSort > 0
-      ? seriesFields.seriesSort
-      : null
+    typeof post.seriesSort === 'number' && post.seriesSort > 0 ? post.seriesSort : null
   publishAtValue.value = post.publishAt ? dayjs(post.publishAt) : null
 }
 
@@ -337,6 +365,10 @@ function buildPayload(nextStatus: PostStatus): PostPayload {
       nextStatus === 3 && publishAtValue.value ? publishAtValue.value.toISOString() : undefined,
     seriesId: formState.seriesId || 0,
     seriesSort: formState.seriesSort ?? 0,
+    seoTitle: formState.seoTitle.trim(),
+    seoDescription: formState.seoDescription.trim(),
+    canonical: formState.canonical.trim(),
+    ogImage: formState.ogImage.trim(),
   }
 }
 
@@ -440,6 +472,31 @@ const wordCount = computed(() => formState.content.length)
 const readingMinutes = computed(() =>
   wordCount.value === 0 ? 0 : Math.max(1, Math.ceil(wordCount.value / 400)),
 )
+
+// ---------- SEO 检查项（明确可验证项，不做虚假评分） ----------
+const seoChecks = computed(() => {
+  const seoTitleLen = formState.seoTitle.trim().length
+  const descLen = (formState.seoDescription.trim() || formState.summary.trim()).length
+  return [
+    { label: `标题存在（${formState.title.trim().length} 字）`, ok: formState.title.trim() !== '' },
+    {
+      label: seoTitleLen > 0 ? `SEO 标题已设置（${seoTitleLen} 字）` : 'SEO 标题未设置（将用文章标题）',
+      ok: seoTitleLen > 0 && seoTitleLen <= 60,
+    },
+    {
+      label: descLen > 0 ? `描述已设置（${descLen} 字）` : '描述未设置（将用摘要或正文开头）',
+      ok: descLen > 0 && descLen <= 160,
+    },
+    { label: '封面已设置', ok: formState.cover.trim() !== '' },
+    { label: '摘要已设置', ok: formState.summary.trim() !== '' },
+    { label: '正文含 H2 小节', ok: /^##\s/m.test(formState.content) },
+    {
+      label: formState.canonical.trim() !== '' ? 'Canonical 已设置' : 'Canonical 未设置（将用默认规则）',
+      ok: formState.canonical.trim() !== '',
+    },
+  ]
+})
+
 
 // 离开页面前把未落盘的变更立即写入，避免丢失
 onBeforeUnmount(() => {
@@ -612,6 +669,39 @@ onBeforeUnmount(() => {
                 show-count
               />
             </FormSection>
+
+            <FormSection title="SEO">
+              <a-form-item label="SEO 标题" :extra="`当前 ${formState.seoTitle.length}/60 字（建议 ≤60）`">
+                <a-input
+                  v-model:value="formState.seoTitle"
+                  placeholder="留空则使用文章标题"
+                  :maxlength="200"
+                />
+              </a-form-item>
+              <a-form-item
+                label="SEO 描述"
+                :extra="`当前 ${formState.seoDescription.length}/160 字（建议 ≤160）`"
+              >
+                <a-textarea
+                  v-model:value="formState.seoDescription"
+                  placeholder="留空则使用摘要"
+                  :rows="2"
+                  :maxlength="300"
+                />
+              </a-form-item>
+              <a-form-item label="Canonical URL">
+                <a-input v-model:value="formState.canonical" placeholder="留空使用默认规则" allow-clear />
+              </a-form-item>
+              <a-form-item label="OG 图">
+                <a-input v-model:value="formState.ogImage" placeholder="留空使用封面" allow-clear />
+              </a-form-item>
+              <ul class="seo-checklist">
+                <li v-for="check in seoChecks" :key="check.label" :class="{ 'seo-check--warn': !check.ok }">
+                  <span>{{ check.ok ? '✓' : '⚠' }}</span>
+                  {{ check.label }}
+                </li>
+              </ul>
+            </FormSection>
           </aside>
         </div>
       </a-form>
@@ -746,5 +836,23 @@ onBeforeUnmount(() => {
   .post-edit__actions {
     margin-left: auto;
   }
+}
+
+/* SEO 检查清单 */
+.seo-checklist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.seo-checklist li {
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+.seo-checklist li.seo-check--warn {
+  color: var(--admin-warning);
 }
 </style>
