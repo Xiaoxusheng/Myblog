@@ -21,7 +21,14 @@ const columns: TableColumnsType = [
   { title: '文件名', dataIndex: 'name', key: 'name', ellipsis: true },
   { title: '类型', key: 'type', width: 110 },
   { title: '大小', key: 'size', width: 110 },
-  { title: '时间', key: 'createdAt', width: 160 },
+  {
+    title: '时间',
+    key: 'createdAt',
+    width: 160,
+    sorter: (a: BackupItem, b: BackupItem) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    defaultSortOrder: 'descend' as const,
+  },
   { title: '操作', key: 'action', width: 150, fixed: 'right' },
 ]
 

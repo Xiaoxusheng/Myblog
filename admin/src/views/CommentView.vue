@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { MoreOutlined } from '@ant-design/icons-vue'
 import type { TableColumnsType } from 'ant-design-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import LoadError from '@/components/LoadError.vue'
 import TableEmpty from '@/components/TableEmpty.vue'
+import BatchBar from '@/components/BatchBar.vue'
 import { useTable } from '@/composables/useTable'
 import { useFeedback } from '@/composables/useFeedback'
 import { batchComments, deleteComment, getComments, replyComment, updateCommentStatus } from '@/api/comments'
@@ -211,6 +213,28 @@ async function onDelete(record: CommentAdmin) {
   await load()
 }
 
+/** 行内「更多」菜单:状态流转直接执行,删除走 Modal 二次确认(与批量删除同语言) */
+function onRowAction(action: string, record: CommentAdmin) {
+  if (action === 'approve') void setStatus(record, 1)
+  else if (action === 'reject') void setStatus(record, 2)
+  else if (action === 'spam') void setStatus(record, 3)
+  else if (action === 'restore') void setStatus(record, 0)
+  else if (action === 'delete') {
+    modal.confirm({
+      title: '删除评论',
+      content: '删除后不可恢复，该评论的回复将一并删除，确定删除吗？',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => onDelete(record),
+    })
+  }
+}
+
+/** a-menu click 事件在模板中无类型,柯里化显式标注 */
+const onMenuClick = (record: CommentAdmin) => (info: { key: string | number }) =>
+  onRowAction(String(info.key), record)
+
 onMounted(load)
 </script>
 
@@ -229,16 +253,12 @@ onMounted(load)
         </a-tag>
       </div>
 
-      <div v-if="selectedRowKeys.length > 0" class="comment-batch-bar">
-        <a-space wrap>
-          <span class="comment-batch-bar__count">已选 {{ selectedRowKeys.length }} 条</span>
-          <a-button size="small" :loading="batchRunning" @click="runBatch('approve')">批量通过</a-button>
-          <a-button size="small" :loading="batchRunning" @click="runBatch('reject')">批量拒绝</a-button>
-          <a-button size="small" :loading="batchRunning" @click="runBatch('spam')">批量标垃圾</a-button>
-          <a-button size="small" danger :loading="batchRunning" @click="runBatch('delete')">批量删除</a-button>
-          <a-button size="small" type="text" @click="selectedRowKeys = []">取消选择</a-button>
-        </a-space>
-      </div>
+      <BatchBar v-if="selectedRowKeys.length > 0" :count="selectedRowKeys.length" @clear="selectedRowKeys = []">
+        <a-button size="small" :loading="batchRunning" @click="runBatch('approve')">批量通过</a-button>
+        <a-button size="small" :loading="batchRunning" @click="runBatch('reject')">批量拒绝</a-button>
+        <a-button size="small" :loading="batchRunning" @click="runBatch('spam')">批量标垃圾</a-button>
+        <a-button size="small" danger :loading="batchRunning" @click="runBatch('delete')">批量删除</a-button>
+      </BatchBar>
 
       <LoadError v-if="error" @retry="load" />
 
@@ -283,45 +303,25 @@ onMounted(load)
           </template>
 
           <template v-else-if="column.key === 'action'">
-            <!-- 阻止冒泡：动作点击不应触发行打开详情 -->
+            <!-- 阻止冒泡：动作点击不应触发行打开详情；操作 >3 收敛为「详情/回复 + 更多」(docs/09 §6.1) -->
             <a-space :size="0" wrap @click.stop>
               <a-button type="link" size="small" @click="openDrawer(record)">详情</a-button>
-              <a-button v-if="record.status !== 1" type="link" size="small" @click="setStatus(record, 1)">
-                通过
-              </a-button>
-              <a-button
-                v-if="record.status !== 2 && !record.isAdmin"
-                type="link"
-                size="small"
-                @click="setStatus(record, 2)"
-              >
-                拒绝
-              </a-button>
-              <a-button
-                v-if="record.status !== 3 && !record.isAdmin"
-                type="link"
-                size="small"
-                @click="setStatus(record, 3)"
-              >
-                标垃圾
-              </a-button>
-              <a-button
-                v-if="record.status === 3 || record.status === 4"
-                type="link"
-                size="small"
-                @click="setStatus(record, 0)"
-              >
-                恢复待审
-              </a-button>
               <a-button type="link" size="small" @click="openReply(record)">回复</a-button>
-              <a-popconfirm
-                title="删除后不可恢复，该评论的回复将一并删除，确定删除吗？"
-                ok-text="删除"
-                cancel-text="取消"
-                @confirm="onDelete(record)"
-              >
-                <a-button type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
+              <a-dropdown :trigger="['click']">
+                <a-button type="link" size="small" aria-label="更多操作">
+                  <template #icon><MoreOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="onMenuClick(record)">
+                    <a-menu-item v-if="record.status !== 1" key="approve">通过</a-menu-item>
+                    <a-menu-item v-if="record.status !== 2 && !record.isAdmin" key="reject">拒绝</a-menu-item>
+                    <a-menu-item v-if="record.status !== 3 && !record.isAdmin" key="spam">标记垃圾</a-menu-item>
+                    <a-menu-item v-if="record.status === 3 || record.status === 4" key="restore">恢复待审</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="delete" danger>删除</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
             </a-space>
           </template>
         </template>
@@ -481,16 +481,5 @@ onMounted(load)
 .comment-detail__same-post {
   margin-top: 16px;
   padding: 0;
-}
-.comment-batch-bar {
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: var(--admin-surface-2);
-  border-radius: var(--admin-radius-sm);
-}
-
-.comment-batch-bar__count {
-  font-size: 13px;
-  color: var(--admin-text);
 }
 </style>

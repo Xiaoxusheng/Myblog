@@ -31,7 +31,14 @@ const {
 )
 
 const columns: TableColumnsType = [
-  { title: '时间', key: 'createdAt', width: 160 },
+  {
+    title: '时间',
+    key: 'createdAt',
+    width: 160,
+    // 服务端分页下仅对当前页排序
+    sorter: (a: AuditLogItem, b: AuditLogItem) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  },
   { title: '动作', key: 'action', width: 150 },
   { title: '对象', key: 'resource', width: 160, ellipsis: true },
   { title: '说明', dataIndex: 'description', key: 'description', ellipsis: true },

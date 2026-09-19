@@ -6,6 +6,7 @@ import {
   CommentOutlined,
   EyeOutlined,
   LikeOutlined,
+  MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -17,6 +18,7 @@ import PvTrendChart from '@/components/PvTrendChart.vue'
 import DistributionBars from '@/components/DistributionBars.vue'
 import LoadError from '@/components/LoadError.vue'
 import TableEmpty from '@/components/TableEmpty.vue'
+import BatchBar from '@/components/BatchBar.vue'
 import { useTable } from '@/composables/useTable'
 import { useFeedback } from '@/composables/useFeedback'
 import { deletePost, getPosts, updatePostStatus } from '@/api/posts'
@@ -35,7 +37,7 @@ import type {
 
 const route = useRoute()
 const router = useRouter()
-const { message } = useFeedback()
+const { message, modal } = useFeedback()
 
 const categories = ref<Category[]>([])
 
@@ -79,8 +81,16 @@ const columns: TableColumnsType = [
   { title: '标签', key: 'tags', width: 160 },
   { title: '状态', key: 'status', width: 120 },
   { title: '浏览/评论', key: 'stats', width: 90 },
-  { title: '发布时间', key: 'publishedAt', width: 170 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' },
+  {
+    title: '发布时间',
+    key: 'publishedAt',
+    width: 170,
+    // 服务端分页下仅对当前页排序(接口无排序参数),列头有 tooltip 说明
+    sorter: (a: AdminPostItem, b: AdminPostItem) =>
+      new Date(a.publishedAt || a.publishAt || a.createdAt).getTime() -
+      new Date(b.publishedAt || b.publishAt || b.createdAt).getTime(),
+  },
+  { title: '操作', key: 'action', width: 170, fixed: 'right' },
 ]
 
 // 筛选/翻页变化同步到 URL,便于分享与后退(docs/09 §5.1)
@@ -123,6 +133,83 @@ async function onDelete(record: AdminPostItem) {
   message.success('删除成功')
   await reloadAfterDelete()
 }
+
+/* ---------------- 批量操作(循环单条接口,零后端变更 docs/09 §6.2) ---------------- */
+
+const selectedRowKeys = ref<number[]>([])
+const batchRunning = ref(false)
+
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedRowKeys.value,
+  onChange: (keys: (number | string)[]) => {
+    selectedRowKeys.value = keys.map(Number)
+  },
+}))
+
+async function batchSetStatus(next: PostStatus) {
+  batchRunning.value = true
+  try {
+    const results = await Promise.allSettled(
+      selectedRowKeys.value.map((id) => updatePostStatus(id, next)),
+    )
+    const failed = results.filter((r) => r.status === 'rejected').length
+    if (failed > 0) {
+      message.warning(`${next === 1 ? '发布' : '下架'}完成，${failed} 篇失败`)
+    } else {
+      message.success(`已${next === 1 ? '发布' : '下架'} ${selectedRowKeys.value.length} 篇`)
+    }
+    selectedRowKeys.value = []
+    await load()
+  } finally {
+    batchRunning.value = false
+  }
+}
+
+function batchDelete() {
+  const count = selectedRowKeys.value.length
+  modal.confirm({
+    title: '批量删除',
+    content: `将删除选中的 ${count} 篇文章，其标签关联与评论将一并删除，删除后不可恢复，确定吗？`,
+    okText: '删除',
+    okType: 'danger',
+    cancelText: '取消',
+    onOk: async () => {
+      batchRunning.value = true
+      try {
+        const results = await Promise.allSettled(
+          selectedRowKeys.value.map((id) => deletePost(id)),
+        )
+        const failed = results.filter((r) => r.status === 'rejected').length
+        if (failed > 0) message.warning(`删除完成，${failed} 篇失败`)
+        else message.success(`已删除 ${count} 篇`)
+        selectedRowKeys.value = []
+        await load()
+      } finally {
+        batchRunning.value = false
+      }
+    },
+  })
+}
+
+/** 行内「更多」:分析/前台查看直达,删除走 Modal 二次确认(docs/09 §6.1) */
+function onRowAction(action: string, record: AdminPostItem) {
+  if (action === 'analytics') openAnalytics(record)
+  else if (action === 'view') void router.push(`/post/${record.slug}`)
+  else if (action === 'delete') {
+    modal.confirm({
+      title: '删除文章',
+      content: '删除后不可恢复，该文章的标签关联与评论将一并删除，确定删除吗？',
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => onDelete(record),
+    })
+  }
+}
+
+/** a-menu click 事件在模板中无类型,柯里化显式标注 */
+const onMenuClick = (record: AdminPostItem) => (info: { key: string | number }) =>
+  onRowAction(String(info.key), record)
 
 function goCreate() {
   void router.push('/posts/edit')
@@ -263,6 +350,18 @@ onMounted(() => {
         </a-button>
       </div>
 
+      <BatchBar v-if="selectedRowKeys.length > 0" :count="selectedRowKeys.length" @clear="selectedRowKeys = []">
+        <a-button
+          size="small"
+          :loading="batchRunning"
+          @click="batchSetStatus(1)"
+        >
+          批量发布
+        </a-button>
+        <a-button size="small" :loading="batchRunning" @click="batchSetStatus(2)">批量下架</a-button>
+        <a-button size="small" danger :loading="batchRunning" @click="batchDelete">批量删除</a-button>
+      </BatchBar>
+
       <LoadError v-if="error" @retry="load" />
 
       <a-table
@@ -272,11 +371,19 @@ onMounted(() => {
         :loading="loading"
         :pagination="pagination"
         :scroll="{ x: 1100 }"
+        :row-selection="rowSelection"
         row-key="id"
         @change="onTableChange"
       >
         <template #emptyText>
           <TableEmpty text="暂无文章，点击右上角「新建文章」开始写作" />
+        </template>
+        <template #headerCell="{ column }">
+          <template v-if="column.key === 'publishedAt'">
+            <a-tooltip title="服务端分页下仅对当前页排序">
+              <span>发布时间</span>
+            </a-tooltip>
+          </template>
         </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
@@ -316,20 +423,25 @@ onMounted(() => {
           </template>
 
           <template v-else-if="column.key === 'action'">
+            <!-- 操作 >3 收敛:编辑/发布切换平铺,删除进「更多」(docs/09 §6.1) -->
             <a-space :size="0">
               <a-button type="link" size="small" @click="goEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" @click="openAnalytics(record)">分析</a-button>
               <a-button type="link" size="small" @click="togglePublish(record)">
                 {{ record.status === 1 ? '下架' : '发布' }}
               </a-button>
-              <a-popconfirm
-                title="删除后不可恢复，该文章的标签关联与评论将一并删除，确定删除吗？"
-                ok-text="删除"
-                cancel-text="取消"
-                @confirm="onDelete(record)"
-              >
-                <a-button type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
+              <a-dropdown :trigger="['click']">
+                <a-button type="link" size="small" aria-label="更多操作">
+                  <template #icon><MoreOutlined /></template>
+                </a-button>
+                <template #overlay>
+                  <a-menu @click="onMenuClick(record)">
+                    <a-menu-item key="analytics">分析</a-menu-item>
+                    <a-menu-item key="view" :disabled="record.status !== 1">前台查看</a-menu-item>
+                    <a-menu-divider />
+                    <a-menu-item key="delete" danger>删除</a-menu-item>
+                  </a-menu>
+                </template>
+              </a-dropdown>
             </a-space>
           </template>
         </template>
