@@ -93,6 +93,10 @@ export interface PostPayload {
   publishAt?: string | null
   /** 自动保存标记：服务端据此做版本生成防抖 */
   auto?: boolean
+  /** 所属专题 id；0/缺省=移出专题 */
+  seriesId?: number
+  /** 专题内序号；0=自动排到末尾（已成员则保持原序号） */
+  seriesSort?: number
 }
 
 /** 文章版本列表项（不含 content） */
@@ -198,6 +202,42 @@ export interface Settings {
   footerText: string
   commentEnabled: boolean
   postPageSize: number
+  /** 文章 slug 变更时自动创建旧→新 301 重定向 */
+  autoRedirectOnSlugChange: boolean
+}
+
+/** 专题 */
+export interface Series {
+  id: number
+  name: string
+  slug: string
+  description: string
+  cover: string
+  visible: boolean
+  sort: number
+  postCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** 专题内文章项（管理端排序用） */
+export interface SeriesPostItem {
+  id: number
+  title: string
+  slug: string
+  status: PostStatus
+  sort: number
+}
+
+/** URL 重定向 */
+export interface RedirectItem {
+  id: number
+  source: string
+  target: string
+  type: 301 | 302
+  enabled: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface ProfilePayload {

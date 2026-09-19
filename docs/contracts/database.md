@@ -46,6 +46,38 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 
 生成规则：仅当文章快照字段（title/slug/summary/cover/content/category_id/is_top/status）与最新版本不同才插入；`auto` 保存距最新版本 <120s 不插入（防抖）。
 
+## series（专题）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| name | string uniqueIndex size:100 | |
+| slug | string uniqueIndex size:100 | 空则由名称派生，冲突追加 -id |
+| description | string size:500 | |
+| cover | string size:512 | |
+| visible | bool | 默认 true |
+| sort | int | 专题展示顺序，升序 |
+
+## series_posts（专题-文章关联；一篇文章至多属于一个专题）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| series_id | uint | uniqueIndex:idx_series_post 与 post_id 复合；单独 index |
+| post_id | uint | uniqueIndex:idx_post_series（一文一专题）；单独 index |
+| sort | int | 专题内序号，升序，同序按 id |
+
+文章删除级联删除关联；专题删除级联删除关联。
+
+## redirects（URL 重定向）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| source | string uniqueIndex size:512 | 旧站内路径（/post/xxx），唯一 |
+| target | string size:512 | 新站内路径 |
+| type | int | 301 永久 / 302 临时 |
+| enabled | bool | 默认 true |
+
+写入时做环检测（沿 target 链回溯回到自身或超 10 层 → 拒绝）；文章 slug 变更且 `autoRedirectOnSlugChange` 开启时自动 upsert 旧→新 301。
+
 ## categories
 id, name(uniqueIndex size:64), slug(size:64), description(size:500)
 

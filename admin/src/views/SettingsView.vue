@@ -24,6 +24,7 @@ const formState = reactive<Settings>({
   footerText: '',
   commentEnabled: true,
   postPageSize: 10,
+  autoRedirectOnSlugChange: true,
 })
 
 const rules = {
@@ -113,6 +114,16 @@ onMounted(load)
           <a-form-item label="每页文章数" name="postPageSize">
             <a-input-number v-model:value="formState.postPageSize" :min="1" :max="50" style="width: 160px" />
           </a-form-item>
+          <a-form-item label="Slug 重定向" name="autoRedirectOnSlugChange">
+            <a-space direction="vertical" :size="4">
+              <a-switch
+                v-model:checked="formState.autoRedirectOnSlugChange"
+                checked-children="开"
+                un-checked-children="关"
+              />
+              <span class="settings-hint">修改文章 slug 时自动创建旧地址到新地址的 301 重定向，避免外链失效</span>
+            </a-space>
+          </a-form-item>
           <a-form-item :wrapper-col="{ offset: 0 }">
             <a-button type="primary" :loading="saving" @click="save">保存设置</a-button>
           </a-form-item>
@@ -123,3 +134,10 @@ onMounted(load)
     <MediaSelectModal v-model:open="logoModalOpen" @select="formState.logo = $event" />
   </div>
 </template>
+
+<style scoped>
+.settings-hint {
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+</style>

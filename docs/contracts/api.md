@@ -25,6 +25,12 @@
 
 **PostRevisionDetail**：PostRevisionItem + `{title,slug,summary,cover,content,categoryId,isTop,status}`（该版本保存时的文章全量快照）
 
+**Series**：`{id,name,slug,description,cover,visible,sort,postCount?,createdAt,updatedAt}`；`postCount` 仅列表接口返回（公开列表=已发布数，管理列表=全部）
+
+**Redirect**：`{id,source,target,type,enabled,createdAt,updatedAt}`；`source/target` 为站内路径（`/post/go-guide`），`type` 301|302
+
+**文章详情 series 扩展**（仅当文章属于专题时返回）：`series:{id,name,slug,index,total}`（第 index/total 篇）、`seriesPrev:{id,title,slug}|null`、`seriesNext:{id,title,slug}|null`（按专题内序号相邻）
+
 **Tag**：`{id,name,slug,postCount?}`；**Category**：`{id,name,slug,description?,postCount?}`
 
 **公开评论 CommentPublic**：`{id,parentId,nickname,website,content,isAdmin,createdAt,children:[CommentPublic]}`（仅已通过；两级树，children 升序，顶级倒序）
@@ -39,7 +45,7 @@
 
 **User**：`{id,username,nickname,email,avatar}`
 
-**Settings（结构化对象，不是 map）**：`{siteName,siteDescription,siteKeywords,siteUrl,logo,notice,icp,footerText,commentEnabled(bool),postPageSize(number)}`
+**Settings（结构化对象，不是 map）**：`{siteName,siteDescription,siteKeywords,siteUrl,logo,notice,icp,footerText,commentEnabled(bool),postPageSize(number),autoRedirectOnSlugChange(bool)}`
 
 ---
 
@@ -49,7 +55,7 @@
 |---|---|---|
 | 1 | GET `/site` | 站点信息：Settings + `categories:[Category]` + `tags:[Tag]` |
 | 2 | GET `/posts?keyword=&categoryId=&tagId=&page=&pageSize=&sort=` | 文章分页，仅已发布；`sort`=`newest`(默认)/`views`/`likes`；置顶优先；keyword 模糊匹配标题/摘要/内容（转义 %_\） |
-| 3 | GET `/posts/:slug` | 详情：`{post:PostDetail,prev:{id,title,slug}\|null,next:...\|null,related:[PostSummary]}`；:slug 同时接受数字 id 或 slug；浏览量 +1；非已发布 → 10004 |
+| 3 | GET `/posts/:slug` | 详情：`{post:PostDetail,prev:{id,title,slug}\|null,next:...\|null,related:[PostSummary],series?:{id,name,slug,index,total},seriesPrev?...,seriesNext?...}`；:slug 同时接受数字 id 或 slug；浏览量 +1；非已发布 → 10004 |
 | 4 | GET `/posts/:slug/comments` | `{list:[CommentPublic]}` 仅已通过 |
 | 5 | POST `/posts/:slug/comments` | body `{parentId?,nickname,email,website?,content}`；昵称/邮箱/内容必填；评论开关关闭→20002；限流→20003；新评论 status=0；返回 `{comment:{id,parentId,nickname,website,content,createdAt}}` |
 | 6 | POST `/posts/:slug/like` | likeCount +1，返回 `{likeCount}` |
@@ -59,6 +65,9 @@
 | 10 | GET `/rss`（根路径） | RSS 2.0 XML，最近 20 篇，链接用 settings.siteUrl |
 | 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
 | 49 | GET `/robots.txt`（根路径） | 纯文本：Allow 全站、Disallow /api/ 与 /admin、声明 Sitemap 地址 |
+| 53 | GET `/series` | `{list:[Series]}` 仅 visible，sort 升序，postCount=已发布文章数 |
+| 54 | GET `/series/:slug` | `{series:Series,posts:[PostSummary]}` 仅已发布文章，按专题内序号排列；404 → 10004 |
+| 55 | GET `/redirects/resolve?path=/post/old` | `{redirect:{source,target,type}\|null}` 仅 enabled；无匹配返回 `{redirect:null}`（code 0）；供前台 404 兜底路由使用 |
 
 ## 管理接口（Bearer）
 
@@ -73,9 +82,9 @@
 
 ### 文章
 | 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前；status 可为 `0/1/2/3` |
-| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；创建成功即写入首个版本（v1，remark=首次保存） |
+| 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?,seriesId?,seriesSort?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；seriesId>0 加入该专题（seriesSort 0=自动排末尾）；创建成功即写入首个版本（v1，remark=首次保存） |
 | 18 | GET `/admin/posts/:id` | `{post:AdminPostItem}` |
-| 19 | PUT `/admin/posts/:id` | 同 17，全量更新；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空 |
+| 19 | PUT `/admin/posts/:id` | 同 17，全量更新；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空；seriesId 变更同步专题归属。**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动创建 `/post/旧slug → /post/新slug` 301 重定向** |
 | 20 | PUT `/admin/posts/:id/status` | `{status,publishAt?}` → data:null；status=3 需 publishAt；状态实际变化时生成版本（remark=修改状态），仅调整计划时间不生成版本 |
 | 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags、评论与版本历史 |
 | 50 | GET `/admin/posts/:id/revisions?page=&pageSize=` | 分页 PostRevisionItem，version 倒序；仅内容真正变化才产生版本 |
@@ -116,6 +125,18 @@
 | 46 | GET `/admin/uploads?page=&pageSize=` | 分页 Upload，最新在前 |
 | 47 | DELETE `/admin/uploads/:id` | 同时删文件 |
 
+### 专题 / 重定向
+| 56 | GET `/admin/series?page=&pageSize=` | 分页 Series（含 postCount=全部文章数），sort 升序 |
+| 57 | POST `/admin/series` | `{name,slug?,description?,cover?,visible,sort?}`；name/slug 唯一，slug 空自动生成 |
+| 58 | PUT `/admin/series/:id` | 同 57 |
+| 59 | DELETE `/admin/series/:id` | 同步删除 series_posts 关联（文章本身不动） |
+| 60 | GET `/admin/series/:id/posts` | `{list:[{id,title,slug,status,sort}]}` 全部状态，按 sort、id 升序 |
+| 61 | PUT `/admin/series/:id/posts` | `{items:[{postId,sort}]}` 批量调整专题内序号（仅已在该专题的文章生效）→ data:null |
+| 62 | GET `/admin/redirects?page=&pageSize=` | 分页 Redirect，createdAt 倒序 |
+| 63 | POST `/admin/redirects` | `{source,target,type,enabled}`；source/target 必须以 `/` 开头的站内路径（去 query/hash）；type 301\|302；source≠target；**环检测**：沿 target 链回溯若回到 source 或超过 10 层 → 10001 |
+| 64 | PUT `/admin/redirects/:id` | 同 63（环检测排除自身后校验） |
+| 65 | DELETE `/admin/redirects/:id` | data:null |
+
 ## 联调冒烟清单（QA 用）
 
 1. `go run .` 启动后 `curl :8080/api/v1/site` → code 0
@@ -125,3 +146,6 @@
 5. `curl :8080/rss` → XML
 6. 编辑文章改标题保存 → 版本列表 v2（remark 含 标题）→ 恢复 v1 → 文章标题还原且产生恢复版本
 7. 创建 status=3 文章（publishAt 过去时间）→ 等 1 个调度周期 → 自动变已发布且公开列表可见
+8. 创建专题 → 两篇文章设 seriesId=1/2 → `/series/:slug` 按序返回；文章详情含 series.index/total 与 seriesPrev/Next
+9. 创建重定向 `/post/a → /post/b`（301）→ `/redirects/resolve?path=/post/a` 返回 target；再建 `/post/b → /post/a` → 10001 环检测
+10. 修改文章 slug → 自动出现旧 slug→新 slug 的 301 重定向
