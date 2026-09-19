@@ -69,6 +69,9 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.GET("/posts/:id", handler.AdminGetPost)
 		admin.PUT("/posts/:id", handler.AdminUpdatePost)
 		admin.PUT("/posts/:id/status", handler.AdminUpdatePostStatus)
+		admin.GET("/posts/:id/revisions", handler.AdminListRevisions)
+		admin.GET("/posts/:id/revisions/:version", handler.AdminGetRevision)
+		admin.POST("/posts/:id/revisions/:version/restore", handler.AdminRestoreRevision)
 		admin.DELETE("/posts/:id", handler.AdminDeletePost)
 
 		// 分类

@@ -37,6 +37,27 @@ func main() {
 		log.Fatalf("启动失败：创建上传目录 %s：%v", cfg.UploadDir, err)
 	}
 
+	// 定时发布调度：启动时先补跑一次（接管停机期间到期的计划），再按间隔轮询。
+	// 计划存在数据库中，重启不丢；到点文章 status 3→1（详见 model.PublishDueScheduledPosts）。
+	publishDue := func(when string) {
+		n, err := model.PublishDueScheduledPosts(db)
+		if err != nil {
+			log.Printf("scheduler: %s扫描到期定时文章失败：%v", when, err)
+			return
+		}
+		if n > 0 {
+			log.Printf("scheduler: %s已发布 %d 篇到期定时文章", when, n)
+		}
+	}
+	publishDue("启动补跑：")
+	go func() {
+		ticker := time.NewTicker(cfg.ScheduleInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			publishDue("定时扫描：")
+		}
+	}()
+
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           router.Setup(cfg),

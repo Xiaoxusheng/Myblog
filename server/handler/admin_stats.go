@@ -13,12 +13,16 @@ import (
 func Stats(c *gin.Context) {
 	db := model.DB
 
-	var postCount, draftCount, commentCount, pendingCount, linkCount int64
+	var postCount, draftCount, scheduledCount, commentCount, pendingCount, linkCount int64
 	if err := db.Model(&model.Post{}).Count(&postCount).Error; err != nil {
 		common.ServerError(c, err)
 		return
 	}
 	if err := db.Model(&model.Post{}).Where("status = ?", model.PostDraft).Count(&draftCount).Error; err != nil {
+		common.ServerError(c, err)
+		return
+	}
+	if err := db.Model(&model.Post{}).Where("status = ?", model.PostScheduled).Count(&scheduledCount).Error; err != nil {
 		common.ServerError(c, err)
 		return
 	}
@@ -122,9 +126,34 @@ func Stats(c *gin.Context) {
 		})
 	}
 
+	// 计划发布：即将上线的定时文章（≤5 条，计划时间升序）
+	var scheduledRows []struct {
+		ID        uint       `gorm:"column:id"`
+		Title     string     `gorm:"column:title"`
+		PublishAt *time.Time `gorm:"column:publish_at"`
+	}
+	if err := db.Model(&model.Post{}).
+		Select("id, title, publish_at").
+		Where("status = ?", model.PostScheduled).
+		Order("publish_at ASC").Limit(5).
+		Scan(&scheduledRows).Error; err != nil {
+		common.ServerError(c, err)
+		return
+	}
+	type scheduledPost struct {
+		ID        uint       `json:"id"`
+		Title     string     `json:"title"`
+		PublishAt *time.Time `json:"publishAt"`
+	}
+	scheduledPosts := make([]scheduledPost, 0, len(scheduledRows))
+	for _, r := range scheduledRows {
+		scheduledPosts = append(scheduledPosts, scheduledPost{ID: r.ID, Title: r.Title, PublishAt: r.PublishAt})
+	}
+
 	common.OK(c, gin.H{
 		"postCount":           postCount,
 		"draftCount":          draftCount,
+		"scheduledCount":      scheduledCount,
 		"commentCount":        commentCount,
 		"pendingCommentCount": pendingCount,
 		"viewCount":           sums.Views,
@@ -132,5 +161,6 @@ func Stats(c *gin.Context) {
 		"linkCount":           linkCount,
 		"trend":               trend,
 		"recentComments":      recent,
+		"scheduledPosts":      scheduledPosts,
 	})
 }

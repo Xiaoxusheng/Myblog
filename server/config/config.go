@@ -9,7 +9,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Config 服务运行配置
@@ -20,6 +22,9 @@ type Config struct {
 	DBPath    string // SQLite 文件路径
 	MySQLDSN  string // MySQL DSN（BLOG_DB_TYPE=mysql 时必填）
 	UploadDir string // 上传文件存储目录（/uploads 静态服务根）
+
+	// 定时发布
+	ScheduleInterval time.Duration // 到期定时文章的扫描间隔（BLOG_SCHEDULE_INTERVAL_SECONDS，默认 30s）
 
 	// 安全配置
 	CryptoKey      string   // 敏感字段加密密钥（64 位 hex = 32 字节 AES-256），见 model/crypto.go
@@ -40,6 +45,13 @@ func Load() *Config {
 		TrustedProxies: splitList(getEnv("BLOG_TRUSTED_PROXIES",
 			"127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")),
 	}
+
+	// 定时发布扫描间隔：非法值回退默认，下限 5s 防止误配打满数据库
+	scheduleSeconds, err := strconv.Atoi(getEnv("BLOG_SCHEDULE_INTERVAL_SECONDS", "30"))
+	if err != nil || scheduleSeconds < 5 {
+		scheduleSeconds = 30
+	}
+	cfg.ScheduleInterval = time.Duration(scheduleSeconds) * time.Second
 
 	// JWT 密钥：未配置时自动生成并落盘（与 SQLite 同目录，容器部署时随卷持久化），
 	// 重启不失效；禁止回退到已知的硬编码默认值。

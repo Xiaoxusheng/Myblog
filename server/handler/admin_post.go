@@ -15,15 +15,17 @@ import (
 
 // postPayload 创建/更新文章入参（契约 #17/#19）
 type postPayload struct {
-	Title      string   `json:"title"`
-	Slug       string   `json:"slug"`
-	Summary    string   `json:"summary"`
-	Content    string   `json:"content"`
-	Cover      string   `json:"cover"`
-	CategoryID uint     `json:"categoryId"`
-	Tags       []string `json:"tags"`
-	Status     int8     `json:"status"`
-	IsTop      bool     `json:"isTop"`
+	Title      string     `json:"title"`
+	Slug       string     `json:"slug"`
+	Summary    string     `json:"summary"`
+	Content    string     `json:"content"`
+	Cover      string     `json:"cover"`
+	CategoryID uint       `json:"categoryId"`
+	Tags       []string   `json:"tags"`
+	Status     int8       `json:"status"`
+	IsTop      bool       `json:"isTop"`
+	PublishAt  *time.Time `json:"publishAt"` // 定时发布计划时间；status=3 必填
+	Auto       bool       `json:"auto"`      // 前端自动保存标记：版本生成防抖
 }
 
 func (p *postPayload) validate(c *gin.Context) bool {
@@ -38,8 +40,10 @@ func (p *postPayload) validate(c *gin.Context) bool {
 		common.Fail(c, common.CodeParamError, "slug 不能超过 200 字符")
 	case utf8.RuneCountInString(p.Cover) > 512:
 		common.Fail(c, common.CodeParamError, "封面地址过长")
-	case p.Status < model.PostDraft || p.Status > model.PostHidden:
+	case p.Status < model.PostDraft || p.Status > model.PostScheduled:
 		common.Fail(c, common.CodeParamError, "status 取值不合法")
+	case p.Status == model.PostScheduled && p.PublishAt == nil:
+		common.Fail(c, common.CodeParamError, "定时发布需要计划发布时间")
 	default:
 		return true
 	}
@@ -110,6 +114,8 @@ func parsePostStatus(raw string) (int8, error) {
 		return model.PostPublished, nil
 	case "2":
 		return model.PostHidden, nil
+	case "3":
+		return model.PostScheduled, nil
 	default:
 		return -1, fmt.Errorf("invalid status %q", raw)
 	}
@@ -210,6 +216,9 @@ func AdminCreatePost(c *gin.Context) {
 	if req.Status == model.PostPublished {
 		post.PublishedAt = nowPtr()
 	}
+	if req.Status == model.PostScheduled {
+		post.PublishAt = req.PublishAt
+	}
 
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&post).Error; err != nil {
@@ -222,7 +231,11 @@ func AdminCreatePost(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return tx.Model(&post).Association("Tags").Replace(tags)
+		if err := tx.Model(&post).Association("Tags").Replace(tags); err != nil {
+			return err
+		}
+		// slug 已定稿后写入首个版本（契约：创建即 v1，remark=首次保存）
+		return model.CreatePostRevision(tx, &post, "首次保存")
 	})
 	if err != nil {
 		common.ServerError(c, err)
@@ -276,6 +289,8 @@ func AdminUpdatePost(c *gin.Context) {
 		"category_id": req.CategoryID,
 		"status":      req.Status,
 		"is_top":      req.IsTop,
+		// 定时发布写计划时间；离开定时状态置空
+		"publish_at": publishAtForStatus(req.Status, req.PublishAt),
 	}
 	publishNowIfFirst(&post, req.Status, updates)
 
@@ -295,7 +310,10 @@ func AdminUpdatePost(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return tx.Model(&post).Association("Tags").Replace(tags)
+		if err := tx.Model(&post).Association("Tags").Replace(tags); err != nil {
+			return err
+		}
+		return maybeCreateRevisionOnUpdate(tx, &post, &req)
 	})
 	if err != nil {
 		common.ServerError(c, err)
@@ -318,14 +336,19 @@ func AdminUpdatePostStatus(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Status int8 `json:"status"`
+		Status    int8       `json:"status"`
+		PublishAt *time.Time `json:"publishAt"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.Fail(c, common.CodeParamError, "参数错误")
 		return
 	}
-	if req.Status < model.PostDraft || req.Status > model.PostHidden {
+	if req.Status < model.PostDraft || req.Status > model.PostScheduled {
 		common.Fail(c, common.CodeParamError, "status 取值不合法")
+		return
+	}
+	if req.Status == model.PostScheduled && req.PublishAt == nil {
+		common.Fail(c, common.CodeParamError, "定时发布需要计划发布时间")
 		return
 	}
 
@@ -335,16 +358,40 @@ func AdminUpdatePostStatus(c *gin.Context) {
 		return
 	}
 
-	updates := map[string]any{"status": req.Status}
+	updates := map[string]any{
+		"status":     req.Status,
+		"publish_at": publishAtForStatus(req.Status, req.PublishAt),
+	}
 	publishNowIfFirst(&post, req.Status, updates)
-	if err := model.DB.Model(&post).Updates(updates).Error; err != nil {
+
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&post).Updates(updates).Error; err != nil {
+			return err
+		}
+		// 状态未变化（仅调整计划时间）不生成版本
+		if post.Status == req.Status {
+			return nil
+		}
+		latest, err := model.LatestPostRevision(tx, post.ID)
+		if err != nil {
+			return err
+		}
+		newState := post
+		newState.Status = req.Status
+		remark := model.RevisionRemark(&newState, latest)
+		if remark == "" {
+			return nil
+		}
+		return model.CreatePostRevision(tx, &newState, remark)
+	})
+	if err != nil {
 		common.ServerError(c, err)
 		return
 	}
 	common.OK(c, nil)
 }
 
-// AdminDeletePost DELETE /api/v1/admin/posts/:id —— 连带 post_tags 与评论
+// AdminDeletePost DELETE /api/v1/admin/posts/:id —— 连带 post_tags、评论与版本历史
 func AdminDeletePost(c *gin.Context) {
 	id, err := strconvUint(c.Param("id"))
 	if err != nil {
@@ -364,6 +411,9 @@ func AdminDeletePost(c *gin.Context) {
 		if err := tx.Where("post_id = ?", post.ID).Delete(&model.Comment{}).Error; err != nil {
 			return err
 		}
+		if err := tx.Where("post_id = ?", post.ID).Delete(&model.PostRevision{}).Error; err != nil {
+			return err
+		}
 		return tx.Delete(&post).Error
 	})
 	if err != nil {
@@ -371,6 +421,41 @@ func AdminDeletePost(c *gin.Context) {
 		return
 	}
 	common.OK(c, nil)
+}
+
+// publishAtForStatus publish_at 写库语义：status=3 写计划时间，其余状态置空（NULL）
+func publishAtForStatus(status int8, publishAt *time.Time) *time.Time {
+	if status == model.PostScheduled {
+		return publishAt
+	}
+	return nil
+}
+
+// maybeCreateRevisionOnUpdate 保存后按契约生成文章版本：
+// 快照字段与最新版本相同不生成；auto 保存且距最新版本不足防抖间隔（RevisionAutoThrottle）不生成。
+func maybeCreateRevisionOnUpdate(tx *gorm.DB, post *model.Post, req *postPayload) error {
+	latest, err := model.LatestPostRevision(tx, post.ID)
+	if err != nil {
+		return err
+	}
+	// Updates(map) 不回写结构体，新状态以当前文章为基础覆盖请求字段
+	// （保留 ID；Slug 已由 ensurePostSlug 定稿回写 post）
+	newState := *post
+	newState.Title = strings.TrimSpace(req.Title)
+	newState.Summary = strings.TrimSpace(req.Summary)
+	newState.Content = req.Content
+	newState.Cover = strings.TrimSpace(req.Cover)
+	newState.CategoryID = req.CategoryID
+	newState.IsTop = req.IsTop
+	newState.Status = req.Status
+	remark := model.RevisionRemark(&newState, latest)
+	if remark == "" {
+		return nil
+	}
+	if req.Auto && latest != nil && time.Since(latest.CreatedAt) < model.RevisionAutoThrottle {
+		return nil
+	}
+	return model.CreatePostRevision(tx, &newState, remark)
 }
 
 func nowPtr() *time.Time {
