@@ -13,3 +13,8 @@ server/uploads/*
 .smoke-*
 .smoke/
 .tmp-*
+
+# Agent 协作/工具配置，只保留本地不入库
+.agent/
+.zcodeignore
+docs/agent/
