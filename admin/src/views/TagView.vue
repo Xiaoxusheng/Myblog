@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SLUG_PATTERN, SLUG_PATTERN_MESSAGE } from '@/utils/validators'
 import { onMounted, reactive, ref } from 'vue'
 import type { FormInstance, TableColumnsType } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
@@ -46,8 +47,8 @@ const modalRules = {
   name: [{ required: true, message: '请输入标签名称' }],
   slug: [
     {
-      pattern: /^[a-zA-Z0-9_-]*$/,
-      message: '仅支持字母、数字、短横线和下划线',
+      pattern: SLUG_PATTERN,
+      message: SLUG_PATTERN_MESSAGE,
     },
   ],
 }

@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { TOKEN_KEY } from '@/constants/status'
-import type { PostPayload } from '@/types/api'
+import type { PagePayload, PostPayload } from '@/types/api'
 
 /**
  * 服务器自动保存专用「静默」请求通道。
@@ -27,6 +27,17 @@ instance.interceptors.request.use((config) => {
 /** 静默更新文章（auto 自动保存）：成功 resolve；失败 reject，不弹任何全局提示 */
 export function silentUpdatePost(id: number, payload: PostPayload): Promise<void> {
   return instance.put(`/admin/posts/${id}`, payload).then((response) => {
+    const body = response.data as { code?: number } | null
+    if (body && typeof body === 'object' && body.code === 0) {
+      return undefined
+    }
+    throw new Error('自动保存失败')
+  })
+}
+
+/** 静默更新自定义页面（自动保存）：语义同 silentUpdatePost */
+export function silentUpdatePage(id: number, payload: PagePayload): Promise<void> {
+  return instance.put(`/admin/pages/${id}`, payload).then((response) => {
     const body = response.data as { code?: number } | null
     if (body && typeof body === 'object' && body.code === 0) {
       return undefined

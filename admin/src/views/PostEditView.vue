@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { SLUG_PATTERN, SLUG_PATTERN_MESSAGE } from '@/utils/validators'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import {
@@ -18,6 +19,7 @@ import { createPost, getPost, updatePost } from '@/api/posts'
 import { getCategories } from '@/api/taxonomy'
 import { getSeriesList } from '@/api/series'
 import { silentUpdatePost } from '@/utils/autosaveHttp'
+import { useAutoSave } from '@/composables/useAutoSave'
 import type { AdminPostItem, Category, PostPayload, PostStatus, Series } from '@/types/api'
 
 const route = useRoute()
@@ -64,8 +66,8 @@ const rules = {
   categoryId: [{ required: true, message: '请选择分类' }],
   slug: [
     {
-      pattern: /^[a-zA-Z0-9_-]*$/,
-      message: '仅支持字母、数字、短横线和下划线',
+      pattern: SLUG_PATTERN,
+      message: SLUG_PATTERN_MESSAGE,
     },
   ],
 }
@@ -73,15 +75,10 @@ const rules = {
 // ---------------------------------------------------------------------------
 // 自动保存：3s 防抖 → 本地草稿（localStorage 兜底）+ 条件满足时服务器自动保存
 // 服务器自动保存仅针对未发布文章（status !== 1），已发布文章的未定稿编辑只留本地
+// 机制在 composables/useAutoSave.ts，页面只注入业务条件与快照（docs/09 §7.1）
 // ---------------------------------------------------------------------------
-type DraftSaveStatus = 'idle' | 'saving' | 'saved-server' | 'saved-local' | 'error'
-
-interface LocalDraft {
-  form: typeof formState
-  savedAt: number
-  /** 定时发布计划时间（ISO 字符串）；旧草稿无此字段 */
-  publishAt?: string | null
-}
+/** 定时发布计划时间（ISO 字符串）；旧草稿无此字段 */
+type PostDraftExtra = { publishAt?: string | null }
 
 const DRAFT_PREFIX = 'blog_admin_post_draft'
 
@@ -89,81 +86,12 @@ const draftKey = computed(() =>
   postId.value ? `${DRAFT_PREFIX}_${postId.value}` : `${DRAFT_PREFIX}_new`,
 )
 
-const autosaveReady = ref(false)
-const draftStatus = ref<DraftSaveStatus>('idle')
-const savedAtText = ref('')
-let draftTimer: ReturnType<typeof setTimeout> | null = null
-/** 服务器已同步的最新负载快照（跳过无变化的自动保存请求） */
-let lastServerSnapshot = ''
-/** 服务器自动保存序号：仅最新一次请求的结果可以更新状态条 */
-let autosaveSeq = 0
-
-function clearDraftTimer() {
-  if (draftTimer) {
-    clearTimeout(draftTimer)
-    draftTimer = null
-  }
-}
-
-function readDraft(): LocalDraft | null {
-  try {
-    const raw = localStorage.getItem(draftKey.value)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as LocalDraft
-    if (!parsed || typeof parsed !== 'object' || !parsed.form) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
 function currentPublishAtIso(): string | null {
   return publishAtValue.value ? publishAtValue.value.toISOString() : null
 }
 
-function writeDraft() {
-  draftTimer = null
-  // 1) 本地兜底始终写入：服务器自动保存失败时草稿仍在
-  try {
-    const draft: LocalDraft = {
-      form: { ...formState, tagNames: [...formState.tagNames] },
-      savedAt: Date.now(),
-      publishAt: currentPublishAtIso(),
-    }
-    localStorage.setItem(draftKey.value, JSON.stringify(draft))
-  } catch {
-    if (!canServerAutosave()) {
-      draftStatus.value = 'error'
-      return
-    }
-  }
-  // 2) 条件满足时同时发起服务器自动保存
-  if (canServerAutosave()) {
-    void serverAutosave()
-  } else {
-    savedAtText.value = dayjs().format('HH:mm')
-    draftStatus.value = 'saved-local'
-  }
-}
-
-function clearLocalDraft() {
-  clearDraftTimer()
-  localStorage.removeItem(draftKey.value)
-  draftStatus.value = 'idle'
-}
-
-function onFormChange() {
-  if (!autosaveReady.value) return
-  draftStatus.value = 'saving'
-  clearDraftTimer()
-  draftTimer = setTimeout(writeDraft, 3000)
-}
-
-watch(formState, onFormChange, { deep: true })
-watch(publishAtValue, onFormChange)
-
-/** 表单快照对比（tags 排序后比较，避免服务端顺序差异误报）；publishAt/专题归属参与对比 */
-function snapshot(form: typeof formState, publishAt?: string | null): string {
+/** 表单快照（tags 排序后比较，避免服务端顺序差异误报）；publishAt/专题归属参与对比 */
+function formSnapshot(form: typeof formState, publishAt?: string | null): string {
   return JSON.stringify({
     title: form.title,
     slug: form.slug,
@@ -184,102 +112,59 @@ function snapshot(form: typeof formState, publishAt?: string | null): string {
   })
 }
 
-/**
- * 是否可发起服务器自动保存：
- * - 仅编辑已有文章、标题非空、分类有效（避免必然失败的请求）
- * - 已发布文章（status=1）的未定稿编辑不能实时写到线上，只留本地草稿
- * - 定时发布需已选时间（契约要求 status=3 必填 publishAt）
- * - 内容与服务器已同步状态一致时不重复保存
- */
-function canServerAutosave(): boolean {
-  return (
-    autosaveReady.value &&
-    !saving.value &&
+const {
+  draftStatus,
+  savedAtText,
+  touch: touchAutosave,
+  clearLocalDraft,
+  checkLocalDraft,
+  pause: pauseAutosave,
+  resume: resumeAutosave,
+  markIdle: markAutosaveIdle,
+  setBaseline,
+  schedule: scheduleAutosave,
+  flushDraft,
+} = useAutoSave<typeof formState, PostDraftExtra>({
+  draftKey,
+  form: formState,
+  draftPayload: () => ({
+    form: { ...formState, tagNames: [...formState.tagNames] },
+    savedAt: Date.now(),
+    publishAt: currentPublishAtIso(),
+  }),
+  formSnapshot: () => formSnapshot(formState, currentPublishAtIso()),
+  draftHasContent: (draft) =>
+    Boolean(
+      draft.form.title.trim() ||
+        draft.form.content.trim() ||
+        draft.form.summary.trim() ||
+        draft.form.tagNames.length > 0,
+    ),
+  restore: (draft) => {
+    Object.assign(formState, draft.form, { tagNames: [...draft.form.tagNames] })
+    publishAtValue.value = draft.publishAt ? dayjs(draft.publishAt) : null
+  },
+  subject: '文章',
+  canServerSave: () =>
     postId.value !== null &&
     formState.title.trim() !== '' &&
     formState.categoryId !== null &&
     formState.status !== 1 &&
-    (formState.status !== 3 || publishAtValue.value !== null) &&
-    payloadSnapshot() !== lastServerSnapshot
-  )
-}
+    (formState.status !== 3 || publishAtValue.value !== null),
+  serverSave: () => silentUpdatePost(postId.value as number, buildPayload(formState.status)),
+  payloadSnapshot: () => JSON.stringify(buildPayload(formState.status)),
+  isBusy: () => saving.value,
+})
 
-/** 服务器自动保存负载快照（与 lastServerSnapshot 比较，跳过无变化保存） */
-function payloadSnapshot(): string {
-  return JSON.stringify(buildPayload(formState.status))
-}
-
-/** 服务器端自动保存：静默请求，结果只更新底部状态条，不回填表单（避免覆盖正在输入的内容） */
-async function serverAutosave() {
-  const targetId = postId.value
-  if (targetId === null) return
-  const seq = ++autosaveSeq
-  const requestSnapshot = payloadSnapshot()
-  try {
-    await silentUpdatePost(targetId, buildPayload(formState.status))
-    if (seq !== autosaveSeq) return
-    lastServerSnapshot = requestSnapshot
-    savedAtText.value = dayjs().format('HH:mm')
-    draftStatus.value = 'saved-server'
-    // 服务器已接住，清理本地兜底草稿（下次变更会重新写入）
-    localStorage.removeItem(draftKey.value)
-  } catch {
-    // 静默失败：不弹错误提示，本地草稿已兜底
-    if (seq !== autosaveSeq) return
-    draftStatus.value = 'error'
-  }
-}
-
-/** 载入后检查本地草稿：与服务器内容不同则询问恢复 */
-function checkLocalDraft(serverPost: AdminPostItem | null) {
-  const draft = readDraft()
-  if (!draft) {
-    autosaveReady.value = true
-    return
-  }
-  const differs = serverPost
-    ? snapshot(draft.form, draft.publishAt) !== snapshot(formState, currentPublishAtIso())
-    : Boolean(
-        draft.form.title.trim() ||
-          draft.form.content.trim() ||
-          draft.form.summary.trim() ||
-          draft.form.tagNames.length > 0,
-      )
-  if (!differs) {
-    // 与服务器一致，草稿无价值，直接清除
-    clearLocalDraft()
-    autosaveReady.value = true
-    return
-  }
-  const savedAt = dayjs(draft.savedAt).format('HH:mm')
-  Modal.confirm({
-    title: '发现未保存的本地草稿',
-    content: `本地保存于 ${savedAt}，与当前内容不同，是否恢复？`,
-    okText: '恢复',
-    cancelText: '不恢复',
-    onOk: () => {
-      Object.assign(formState, draft.form, { tagNames: [...draft.form.tagNames] })
-      publishAtValue.value = draft.publishAt ? dayjs(draft.publishAt) : null
-      savedAtText.value = savedAt
-      draftStatus.value = 'saved-local'
-      autosaveReady.value = true
-    },
-    onCancel: () => {
-      // 放弃恢复则丢弃本地草稿
-      clearLocalDraft()
-      autosaveReady.value = true
-    },
-  })
-}
+watch(publishAtValue, () => touchAutosave())
 
 // ---------------------------------------------------------------------------
 // 数据加载与保存
 // ---------------------------------------------------------------------------
 
 async function load() {
-  autosaveReady.value = false
-  clearDraftTimer()
-  draftStatus.value = 'idle'
+  pauseAutosave()
+  markAutosaveIdle()
   if (!postId.value) {
     // 新建：重置表单
     formRef.value?.resetFields()
@@ -295,16 +180,16 @@ async function load() {
     formState.seriesId = 0
     formState.seriesSort = null
     publishAtValue.value = null
-    lastServerSnapshot = payloadSnapshot()
-    checkLocalDraft(null)
+    setBaseline()
+    checkLocalDraft()
     return
   }
   loading.value = true
   try {
     const result = await getPost(postId.value)
     fillForm(result.post)
-    lastServerSnapshot = payloadSnapshot()
-    checkLocalDraft(result.post)
+    setBaseline()
+    checkLocalDraft((draft) => formSnapshot(draft.form, draft.publishAt) !== formSnapshot(formState, currentPublishAtIso()))
   } finally {
     loading.value = false
   }
@@ -368,18 +253,16 @@ async function save(nextStatus: PostStatus) {
     if (postId.value) {
       await updatePost(postId.value, payload)
       // 暂停自动保存，避免状态回填触发一次多余的保存
-      autosaveReady.value = false
+      pauseAutosave()
       formState.status = nextStatus
-      lastServerSnapshot = JSON.stringify(payload)
+      setBaseline()
       message.success(nextStatus === 3 ? '已加入定时发布计划' : '保存成功')
       // 保存成功，本地草稿已同步到服务器，清除
       clearLocalDraft()
       await nextTick()
-      autosaveReady.value = true
+      resumeAutosave()
       // 保存期间又有输入：重新进入自动保存流程，把增量落盘
-      if (payloadSnapshot() !== lastServerSnapshot) {
-        onFormChange()
-      }
+      scheduleAutosave()
     } else {
       const result = await createPost(payload)
       message.success(nextStatus === 3 ? '已加入定时发布计划' : '创建成功')
@@ -395,13 +278,12 @@ async function save(nextStatus: PostStatus) {
 
 /** 版本恢复成功：用返回的 post 回填表单，清空本地草稿；暂停自动保存避免恢复内容再触发保存 */
 async function onRestored(post: AdminPostItem) {
-  autosaveReady.value = false
-  clearDraftTimer()
+  pauseAutosave()
   fillForm(post)
-  lastServerSnapshot = payloadSnapshot()
+  setBaseline()
   clearLocalDraft()
   await nextTick()
-  autosaveReady.value = true
+  resumeAutosave()
 }
 
 /** 定时发布日期禁选今天之前 */
@@ -480,9 +362,7 @@ const seoChecks = computed(() => {
 
 // 离开页面前把未落盘的变更立即写入，避免丢失
 onBeforeUnmount(() => {
-  if (draftTimer) {
-    writeDraft()
-  }
+  flushDraft()
 })
 </script>
 
