@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.exe
+*.db
+server/uploads/*
+!server/uploads/.gitkeep
+.idea/
+.vscode/
+*.log
+.DS_Store
