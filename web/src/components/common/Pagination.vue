@@ -61,19 +61,18 @@ function go(target: number): void {
   min-width: 34px;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text-2);
-  font-size: 13.5px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
-  transition: border-color var(--transition), color var(--transition),
-    background var(--transition);
+  transition: color var(--transition);
 }
 
 .page-btn:hover:not(:disabled):not(.current) {
-  border-color: var(--brand);
-  color: var(--brand);
+  color: var(--text-1);
 }
 
 .page-btn:disabled {
@@ -81,12 +80,23 @@ function go(target: number): void {
   cursor: not-allowed;
 }
 
+/* 当前页：墨字 + 2px accent 底线 */
 .page-btn.current {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: #fff;
-  font-weight: 500;
+  position: relative;
+  color: var(--text-1);
+  font-weight: 600;
   animation: page-pop 0.28s var(--ease-out-quart);
+}
+
+.page-btn.current::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--brand);
 }
 
 @keyframes page-pop {

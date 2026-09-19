@@ -11,6 +11,7 @@
 
       <template v-else-if="series">
         <header class="series-head">
+          <p class="kicker">SERIES</p>
           <h1 class="page-heading">{{ series.name }}</h1>
           <p v-if="series.description" class="series-desc">{{ series.description }}</p>
           <p class="page-sub">{{ posts.length }} 篇文章</p>
@@ -89,6 +90,11 @@ watch(slug, () => void load(), { immediate: true })
   margin-bottom: 18px;
 }
 
+.series-head .kicker {
+  margin-bottom: 10px;
+  color: var(--brand);
+}
+
 .series-desc {
   margin-top: 10px;
   font-size: 14px;
@@ -104,6 +110,5 @@ watch(slug, () => void load(), { immediate: true })
 .post-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 </style>

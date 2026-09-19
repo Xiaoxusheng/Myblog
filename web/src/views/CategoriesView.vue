@@ -12,7 +12,7 @@
     />
 
     <div v-else-if="!site.loaded && !site.categories.length" class="cat-skeleton" aria-hidden="true">
-      <span v-for="i in 4" :key="i" class="skeleton sk-cat card"></span>
+      <span v-for="i in 4" :key="i" class="skeleton sk-cat"></span>
     </div>
 
     <div v-else-if="site.categories.length" class="cat-grid">
@@ -20,7 +20,7 @@
         v-for="category in site.categories"
         :key="category.id"
         :to="`/category/${category.slug}`"
-        class="cat-card card"
+        class="cat-card"
       >
         <div class="cat-head">
           <h2 class="cat-name">{{ category.name }}</h2>
@@ -57,17 +57,11 @@ onMounted(() => {
 .cat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 22px;
+  column-gap: 48px;
+  margin-top: 16px;
 }
 
-@media (min-width: 900px) {
-  .cat-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
+@media (max-width: 639px) {
   .cat-grid {
     grid-template-columns: 1fr;
   }
@@ -75,14 +69,8 @@ onMounted(() => {
 
 .cat-card {
   display: block;
-  padding: 18px 20px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out, transform 0.2s ease-out;
-}
-
-.cat-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .cat-head {
@@ -93,7 +81,7 @@ onMounted(() => {
 }
 
 .cat-name {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 600;
   color: var(--text-1);
   transition: color var(--transition);
@@ -105,37 +93,32 @@ onMounted(() => {
 
 .cat-count {
   flex-shrink: 0;
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .cat-desc {
-  margin-top: 8px;
-  font-size: 13.5px;
-  color: var(--text-2);
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-3);
   line-height: 1.7;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .cat-skeleton {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 48px;
   margin-top: 22px;
 }
 
-@media (max-width: 900px) {
-  .cat-skeleton {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
+@media (max-width: 639px) {
   .cat-skeleton {
     grid-template-columns: 1fr;
   }
@@ -143,6 +126,7 @@ onMounted(() => {
 
 .sk-cat {
   display: block;
-  height: 96px;
+  height: 76px;
+  margin-bottom: 14px;
 }
 </style>

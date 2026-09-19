@@ -1,6 +1,6 @@
 <template>
   <div class="container custom-page">
-    <div v-if="loading" class="page-skeleton card" aria-hidden="true">
+    <div v-if="loading" class="page-skeleton" aria-hidden="true">
       <span class="skeleton sk-title"></span>
       <span v-for="i in 6" :key="i" class="skeleton sk-line" :style="{ width: i % 2 ? '94%' : '72%' }"></span>
     </div>
@@ -19,7 +19,7 @@
       <header class="page-title-bar">
         <h1 class="page-heading">{{ page.title }}</h1>
       </header>
-      <div class="page-content card">
+      <div class="page-content">
         <!-- 内容来自管理员维护的 Markdown，渲染时不放行内嵌 HTML -->
         <div class="markdown-body" v-html="html" @click="onContentClick"></div>
       </div>
@@ -82,23 +82,16 @@ watch(slug, () => void load(), { immediate: true })
 .custom-page {
   max-width: 860px;
   padding-top: 28px;
-  padding-bottom: 56px;
+  padding-bottom: 64px;
 }
 
+/* 正文落纸面，与详情页同构 */
 .page-content {
-  margin-top: 18px;
-  padding: 28px 32px;
-}
-
-@media (max-width: 640px) {
-  .page-content {
-    padding: 20px 18px;
-  }
+  margin-top: 10px;
 }
 
 .page-skeleton {
   margin-top: 28px;
-  padding: 28px 32px;
   display: flex;
   flex-direction: column;
   gap: 16px;

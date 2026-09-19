@@ -6,7 +6,7 @@
     </header>
 
     <div v-if="loading" class="link-grid" aria-hidden="true">
-      <span v-for="i in 6" :key="i" class="skeleton sk-link card"></span>
+      <span v-for="i in 6" :key="i" class="skeleton sk-link"></span>
     </div>
 
     <ErrorState v-else-if="error" :message="error" @retry="load" />
@@ -18,7 +18,7 @@
         :href="link.url"
         target="_blank"
         rel="noopener noreferrer"
-        class="link-card card"
+        class="link-card"
       >
         <span class="link-logo">
           <img v-if="!logoFailed.has(link.id)" :src="link.logo" :alt="link.name" loading="lazy" @error="logoFailed.add(link.id)" />
@@ -108,21 +108,15 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 18px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out, transform 0.2s ease-out;
-}
-
-.link-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .link-logo {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface-2);
@@ -140,8 +134,9 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--brand);
-  font-size: 19px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -174,6 +169,6 @@ onMounted(() => {
 
 .sk-link {
   display: block;
-  height: 82px;
+  height: 72px;
 }
 </style>

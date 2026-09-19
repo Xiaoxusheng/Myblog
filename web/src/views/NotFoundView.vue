@@ -21,10 +21,11 @@
 }
 
 .code {
-  font-size: 88px;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 84px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 6px;
+  letter-spacing: 4px;
   color: var(--border-strong);
   font-variant-numeric: tabular-nums;
   user-select: none;

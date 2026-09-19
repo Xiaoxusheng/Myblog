@@ -10,15 +10,15 @@
     <ErrorState v-if="error" :message="error" @retry="load" />
 
     <div v-else-if="loading" class="series-skeleton" aria-hidden="true">
-      <span v-for="i in 3" :key="i" class="skeleton sk-series card"></span>
+      <span v-for="i in 3" :key="i" class="skeleton sk-series"></span>
     </div>
 
-    <div v-else-if="list.length" class="series-grid">
+    <div v-else-if="list.length" class="series-list">
       <RouterLink
         v-for="item in list"
         :key="item.id"
         :to="`/series/${item.slug}`"
-        class="series-card card"
+        class="series-card"
       >
         <span v-if="item.cover" class="series-cover">
           <img :src="item.cover" :alt="item.name" loading="lazy" />
@@ -85,43 +85,26 @@ onMounted(() => {
   padding-bottom: 56px;
 }
 
-.series-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  margin-top: 22px;
-}
-
-@media (min-width: 700px) {
-  .series-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1000px) {
-  .series-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+/* 专题行列表：hairline 分隔，去卡片 */
+.series-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .series-card {
   display: flex;
-  gap: 14px;
-  padding: 18px 20px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out, transform 0.2s ease-out;
-}
-
-.series-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
 }
 
 .series-cover {
   flex-shrink: 0;
   display: block;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-2);
@@ -138,6 +121,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 600;
   color: var(--text-3);
@@ -171,19 +155,20 @@ onMounted(() => {
 
 .series-count {
   flex-shrink: 0;
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .series-desc {
-  margin-top: 6px;
+  margin-top: 5px;
   font-size: 13px;
-  color: var(--text-2);
+  color: var(--text-3);
   line-height: 1.7;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -193,26 +178,14 @@ onMounted(() => {
 }
 
 .series-skeleton {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
   margin-top: 22px;
-}
-
-@media (max-width: 999px) {
-  .series-skeleton {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 699px) {
-  .series-skeleton {
-    grid-template-columns: 1fr;
-  }
+  display: flex;
+  flex-direction: column;
 }
 
 .sk-series {
   display: block;
-  height: 92px;
+  height: 72px;
+  margin-bottom: 16px;
 }
 </style>

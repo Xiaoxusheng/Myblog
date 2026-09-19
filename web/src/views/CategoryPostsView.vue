@@ -106,6 +106,5 @@ onMounted(() => {
 .post-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 </style>

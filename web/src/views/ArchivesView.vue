@@ -88,12 +88,15 @@ onMounted(() => {
 }
 
 .year-title {
-  font-size: 22px;
+  font-family: var(--font-mono);
+  font-size: 20px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .year-count {
   margin-left: 10px;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 400;
   color: var(--text-3);
@@ -135,7 +138,8 @@ onMounted(() => {
 .tl-date {
   flex-shrink: 0;
   width: 48px;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }

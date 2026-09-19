@@ -2,7 +2,7 @@
   <div class="container search-page">
     <header class="search-head">
       <h1 class="page-heading">搜索</h1>
-      <form class="search-big card" role="search" @submit.prevent="submitSearch">
+      <form class="search-big" role="search" @submit.prevent="submitSearch">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
           <path
             d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"
@@ -137,7 +137,15 @@ watch(
   align-items: center;
   gap: 10px;
   margin-top: 18px;
-  padding: 8px 8px 8px 16px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  transition: border-color var(--transition);
+}
+
+.search-big:focus-within {
+  border-color: var(--text-3);
 }
 
 .search-big svg {
@@ -166,8 +174,7 @@ watch(
 .post-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 20px;
+  margin-top: 8px;
 }
 
 .empty-actions {

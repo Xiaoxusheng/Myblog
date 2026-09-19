@@ -52,32 +52,27 @@ onMounted(() => {
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8px 20px;
   margin-top: 26px;
 }
 
+/* 纯文字标签：hover 变色，无胶囊底 */
 .tag-item {
   display: inline-flex;
   align-items: baseline;
-  gap: 4px;
-  padding: 7px 16px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
+  gap: 5px;
+  padding: 4px 0;
   color: var(--text-2);
-  font-size: 14px;
-  transition: color var(--transition), border-color var(--transition),
-    background var(--transition), transform var(--transition);
+  font-size: 14.5px;
+  transition: color var(--transition);
 }
 
 .tag-item:hover {
   color: var(--brand);
-  border-color: var(--brand-soft-border);
-  background: var(--brand-soft);
-  transform: translateY(-2px);
 }
 
 .tag-count {
+  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
@@ -96,7 +91,7 @@ onMounted(() => {
 
 .sk-tag {
   display: block;
-  height: 34px;
-  border-radius: 999px;
+  height: 22px;
+  border-radius: 5px;
 }
 </style>
