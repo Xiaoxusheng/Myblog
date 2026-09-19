@@ -420,10 +420,12 @@ watch(slug, () => {
 }
 
 .post-title {
-  font-size: var(--fs-display);
-  font-weight: 650;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+  /* 衬线 display 标题（docs/05 §3.2），阅读列内不沿用 Hero 级字号 */
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(30px, 4.5vw, 42px);
+  line-height: 1.28;
+  letter-spacing: -0.01em;
 }
 
 /* meta 行：mono 字体给日期/数字以编辑感（中文回退 sans） */
