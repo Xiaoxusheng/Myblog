@@ -1,0 +1,76 @@
+/* 全局基础样式：尽量少，布局交给 Ant Design 组件 */
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #f0f2f5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 标准页面容器 */
+.page {
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* 页面头部：标题 + 描述 + 动作 */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-header__meta {
+  min-width: 0;
+}
+
+.page-header__desc {
+  margin-top: 4px;
+}
+
+/* 列表页工具栏（搜索/筛选在左，动作在右） */
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.table-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 登录页 */
+.login-page {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f0f2f5;
+}
+
+/* 表格单元格内的辅助文字 */
+.cell-secondary {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 16px;
+  }
+}

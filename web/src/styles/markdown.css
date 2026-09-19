@@ -1,0 +1,246 @@
+/* ============================================================
+   文章 Markdown 排版 + 代码高亮（浅色/暗色两套 token 配色，随 html.dark 切换）
+   ============================================================ */
+
+:root {
+  --hl-comment: #6a737d;
+  --hl-keyword: #cf222e;
+  --hl-string: #0a3069;
+  --hl-number: #0550ae;
+  --hl-title: #8250df;
+  --hl-attr: #0550ae;
+  --hl-tag: #116329;
+  --hl-variable: #953800;
+  --hl-meta: #0550ae;
+  --hl-builtin: #0550ae;
+  --hl-add: #116329;
+  --hl-del: #cf222e;
+}
+
+html.dark {
+  --hl-comment: #8b949e;
+  --hl-keyword: #ff7b72;
+  --hl-string: #a5d6ff;
+  --hl-number: #79c0ff;
+  --hl-title: #d2a8ff;
+  --hl-attr: #79c0ff;
+  --hl-tag: #7ee787;
+  --hl-variable: #ffa657;
+  --hl-meta: #79c0ff;
+  --hl-builtin: #79c0ff;
+  --hl-add: #7ee787;
+  --hl-del: #ff7b72;
+}
+
+/* ---------- 排版 ---------- */
+.markdown-body {
+  font-size: 15.5px;
+  line-height: 1.85;
+  color: var(--text-1);
+  overflow-wrap: break-word;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1.9em 0 0.75em;
+  font-weight: 600;
+  line-height: 1.45;
+  scroll-margin-top: var(--header-offset);
+}
+
+.markdown-body h1 {
+  font-size: 25px;
+}
+
+.markdown-body h2 {
+  font-size: 21px;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown-body h3 {
+  font-size: 18px;
+}
+
+.markdown-body h4 {
+  font-size: 16px;
+}
+
+.markdown-body p {
+  margin: 0 0 1.15em;
+}
+
+.markdown-body a {
+  color: var(--brand);
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body blockquote {
+  margin: 1.3em 0;
+  padding: 0.65em 1.1em;
+  border-left: 3px solid var(--brand-soft-border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.markdown-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5em;
+  margin: 0 0 1.15em;
+}
+
+.markdown-body li {
+  margin: 0.3em 0;
+}
+
+.markdown-body hr {
+  margin: 2.2em 0;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.markdown-body img {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+/* 行内代码 */
+.markdown-body code {
+  padding: 0.15em 0.45em;
+  border: 1px solid var(--code-border);
+  border-radius: 5px;
+  background: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: 0.87em;
+}
+
+/* 代码块 */
+.markdown-body pre {
+  margin: 1.35em 0;
+  padding: 14px 16px;
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius-md);
+  background: var(--code-bg);
+  overflow-x: auto;
+  line-height: 1.7;
+}
+
+.markdown-body pre code {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-family: var(--font-mono);
+}
+
+/* 表格 */
+.markdown-body table {
+  display: block;
+  width: 100%;
+  margin: 1.35em 0;
+  border-collapse: collapse;
+  font-size: 14px;
+  overflow-x: auto;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--surface-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- highlight.js token 配色 ---------- */
+.hljs-comment,
+.hljs-quote {
+  color: var(--hl-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-formula {
+  color: var(--hl-keyword);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: var(--hl-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--hl-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--hl-title);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-selector-attr,
+.hljs-name {
+  color: var(--hl-attr);
+}
+
+.hljs-tag {
+  color: var(--hl-tag);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-subst,
+.hljs-params {
+  color: var(--hl-variable);
+}
+
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: var(--hl-meta);
+}
+
+.hljs-built_in,
+.hljs-type,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--hl-builtin);
+}
+
+.hljs-deletion {
+  color: var(--hl-del);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 600;
+}

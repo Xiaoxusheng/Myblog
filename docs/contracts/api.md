@@ -78,7 +78,7 @@
 | 23 | POST `/admin/categories` | `{name,slug?,description?}`；name 唯一 |
 | 24 | PUT `/admin/categories/:id` | 同上 |
 | 25 | DELETE `/admin/categories/:id` | 该分类下文章 categoryId 置 0 |
-| 26 | GET `/admin/tags?page=&pageSize=` | 分页（pageSize 默认 100），含 postCount |
+| 26 | GET `/admin/tags?page=&pageSize=` | 分页（受全局 pageSize≤50 约束，默认 50），含 postCount |
 | 27 | POST `/admin/tags` | `{name,slug?}` |
 | 28 | PUT `/admin/tags/:id` | 同上 |
 | 29 | DELETE `/admin/tags/:id` | 同步清理 post_tags |

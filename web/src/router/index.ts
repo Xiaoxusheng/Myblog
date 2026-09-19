@@ -1,0 +1,93 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { applyDocumentTitle } from '@/utils/title'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string
+  }
+}
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('@/views/HomeView.vue'),
+    meta: { title: '首页' }
+  },
+  {
+    path: '/post/:slug',
+    name: 'post-detail',
+    component: () => import('@/views/PostDetailView.vue'),
+    meta: { title: '文章' }
+  },
+  {
+    path: '/archives',
+    name: 'archives',
+    component: () => import('@/views/ArchivesView.vue'),
+    meta: { title: '归档' }
+  },
+  {
+    path: '/categories',
+    name: 'categories',
+    component: () => import('@/views/CategoriesView.vue'),
+    meta: { title: '分类' }
+  },
+  {
+    path: '/category/:slug',
+    name: 'category-posts',
+    component: () => import('@/views/CategoryPostsView.vue'),
+    meta: { title: '分类' }
+  },
+  {
+    path: '/tags',
+    name: 'tags',
+    component: () => import('@/views/TagsView.vue'),
+    meta: { title: '标签' }
+  },
+  {
+    path: '/tag/:slug',
+    name: 'tag-posts',
+    component: () => import('@/views/TagPostsView.vue'),
+    meta: { title: '标签' }
+  },
+  {
+    path: '/search',
+    name: 'search',
+    component: () => import('@/views/SearchView.vue'),
+    meta: { title: '搜索' }
+  },
+  {
+    path: '/links',
+    name: 'links',
+    component: () => import('@/views/LinksView.vue'),
+    meta: { title: '友情链接' }
+  },
+  {
+    path: '/page/:slug',
+    name: 'custom-page',
+    component: () => import('@/views/PageView.vue'),
+    meta: { title: '页面' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('@/views/NotFoundView.vue'),
+    meta: { title: '页面不存在' }
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  // 切换页面回到顶部;浏览器前进/后退保留位置
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    return { top: 0 }
+  }
+})
+
+router.afterEach((to) => {
+  applyDocumentTitle(to.meta.title)
+})
+
+export default router

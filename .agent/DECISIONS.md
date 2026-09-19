@@ -9,3 +9,5 @@
 7. **前端直接写脚手架文件**（不用 create-vite 交互命令），保证依赖版本可控。
 8. **Markdown 存原文、前端渲染**：服务端不存 HTML。
 9. **点赞不鉴权**，前端 localStorage 防重复，简单博客可接受。
+10. **部署（用户新增需求）**：Docker Compose。server 镜像多阶段构建（CGO_ENABLED=0）；前台/管理端由一个"门户"nginx 镜像承载（80=前台、8081=管理端、反向代理 /api /uploads /rss → server:8080）；MySQL 两种模式：compose 自带 mysql:8 服务，或复用服务器已有 MySQL（DSN 指过去，只起 server+nginx）。默认部署仍以 BLOG_DB_TYPE=mysql + utf8mb4 为准。
+11. **本地开发默认 SQLite**（零配置），MySQL 主要用于部署环境；MySQL 驱动代码保留但本地不强制测试（服务器上验证）。

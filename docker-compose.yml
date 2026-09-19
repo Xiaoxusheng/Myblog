@@ -1,0 +1,59 @@
+# MyBlog Docker Compose
+# 模式 A（全套，含 MySQL）：       docker compose --profile bundled up -d
+# 模式 B（复用服务器已有 MySQL）：  docker compose up -d server nginx
+#   并通过 .env / 环境变量覆盖 BLOG_MYSQL_DSN（见 docs/03-部署文档.md）
+
+services:
+  mysql:
+    image: mysql:8.0
+    profiles: ["bundled"] # 仅模式 A 启用；模式 B 跳过
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: myblog
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  server:
+    build: ./server
+    environment:
+      BLOG_PORT: "8080"
+      BLOG_DB_TYPE: mysql
+      # DSN 完全由 .env 提供（模板见 .env.example）：模式 A 用默认 mysql:3306，模式 B 指向已有 MySQL
+      BLOG_MYSQL_DSN: ${BLOG_MYSQL_DSN:?请在 .env 中设置 BLOG_MYSQL_DSN（cp .env.example .env 后按需修改）}
+      BLOG_JWT_SECRET: ${BLOG_JWT_SECRET:?请在 .env 中设置 BLOG_JWT_SECRET}
+    volumes:
+      - upload-data:/app/uploads
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        # required:false：模式 B（无 bundled mysql）时跳过该依赖
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "80:80" # 前台
+      - "8081:8081" # 管理端
+    depends_on:
+      - server
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  upload-data:

@@ -1,0 +1,131 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { title: '登录', public: true },
+    },
+    {
+      path: '/',
+      component: () => import('@/layouts/AdminLayout.vue'),
+      redirect: '/dashboard',
+      children: [
+        {
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/views/DashboardView.vue'),
+          meta: { title: '仪表盘' },
+        },
+        {
+          path: 'posts',
+          name: 'posts',
+          component: () => import('@/views/PostListView.vue'),
+          meta: { title: '文章管理' },
+        },
+        {
+          path: 'posts/edit',
+          name: 'post-create',
+          component: () => import('@/views/PostEditView.vue'),
+          meta: { title: '新建文章', parentTitle: '文章管理', parentPath: '/posts', activeMenu: '/posts' },
+        },
+        {
+          path: 'posts/edit/:id',
+          name: 'post-edit',
+          component: () => import('@/views/PostEditView.vue'),
+          meta: { title: '编辑文章', parentTitle: '文章管理', parentPath: '/posts', activeMenu: '/posts' },
+        },
+        {
+          path: 'comments',
+          name: 'comments',
+          component: () => import('@/views/CommentView.vue'),
+          meta: { title: '评论管理' },
+        },
+        {
+          path: 'categories',
+          name: 'categories',
+          component: () => import('@/views/CategoryView.vue'),
+          meta: { title: '分类管理' },
+        },
+        {
+          path: 'tags',
+          name: 'tags',
+          component: () => import('@/views/TagView.vue'),
+          meta: { title: '标签管理' },
+        },
+        {
+          path: 'pages',
+          name: 'pages',
+          component: () => import('@/views/PageListView.vue'),
+          meta: { title: '页面管理' },
+        },
+        {
+          path: 'pages/edit',
+          name: 'page-create',
+          component: () => import('@/views/PageEditView.vue'),
+          meta: { title: '新建页面', parentTitle: '页面管理', parentPath: '/pages', activeMenu: '/pages' },
+        },
+        {
+          path: 'pages/edit/:id',
+          name: 'page-edit',
+          component: () => import('@/views/PageEditView.vue'),
+          meta: { title: '编辑页面', parentTitle: '页面管理', parentPath: '/pages', activeMenu: '/pages' },
+        },
+        {
+          path: 'links',
+          name: 'links',
+          component: () => import('@/views/LinkView.vue'),
+          meta: { title: '友链管理' },
+        },
+        {
+          path: 'media',
+          name: 'media',
+          component: () => import('@/views/MediaView.vue'),
+          meta: { title: '媒体库' },
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/SettingsView.vue'),
+          meta: { title: '系统设置' },
+        },
+        {
+          path: 'profile',
+          name: 'profile',
+          component: () => import('@/views/ProfileView.vue'),
+          meta: { title: '个人资料' },
+        },
+      ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/dashboard',
+    },
+  ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (to.meta.public) {
+    // 已登录访问登录页 → 回仪表盘
+    if (auth.isLoggedIn && to.path === '/login') {
+      return { path: '/dashboard' }
+    }
+    return true
+  }
+  if (!auth.isLoggedIn) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  return true
+})
+
+router.afterEach((to) => {
+  const title = to.meta.title
+  document.title = title ? `${title} - MyBlog 管理后台` : 'MyBlog 管理后台'
+})
+
+export default router
