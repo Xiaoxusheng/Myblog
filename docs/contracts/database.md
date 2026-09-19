@@ -108,6 +108,24 @@ key string PK(size:64), value text。存储 Settings 结构化对象的各字段
 ## uploads
 id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100)
 
+## comment_blacklist（评论防护黑名单）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| type | string size:16 | ip / email / keyword |
+| value | string size:200 | IP、邮箱或关键词；命中 → 评论直接 status=3 |
+| created_at | time | 唯一约束 (type, value) |
+
+## notifications（后台通知中心，轻量轮询）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| type | string size:32 | comment_pending / comment_spam / post_published / backup |
+| title | string size:200 | |
+| content | string size:500 | |
+| link | string size:500 | 管理端跳转路径（如 /comments?status=0） |
+| read | bool index | 默认 false |
+
 ## page_views（访问统计；隐私：不存明文 IP，仅 SHA-256 哈希）
 | 列 | 类型 | 说明 |
 |---|---|---|

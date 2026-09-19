@@ -11,7 +11,7 @@
 - 分页：query `page`(默认1)、`pageSize`(默认10，上限50)；响应 data：`{"list":[...],"total":123,"page":1,"pageSize":10}`
 - 时间：RFC3339 字符串（如 `2026-09-19T12:00:00+08:00`）
 - 鉴权：请求头 `Authorization: Bearer <token>`，仅 `/admin/*` 需要
-- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；comment.status `0`待审核 `1`已通过 `2`已拒绝
+- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；comment.status `0`待审核 `1`已通过 `2`已拒绝 `3`垃圾 `4`回收站（公开接口仅返回 `1`）
 
 ## 对象结构
 
@@ -57,7 +57,7 @@
 | 2 | GET `/posts?keyword=&categoryId=&tagId=&page=&pageSize=&sort=` | 文章分页，仅已发布；`sort`=`newest`(默认)/`views`/`likes`；置顶优先；keyword 模糊匹配标题/摘要/内容（转义 %_\） |
 | 3 | GET `/posts/:slug` | 详情：`{post:PostDetail,prev:{id,title,slug}\|null,next:...\|null,related:[PostSummary],series?:{id,name,slug,index,total},seriesPrev?...,seriesNext?...}`；:slug 同时接受数字 id 或 slug；浏览量 +1；非已发布 → 10004 |
 | 4 | GET `/posts/:slug/comments` | `{list:[CommentPublic]}` 仅已通过 |
-| 5 | POST `/posts/:slug/comments` | body `{parentId?,nickname,email,website?,content}`；昵称/邮箱/内容必填；评论开关关闭→20002；限流→20003；新评论 status=0；返回 `{comment:{id,parentId,nickname,website,content,createdAt}}` |
+| 5 | POST `/posts/:slug/comments` | body `{parentId?,nickname,email,website?,content}`；昵称/邮箱/内容必填；评论开关关闭→20002；限流→20003；命中黑名单或垃圾规则（重复内容/链接过多/高频）→ status=3（垃圾，前台不可见）；否则 status=0；返回 `{comment:{id,parentId,nickname,website,content,createdAt}}` |
 | 6 | POST `/posts/:slug/like` | likeCount +1，返回 `{likeCount}` |
 | 7 | GET `/archive` | `[{year:2026,items:[{id,title,slug,createdAt}]}]` 按年倒序 |
 | 8 | GET `/pages/:slug` | 已发布自定义页面 `{page:Page}` |
@@ -103,7 +103,7 @@
 | 29 | DELETE `/admin/tags/:id` | 同步清理 post_tags |
 
 ### 评论
-| 30 | GET `/admin/comments?status=&postId=&page=&pageSize=` | 分页 CommentAdmin，最新在前 |
+| 30 | GET `/admin/comments?status=&postId=&page=&pageSize=` | 分页 CommentAdmin，最新在前；status 支持 0待审/1通过/2拒绝/3垃圾/4回收站 |
 | 31 | PUT `/admin/comments/:id/status` | `{status:1\|2}` → data:null |
 | 32 | POST `/admin/comments/:id/reply` | `{content}`：以管理员身份（isAdmin=1，昵称取管理员 nickname，status=1 直接通过）回复，parentId=该评论 id，挂在其 postId 下 → `{comment:CommentAdmin}` |
 | 33 | DELETE `/admin/comments/:id` | 连同其 children 一起删 |
@@ -137,6 +137,13 @@
 | 63 | POST `/admin/redirects` | `{source,target,type,enabled}`；source/target 必须以 `/` 开头的站内路径（去 query/hash）；type 301\|302；source≠target；**环检测**：沿 target 链回溯若回到 source 或超过 10 层 → 10001 |
 | 64 | PUT `/admin/redirects/:id` | 同 63（环检测排除自身后校验） |
 | 65 | DELETE `/admin/redirects/:id` | data:null |
+| 69 | GET `/admin/comment-blacklist?type=ip\|email\|keyword&page=&pageSize=` | 分页黑名单：`{id,type,value,createdAt}`，createdAt 倒序 |
+| 70 | POST `/admin/comment-blacklist` | `{type,value}`；type 限 ip/email/keyword；value 必填 ≤200 字；(type,value) 唯一 → `{item}` |
+| 71 | DELETE `/admin/comment-blacklist/:id` | data:null |
+| 72 | POST `/admin/comments/batch` | `{action:"approve"\|"reject"\|"spam"\|"delete", ids:[number]}`（ids ≤100）→ `{updated:int64}`；approve→1、reject→2、spam→3；delete→物理删除（连同 children） |
+| 73 | GET `/admin/notifications` | `{list:[{id,type,title,content,link,read,createdAt}](≤10 条最新),unreadCount:int64}`；type：comment_pending（新待审评论）/comment_spam（捕获垃圾）/post_published（定时文章已上线）/backup（备份完成或失败） |
+| 74 | PUT `/admin/notifications/read-all` | 全部标记已读 → data:null |
+| 75 | PUT `/admin/notifications/:id/read` | 单条已读 → data:null |
 | 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
 | 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 
