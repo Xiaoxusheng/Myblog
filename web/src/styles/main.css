@@ -192,13 +192,14 @@ html.dark ::selection {
   }
 }
 
-/* 主列 + 侧栏 */
+/* 主列 + 侧栏（纵向 padding 用长写法，避免覆盖 .container 的横向 padding） */
 .page-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 48px;
   align-items: start;
-  padding: 28px 0 64px;
+  padding-top: 28px;
+  padding-bottom: 64px;
 }
 
 .page-aside {

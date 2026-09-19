@@ -206,6 +206,11 @@ html.dark {
   line-height: 1.7;
 }
 
+/* 带语言标签/复制按钮的代码块：顶部预留头部条，避免标签与首行代码重叠 */
+.markdown-body .code-block pre {
+  padding-top: 36px;
+}
+
 .markdown-body pre code {
   display: block;
   padding: 0;
