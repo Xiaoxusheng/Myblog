@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { message } = useFeedback()
 import { LockOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 

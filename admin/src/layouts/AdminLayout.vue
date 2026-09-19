@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Modal } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { modal } = useFeedback()
 import { getNotifications, readAllNotifications, readNotification } from '@/api/notifications'
 import { formatTime } from '@/utils/format'
 import type { NotificationItem } from '@/types/api'
@@ -16,6 +17,7 @@ import {
   LinkOutlined,
   LogoutOutlined,
   MenuOutlined,
+  BulbOutlined,
   PictureOutlined,
   ProfileOutlined,
   FileDoneOutlined,
@@ -24,15 +26,18 @@ import {
   SaveOutlined,
   SettingOutlined,
   StopOutlined,
+  BulbFilled,
   SwapOutlined,
   TagsOutlined,
   UserOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAdminTheme } from '@/theme'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { isDark, toggle: toggleTheme } = useAdminTheme()
 
 const collapsed = ref(false)
 /** 小屏（≤768px）侧边栏改抽屉，不常驻占宽 */
@@ -141,7 +146,7 @@ function onChangePassword() {
 }
 
 function onLogout() {
-  Modal.confirm({
+  modal.confirm({
     title: '退出登录',
     content: '确定要退出登录吗？',
     okText: '退出',
@@ -279,6 +284,16 @@ onBeforeUnmount(() => {
         </a-breadcrumb>
 
         <!-- 通知中心（契约 #73）：60s 轮询未读数 -->
+        <!-- 主题切换:light/dark 两态,偏好持久化(docs/09 §8.2) -->
+        <a-tooltip :title="isDark ? '切换到亮色' : '切换到暗色'">
+          <a-button type="text" shape="circle" :aria-label="isDark ? '切换到亮色' : '切换到暗色'" @click="toggleTheme">
+            <template #icon>
+              <BulbFilled v-if="isDark" />
+              <BulbOutlined v-else />
+            </template>
+          </a-button>
+        </a-tooltip>
+
         <a-popover
           v-model:open="notifOpen"
           trigger="click"

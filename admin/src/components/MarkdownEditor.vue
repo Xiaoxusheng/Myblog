@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { message } = useFeedback()
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import { uploadImage } from '@/api/media'

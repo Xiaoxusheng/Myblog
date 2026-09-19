@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ConfigProvider } from 'ant-design-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import { antdTokens } from '@/theme/tokens'
+import { useAdminTheme } from '@/theme'
+
+const { themeConfig } = useAdminTheme()
 </script>
 
 <template>
-  <ConfigProvider :locale="zhCN" :theme="{ token: { ...antdTokens } }">
+  <ConfigProvider :locale="zhCN" :theme="themeConfig">
     <a-app>
       <RouterView />
     </a-app>

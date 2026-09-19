@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { message } = useFeedback()
 import type { FormInstance } from 'ant-design-vue'
 import type { UploadRequestOption } from 'ant-design-vue/es/vc-upload/interface'
 import { UserOutlined } from '@ant-design/icons-vue'

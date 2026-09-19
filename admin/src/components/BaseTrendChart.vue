@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
-import { chartPalette } from '@/theme/tokens'
+import { adminTheme } from '@/theme'
+import { chartDarkPalette, chartPalette } from '@/theme/tokens'
 
 /**
  * 双系列趋势折线图基础组件(docs/09 §4.2)
@@ -20,10 +21,15 @@ const props = withDefaults(
 const el = ref<HTMLDivElement | null>(null)
 let chart: echarts.ECharts | null = null
 
+function palette() {
+  return adminTheme.value === 'dark' ? chartDarkPalette : chartPalette
+}
+
 function render() {
   if (!chart) return
+  const p = palette()
   chart.setOption({
-    color: [chartPalette.primary, chartPalette.secondary],
+    color: [p.primary, p.secondary],
     tooltip: {
       trigger: 'axis',
     },
@@ -34,7 +40,7 @@ function render() {
       icon: 'roundRect',
       itemWidth: 8,
       itemHeight: 8,
-      textStyle: { color: chartPalette.legendText, fontSize: 12 },
+      textStyle: { color: p.legendText, fontSize: 12 },
     },
     grid: {
       left: 16,
@@ -46,16 +52,16 @@ function render() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      axisLine: { lineStyle: { color: chartPalette.axisLine } },
+      axisLine: { lineStyle: { color: p.axisLine } },
       axisTick: { show: false },
-      axisLabel: { color: chartPalette.axisLabel },
+      axisLabel: { color: p.axisLabel },
       data: props.labels,
     },
     yAxis: {
       type: 'value',
       minInterval: 1,
-      axisLabel: { color: chartPalette.axisLabel },
-      splitLine: { lineStyle: { color: chartPalette.splitLine } },
+      axisLabel: { color: p.axisLabel },
+      splitLine: { lineStyle: { color: p.splitLine } },
     },
     series: props.series.map((s) => ({
       name: s.name,
@@ -78,6 +84,9 @@ watch(
   () => render(),
   { deep: true },
 )
+
+// 主题切换时重设图表色板
+watch(adminTheme, () => render())
 
 onMounted(() => {
   if (el.value) {

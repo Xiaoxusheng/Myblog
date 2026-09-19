@@ -2,7 +2,8 @@
 import { SLUG_PATTERN, SLUG_PATTERN_MESSAGE } from '@/utils/validators'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { message } = useFeedback()
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import {

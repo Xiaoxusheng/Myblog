@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { message } from 'ant-design-vue'
+import { useFeedback } from '@/composables/useFeedback'
+const { message } = useFeedback()
 import { CopyOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { deleteUpload, getUploads, uploadImage } from '@/api/media'
 import { copyText, formatBytes } from '@/utils/format'
