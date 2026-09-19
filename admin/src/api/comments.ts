@@ -12,9 +12,17 @@ export function getComments(params: CommentListParams): Promise<PageResult<Comme
   return http.get('/admin/comments', { params })
 }
 
-/** status 仅允许 1 已通过 / 2 已拒绝 */
-export function updateCommentStatus(id: number, status: 1 | 2): Promise<null> {
+/** status 允许 0 待审（恢复）/ 1 通过 / 2 拒绝 / 3 垃圾 / 4 回收站 */
+export function updateCommentStatus(id: number, status: CommentStatus): Promise<null> {
   return http.put(`/admin/comments/${id}/status`, { status })
+}
+
+/** 批量操作（契约 #72） */
+export function batchComments(
+  action: 'approve' | 'reject' | 'spam' | 'delete',
+  ids: number[],
+): Promise<{ updated: number }> {
+  return http.post('/admin/comments/batch', { action, ids })
 }
 
 /** 以管理员身份回复（直接通过） */

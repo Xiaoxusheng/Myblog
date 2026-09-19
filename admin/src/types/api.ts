@@ -13,8 +13,8 @@ export interface PageResult<T> {
 
 /** post.status：0 草稿 1 已发布 2 隐藏 3 定时发布 */
 export type PostStatus = 0 | 1 | 2 | 3
-/** comment.status：0 待审核 1 已通过 2 已拒绝 */
-export type CommentStatus = 0 | 1 | 2
+/** comment.status：0 待审核 1 已通过 2 已拒绝 3 垃圾 4 回收站 */
+export type CommentStatus = 0 | 1 | 2 | 3 | 4
 /** page.status：0 草稿 1 已发布 */
 export type PageStatus = 0 | 1
 
@@ -79,7 +79,20 @@ export interface AdminPostItem extends PostSummary {
   seriesId: number
   /** 专题内序号 */
   seriesSort: number
+  /** SEO 扩展（空串=用默认值） */
+  seoTitle: string
+  seoDescription: string
+  canonical: string
+  ogImage: string
   updatedAt?: string
+}
+
+/** 文章 SEO 扩展字段（空串=用默认值） */
+export interface PostSeoFields {
+  seoTitle?: string
+  seoDescription?: string
+  canonical?: string
+  ogImage?: string
 }
 
 /** 创建/更新文章入参（tags 为名称字符串数组，按 name upsert） */
@@ -101,6 +114,69 @@ export interface PostPayload {
   seriesId?: number
   /** 专题内序号；0=自动排到末尾（已成员则保持原序号） */
   seriesSort?: number
+  /** SEO 扩展（空串=用默认值） */
+  seoTitle?: string
+  seoDescription?: string
+  canonical?: string
+  ogImage?: string
+}
+
+/** 站内搜索统计项 */
+export interface SearchStatItem {
+  keyword: string
+  count: number
+  noResultCount: number
+}
+
+/** 后台通知 */
+export interface NotificationItem {
+  id: number
+  type: 'comment_pending' | 'comment_spam' | 'post_published' | 'backup'
+  title: string
+  content: string
+  link: string
+  read: boolean
+  createdAt: string
+}
+
+/** 评论黑名单条目 */
+export interface BlacklistItem {
+  id: number
+  type: 'ip' | 'email' | 'keyword'
+  value: string
+  createdAt: string
+}
+
+/** 备份文件 */
+export interface BackupItem {
+  name: string
+  size: number
+  createdAt: string
+  type: 'database' | 'full'
+}
+
+/** 操作日志 */
+export interface AuditLogItem {
+  id: number
+  action: string
+  resourceType: string
+  resourceId: string
+  description: string
+  ipHash: string
+  createdAt: string
+}
+
+/** 系统健康 */
+export interface HealthInfo {
+  version: string
+  goVersion: string
+  dbType: string
+  dbStatus: string
+  postCount: number
+  commentCount: number
+  mediaCount: number
+  uploadSize: number
+  latestBackupAt: string | null
 }
 
 /** 文章版本列表项（不含 content） */

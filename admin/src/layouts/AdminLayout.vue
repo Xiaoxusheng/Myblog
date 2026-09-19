@@ -2,9 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Modal } from 'ant-design-vue'
+import { getNotifications, readAllNotifications, readNotification } from '@/api/notifications'
+import { formatTime } from '@/utils/format'
+import type { NotificationItem } from '@/types/api'
 import {
   AppstoreOutlined,
   BarChartOutlined,
+  BellOutlined,
   BookOutlined,
   CommentOutlined,
   DashboardOutlined,
@@ -14,7 +18,12 @@ import {
   MenuOutlined,
   PictureOutlined,
   ProfileOutlined,
+  FileDoneOutlined,
+  HeartOutlined,
+  ImportOutlined,
+  SaveOutlined,
   SettingOutlined,
+  StopOutlined,
   SwapOutlined,
   TagsOutlined,
   UserOutlined,
@@ -87,6 +96,11 @@ const menuGroups: MenuGroup[] = [
     label: '系统',
     items: [
       { key: '/redirects', title: '重定向管理', icon: SwapOutlined },
+      { key: '/comment-blacklist', title: '评论防护', icon: StopOutlined },
+      { key: '/backups', title: '备份', icon: SaveOutlined },
+      { key: '/import-export', title: '导入导出', icon: ImportOutlined },
+      { key: '/audit-logs', title: '操作日志', icon: FileDoneOutlined },
+      { key: '/health', title: '系统状态', icon: HeartOutlined },
       { key: '/settings', title: '系统设置', icon: SettingOutlined },
     ],
   },
@@ -139,6 +153,42 @@ function onLogout() {
   })
 }
 
+// ---------- 通知中心（契约 #73-75）：进入后台拉取 + 60s 轮询 ----------
+const notifOpen = ref(false)
+const notifLoading = ref(false)
+const notifList = ref<NotificationItem[]>([])
+const notifUnread = ref(0)
+let notifTimer: ReturnType<typeof setInterval> | null = null
+
+async function loadNotifications() {
+  notifLoading.value = true
+  try {
+    const data = await getNotifications()
+    notifList.value = data.list
+    notifUnread.value = data.unreadCount
+  } finally {
+    notifLoading.value = false
+  }
+}
+
+async function onOpenNotification(n: NotificationItem) {
+  if (!n.read) {
+    await readNotification(n.id)
+    n.read = true
+    notifUnread.value = Math.max(0, notifUnread.value - 1)
+  }
+  notifOpen.value = false
+  if (n.link) {
+    void router.push(n.link)
+  }
+}
+
+async function onReadAll() {
+  await readAllNotifications()
+  notifList.value = notifList.value.map((n) => ({ ...n, read: true }))
+  notifUnread.value = 0
+}
+
 onMounted(() => {
   // 刷新用户信息（头像/昵称），401 由拦截器统一处理
   if (auth.isLoggedIn && !auth.user) {
@@ -147,9 +197,15 @@ onMounted(() => {
   mediaQuery = window.matchMedia('(max-width: 768px)')
   isMobile.value = mediaQuery.matches
   mediaQuery.addEventListener('change', onMediaChange)
+  void loadNotifications()
+  notifTimer = setInterval(() => void loadNotifications(), 60_000)
 })
 
 onBeforeUnmount(() => {
+  if (notifTimer) {
+    clearInterval(notifTimer)
+    notifTimer = null
+  }
   mediaQuery?.removeEventListener('change', onMediaChange)
 })
 </script>
@@ -221,6 +277,48 @@ onBeforeUnmount(() => {
             <span v-else>{{ crumb.title }}</span>
           </a-breadcrumb-item>
         </a-breadcrumb>
+
+        <!-- 通知中心（契约 #73）：60s 轮询未读数 -->
+        <a-popover
+          v-model:open="notifOpen"
+          trigger="click"
+          placement="bottomRight"
+          :width="330"
+        >
+          <template #content>
+            <div class="notif-panel">
+              <div class="notif-panel__head">
+                <span>通知</span>
+                <a-button v-if="notifList.length > 0" type="link" size="small" @click="onReadAll">
+                  全部已读
+                </a-button>
+              </div>
+              <a-spin :spinning="notifLoading">
+                <div v-if="notifList.length === 0" class="notif-panel__empty">暂无通知</div>
+                <div
+                  v-for="n in notifList"
+                  :key="n.id"
+                  class="notif-panel__item"
+                  :class="{ 'notif-panel__item--unread': !n.read }"
+                  role="button"
+                  @click="onOpenNotification(n)"
+                >
+                  <div class="notif-panel__title">
+                    <a-badge v-if="!n.read" status="processing" />
+                    {{ n.title }}
+                  </div>
+                  <div class="notif-panel__content">{{ n.content }}</div>
+                  <div class="notif-panel__time">{{ formatTime(n.createdAt) }}</div>
+                </div>
+              </a-spin>
+            </div>
+          </template>
+          <a-badge :count="notifUnread" :offset="[-2, 2]" size="small">
+            <a-button type="text" shape="circle" aria-label="通知">
+              <template #icon><BellOutlined /></template>
+            </a-button>
+          </a-badge>
+        </a-popover>
 
         <a-dropdown>
           <div class="admin-header__user" role="button" tabindex="0">
@@ -373,5 +471,61 @@ onBeforeUnmount(() => {
 /* 折叠态隐藏分组标题，仅保留图标项 */
 .admin-sider .ant-menu-inline-collapsed .ant-menu-item-group-title {
   display: none;
+}
+
+/* 通知面板 */
+.notif-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.notif-panel__empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.notif-panel__item {
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--admin-border);
+  cursor: pointer;
+}
+
+.notif-panel__item:last-child {
+  border-bottom: none;
+}
+
+.notif-panel__item--unread {
+  background: color-mix(in srgb, var(--admin-brand) 6%, transparent);
+}
+
+.notif-panel__title {
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.notif-panel__content {
+  font-size: 12px;
+  color: var(--admin-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.notif-panel__time {
+  font-size: 11px;
+  color: var(--admin-muted);
+  margin-top: 2px;
+}
+
+.admin-header :deep(.ant-btn) {
+  margin-right: 8px;
 }
 </style>

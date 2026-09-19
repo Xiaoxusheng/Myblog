@@ -18,6 +18,8 @@ export const COMMENT_STATUS_MAP: Record<CommentStatus, StatusMeta> = {
   0: { text: '待审核', color: 'processing' },
   1: { text: '已通过', color: 'success' },
   2: { text: '已拒绝', color: 'error' },
+  3: { text: '垃圾', color: 'volcano' },
+  4: { text: '回收站', color: 'default' },
 }
 
 export const TOKEN_KEY = 'blog_admin_token'

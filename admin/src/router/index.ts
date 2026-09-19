@@ -94,6 +94,36 @@ const router = createRouter({
           meta: { title: '重定向管理' },
         },
         {
+          path: 'comment-blacklist',
+          name: 'comment-blacklist',
+          component: () => import('@/views/CommentBlacklistView.vue'),
+          meta: { title: '评论防护' },
+        },
+        {
+          path: 'backups',
+          name: 'backups',
+          component: () => import('@/views/BackupView.vue'),
+          meta: { title: '备份' },
+        },
+        {
+          path: 'import-export',
+          name: 'import-export',
+          component: () => import('@/views/ImportExportView.vue'),
+          meta: { title: '导入导出' },
+        },
+        {
+          path: 'audit-logs',
+          name: 'audit-logs',
+          component: () => import('@/views/AuditLogView.vue'),
+          meta: { title: '操作日志' },
+        },
+        {
+          path: 'health',
+          name: 'health',
+          component: () => import('@/views/HealthView.vue'),
+          meta: { title: '系统状态' },
+        },
+        {
           path: 'links',
           name: 'links',
           component: () => import('@/views/LinkView.vue'),

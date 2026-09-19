@@ -15,3 +15,11 @@ export function getAnalytics(range: AnalyticsRange): Promise<AnalyticsData> {
 export function getPostAnalytics(id: number, range: PostAnalyticsRange): Promise<PostAnalyticsData> {
   return http.get(`/admin/analytics/posts/${id}`, { params: { range } })
 }
+
+/** 站内搜索统计（契约 #85） */
+export function getSearchStats(params: { range?: '7d' | '30d' | '90d' }): Promise<{
+  range: string
+  list: { keyword: string; count: number; noResultCount: number }[]
+}> {
+  return http.get('/admin/analytics/searches', { params })
+}

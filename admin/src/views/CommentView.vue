@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
 import PageHeader from '@/components/PageHeader.vue'
-import { deleteComment, getComments, replyComment, updateCommentStatus } from '@/api/comments'
+import { batchComments, deleteComment, getComments, replyComment, updateCommentStatus } from '@/api/comments'
 import { COMMENT_STATUS_MAP } from '@/constants/status'
 import { formatTime } from '@/utils/format'
 import type { CommentAdmin, CommentStatus } from '@/types/api'
 
-type TabKey = 'all' | '0' | '1' | '2'
+type TabKey = 'all' | '0' | '1' | '2' | '3' | '4'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,7 +17,7 @@ const router = useRouter()
 // 支持仪表盘快捷入口 /comments?status=0 直达对应 Tab
 const initialTab = (() => {
   const raw = route.query.status
-  return typeof raw === 'string' && ['0', '1', '2'].includes(raw) ? (raw as TabKey) : ('all' as TabKey)
+  return typeof raw === 'string' && ['0', '1', '2', '3', '4'].includes(raw) ? (raw as TabKey) : ('all' as TabKey)
 })()
 
 const activeTab = ref<TabKey>(initialTab)
@@ -36,6 +36,8 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: '0', label: '待审核' },
   { key: '1', label: '已通过' },
   { key: '2', label: '已拒绝' },
+  { key: '3', label: '垃圾' },
+  { key: '4', label: '回收站' },
 ]
 
 const columns: TableColumnsType = [
@@ -95,14 +97,56 @@ function onTableChange(paginationConfig: TablePaginationConfig) {
   void load()
 }
 
-async function setStatus(record: CommentAdmin, status: 1 | 2) {
+async function setStatus(record: CommentAdmin, status: CommentStatus) {
   await updateCommentStatus(record.id, status)
-  message.success(status === 1 ? '已通过' : '已拒绝')
+  message.success(COMMENT_STATUS_MAP[status].text)
   record.status = status
   if (drawerRecord.value?.id === record.id) {
     drawerRecord.value.status = status
   }
   await load()
+}
+
+// ---------- 批量操作（契约 #72） ----------
+const selectedRowKeys = ref<number[]>([])
+const batchRunning = ref(false)
+
+const rowSelection = computed({
+  get: () => ({ selectedRowKeys: selectedRowKeys.value, onChange: (keys: (number | string)[]) => {
+    selectedRowKeys.value = keys.map(Number)
+  } }),
+  set: () => {},
+})
+
+async function runBatch(action: 'approve' | 'reject' | 'spam' | 'delete') {
+  if (selectedRowKeys.value.length === 0) return
+  const doRun = async () => {
+    batchRunning.value = true
+    try {
+      await batchComments(action, selectedRowKeys.value)
+      message.success(`已${batchActionText[action]} ${selectedRowKeys.value.length} 条`)
+      selectedRowKeys.value = []
+      await load()
+    } finally {
+      batchRunning.value = false
+    }
+  }
+  if (action === 'delete') {
+    Modal.confirm({
+      title: '批量删除',
+      content: `将删除选中的 ${selectedRowKeys.value.length} 条评论及其回复，删除后不可恢复，确定吗？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: doRun,
+    })
+    return
+  }
+  await doRun()
+}
+
+const batchActionText: Record<string, string> = {
+  approve: '通过', reject: '拒绝', spam: '标记垃圾', delete: '删除',
 }
 
 // 评论详情 Drawer（行点击 / 详情）
@@ -199,6 +243,17 @@ onMounted(load)
         </a-tag>
       </div>
 
+      <div v-if="selectedRowKeys.length > 0" class="comment-batch-bar">
+        <a-space wrap>
+          <span class="comment-batch-bar__count">已选 {{ selectedRowKeys.length }} 条</span>
+          <a-button size="small" :loading="batchRunning" @click="runBatch('approve')">批量通过</a-button>
+          <a-button size="small" :loading="batchRunning" @click="runBatch('reject')">批量拒绝</a-button>
+          <a-button size="small" :loading="batchRunning" @click="runBatch('spam')">批量标垃圾</a-button>
+          <a-button size="small" danger :loading="batchRunning" @click="runBatch('delete')">批量删除</a-button>
+          <a-button size="small" type="text" @click="selectedRowKeys = []">取消选择</a-button>
+        </a-space>
+      </div>
+
       <a-table
         :columns="columns"
         :data-source="list"
@@ -206,6 +261,7 @@ onMounted(load)
         :pagination="pagination"
         :scroll="{ x: 1280 }"
         :custom-row="onRow"
+        :row-selection="rowSelection"
         row-key="id"
         @change="onTableChange"
       >
@@ -248,6 +304,22 @@ onMounted(load)
                 @click="setStatus(record, 2)"
               >
                 拒绝
+              </a-button>
+              <a-button
+                v-if="record.status !== 3 && !record.isAdmin"
+                type="link"
+                size="small"
+                @click="setStatus(record, 3)"
+              >
+                标垃圾
+              </a-button>
+              <a-button
+                v-if="record.status === 3 || record.status === 4"
+                type="link"
+                size="small"
+                @click="setStatus(record, 0)"
+              >
+                恢复待审
               </a-button>
               <a-button type="link" size="small" @click="openReply(record)">回复</a-button>
               <a-popconfirm
@@ -417,5 +489,16 @@ onMounted(load)
 .comment-detail__same-post {
   margin-top: 16px;
   padding: 0;
+}
+.comment-batch-bar {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--admin-surface-2);
+  border-radius: var(--admin-radius-sm);
+}
+
+.comment-batch-bar__count {
+  font-size: 13px;
+  color: var(--admin-text);
 }
 </style>
