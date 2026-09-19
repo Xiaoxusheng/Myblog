@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
 import {
   AuditOutlined,
+  ClockCircleOutlined,
   CommentOutlined,
   EditOutlined,
   EyeOutlined,
@@ -70,11 +72,11 @@ const cards = computed<StatItem[]>(() => {
       hint: `文章共 ${s.postCount} 篇`,
     },
     {
-      key: 'commentCount',
-      title: '评论总数',
-      value: s.commentCount,
-      icon: CommentOutlined,
-      hint: `待审核 ${s.pendingCommentCount} 条`,
+      key: 'scheduledCount',
+      title: '计划发布',
+      value: s.scheduledCount,
+      icon: ClockCircleOutlined,
+      hint: `共 ${s.commentCount} 条评论`,
     },
     {
       key: 'pendingCommentCount',
@@ -122,6 +124,30 @@ function initial(nickname: string): string {
 }
 
 const trend = computed(() => stats.value?.trend ?? [])
+
+/** 计划发布中的文章（来自 /admin/stats 契约字段） */
+const scheduledPosts = computed(() => stats.value?.scheduledPosts ?? [])
+
+function formatPlanTime(value: string): string {
+  const target = dayjs(value)
+  return target.isValid() ? target.format('MM-DD HH:mm') : '-'
+}
+
+/** 相对描述：约 N 分钟/小时/天后；已到点但尚未上线的显示「即将发布」 */
+function relativePlanText(value: string): string {
+  const target = dayjs(value)
+  if (!target.isValid()) return '时间待定'
+  const minutes = target.diff(dayjs(), 'minute')
+  if (minutes <= 0) return '即将发布'
+  if (minutes < 60) return `约 ${minutes} 分钟后`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `约 ${hours} 小时后`
+  return `约 ${Math.floor(hours / 24)} 天后`
+}
+
+function goEditPost(id: number) {
+  void router.push(`/posts/edit/${id}`)
+}
 </script>
 
 <template>
@@ -198,32 +224,64 @@ const trend = computed(() => stats.value?.trend ?? [])
         <a-empty v-else description="暂无趋势数据" class="dashboard-empty" />
       </a-card>
 
-      <!-- 最近评论 -->
-      <a-card title="最近评论" class="dashboard-section">
-        <a-empty v-if="stats.recentComments.length === 0" description="暂无评论" class="dashboard-empty" />
-        <div v-else class="recent-comments">
-          <div
-            v-for="item in stats.recentComments"
-            :key="item.id"
-            class="recent-comment"
-            :class="{ 'recent-comment--pending': item.status === 0 }"
-            @click="goComments"
-          >
-            <a-avatar :size="32" class="recent-comment__avatar">{{ initial(item.nickname) }}</a-avatar>
-            <div class="recent-comment__main">
-              <div class="recent-comment__head">
-                <span class="recent-comment__name">{{ item.nickname }}</span>
-                <a-tag :color="COMMENT_STATUS_MAP[item.status as 0 | 1 | 2].color">
-                  {{ COMMENT_STATUS_MAP[item.status as 0 | 1 | 2].text }}
-                </a-tag>
-                <span class="recent-comment__time">{{ formatTime(item.createdAt) }}</span>
+      <!-- 计划发布 + 最近评论：桌面并排，移动端上下堆叠 -->
+      <a-row :gutter="[16, 16]" class="dashboard-section">
+        <a-col :xs="24" :lg="12">
+          <a-card title="计划发布" class="dashboard-duo">
+            <a-empty
+              v-if="scheduledPosts.length === 0"
+              description="暂无计划发布的文章"
+              class="dashboard-empty"
+            />
+            <div v-else class="scheduled-posts">
+              <div
+                v-for="item in scheduledPosts"
+                :key="item.id"
+                class="scheduled-post"
+                role="button"
+                tabindex="0"
+                @click="goEditPost(item.id)"
+                @keydown.enter="goEditPost(item.id)"
+              >
+                <ClockCircleOutlined class="scheduled-post__icon" />
+                <div class="scheduled-post__main">
+                  <div class="scheduled-post__title">{{ item.title }}</div>
+                  <div class="scheduled-post__time tabular-nums">
+                    {{ formatPlanTime(item.publishAt) }} · {{ relativePlanText(item.publishAt) }}
+                  </div>
+                </div>
               </div>
-              <div class="recent-comment__content clamp-2">{{ item.content }}</div>
-              <div class="recent-comment__post">《{{ item.postTitle }}》</div>
             </div>
-          </div>
-        </div>
-      </a-card>
+          </a-card>
+        </a-col>
+        <a-col :xs="24" :lg="12">
+          <a-card title="最近评论" class="dashboard-duo">
+            <a-empty v-if="stats.recentComments.length === 0" description="暂无评论" class="dashboard-empty" />
+            <div v-else class="recent-comments">
+              <div
+                v-for="item in stats.recentComments"
+                :key="item.id"
+                class="recent-comment"
+                :class="{ 'recent-comment--pending': item.status === 0 }"
+                @click="goComments"
+              >
+                <a-avatar :size="32" class="recent-comment__avatar">{{ initial(item.nickname) }}</a-avatar>
+                <div class="recent-comment__main">
+                  <div class="recent-comment__head">
+                    <span class="recent-comment__name">{{ item.nickname }}</span>
+                    <a-tag :color="COMMENT_STATUS_MAP[item.status as 0 | 1 | 2].color">
+                      {{ COMMENT_STATUS_MAP[item.status as 0 | 1 | 2].text }}
+                    </a-tag>
+                    <span class="recent-comment__time">{{ formatTime(item.createdAt) }}</span>
+                  </div>
+                  <div class="recent-comment__content clamp-2">{{ item.content }}</div>
+                  <div class="recent-comment__post">《{{ item.postTitle }}》</div>
+                </div>
+              </div>
+            </div>
+          </a-card>
+        </a-col>
+      </a-row>
     </template>
   </div>
 </template>
@@ -231,6 +289,57 @@ const trend = computed(() => stats.value?.trend ?? [])
 <style scoped>
 .dashboard-section {
   margin-top: 16px;
+}
+
+/* 并排面板：等高卡片 */
+.dashboard-duo {
+  height: 100%;
+}
+
+/* 计划发布面板 */
+.scheduled-posts {
+  display: flex;
+  flex-direction: column;
+}
+
+.scheduled-post {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--admin-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.scheduled-post:hover {
+  background: var(--admin-surface-2);
+}
+
+.scheduled-post__icon {
+  flex: none;
+  font-size: 16px;
+  color: var(--admin-brand);
+}
+
+.scheduled-post__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.scheduled-post__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-post__time {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--admin-muted);
 }
 
 .dashboard-empty {

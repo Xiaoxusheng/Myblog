@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { ArrowLeftOutlined, ClearOutlined, PictureOutlined } from '@ant-design/icons-vue'
+import type { Dayjs } from 'dayjs'
+import {
+  ArrowLeftOutlined,
+  ClearOutlined,
+  HistoryOutlined,
+  PictureOutlined,
+} from '@ant-design/icons-vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import FormSection from '@/components/FormSection.vue'
 import MediaSelectModal from '@/components/MediaSelectModal.vue'
+import PostRevisionDrawer from '@/components/PostRevisionDrawer.vue'
 import { createPost, getPost, updatePost } from '@/api/posts'
 import { getCategories } from '@/api/taxonomy'
-import type { AdminPostItem, Category, PostStatus } from '@/types/api'
+import { silentUpdatePost } from '@/utils/autosaveHttp'
+import type { AdminPostItem, Category, PostPayload, PostStatus } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,6 +31,10 @@ const loading = ref(false)
 const saving = ref(false)
 const categories = ref<Category[]>([])
 const coverModalOpen = ref(false)
+const revisionOpen = ref(false)
+
+/** 定时发布计划时间（status=3 时使用） */
+const publishAtValue = ref<Dayjs | null>(null)
 
 const formState = reactive({
   title: '',
@@ -49,13 +61,16 @@ const rules = {
 }
 
 // ---------------------------------------------------------------------------
-// 本地草稿自动保存（3s 防抖写 localStorage，key 按 新建/编辑+id 区分）
+// 自动保存：3s 防抖 → 本地草稿（localStorage 兜底）+ 条件满足时服务器自动保存
+// 服务器自动保存仅针对未发布文章（status !== 1），已发布文章的未定稿编辑只留本地
 // ---------------------------------------------------------------------------
-type DraftSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type DraftSaveStatus = 'idle' | 'saving' | 'saved-server' | 'saved-local' | 'error'
 
 interface LocalDraft {
   form: typeof formState
   savedAt: number
+  /** 定时发布计划时间（ISO 字符串）；旧草稿无此字段 */
+  publishAt?: string | null
 }
 
 const DRAFT_PREFIX = 'blog_admin_post_draft'
@@ -68,6 +83,10 @@ const autosaveReady = ref(false)
 const draftStatus = ref<DraftSaveStatus>('idle')
 const savedAtText = ref('')
 let draftTimer: ReturnType<typeof setTimeout> | null = null
+/** 服务器已同步的最新负载快照（跳过无变化的自动保存请求） */
+let lastServerSnapshot = ''
+/** 服务器自动保存序号：仅最新一次请求的结果可以更新状态条 */
+let autosaveSeq = 0
 
 function clearDraftTimer() {
   if (draftTimer) {
@@ -88,15 +107,32 @@ function readDraft(): LocalDraft | null {
   }
 }
 
+function currentPublishAtIso(): string | null {
+  return publishAtValue.value ? publishAtValue.value.toISOString() : null
+}
+
 function writeDraft() {
   draftTimer = null
+  // 1) 本地兜底始终写入：服务器自动保存失败时草稿仍在
   try {
-    const draft: LocalDraft = { form: { ...formState, tagNames: [...formState.tagNames] }, savedAt: Date.now() }
+    const draft: LocalDraft = {
+      form: { ...formState, tagNames: [...formState.tagNames] },
+      savedAt: Date.now(),
+      publishAt: currentPublishAtIso(),
+    }
     localStorage.setItem(draftKey.value, JSON.stringify(draft))
-    savedAtText.value = dayjs().format('HH:mm')
-    draftStatus.value = 'saved'
   } catch {
-    draftStatus.value = 'error'
+    if (!canServerAutosave()) {
+      draftStatus.value = 'error'
+      return
+    }
+  }
+  // 2) 条件满足时同时发起服务器自动保存
+  if (canServerAutosave()) {
+    void serverAutosave()
+  } else {
+    savedAtText.value = dayjs().format('HH:mm')
+    draftStatus.value = 'saved-local'
   }
 }
 
@@ -114,9 +150,10 @@ function onFormChange() {
 }
 
 watch(formState, onFormChange, { deep: true })
+watch(publishAtValue, onFormChange)
 
-/** 表单快照对比（tags 排序后比较，避免服务端顺序差异误报） */
-function snapshot(form: typeof formState): string {
+/** 表单快照对比（tags 排序后比较，避免服务端顺序差异误报）；publishAt 参与对比 */
+function snapshot(form: typeof formState, publishAt?: string | null): string {
   return JSON.stringify({
     title: form.title,
     slug: form.slug,
@@ -127,7 +164,54 @@ function snapshot(form: typeof formState): string {
     summary: form.summary,
     cover: form.cover,
     content: form.content,
+    publishAt: publishAt ?? null,
   })
+}
+
+/**
+ * 是否可发起服务器自动保存：
+ * - 仅编辑已有文章、标题非空、分类有效（避免必然失败的请求）
+ * - 已发布文章（status=1）的未定稿编辑不能实时写到线上，只留本地草稿
+ * - 定时发布需已选时间（契约要求 status=3 必填 publishAt）
+ * - 内容与服务器已同步状态一致时不重复保存
+ */
+function canServerAutosave(): boolean {
+  return (
+    autosaveReady.value &&
+    !saving.value &&
+    postId.value !== null &&
+    formState.title.trim() !== '' &&
+    formState.categoryId !== null &&
+    formState.status !== 1 &&
+    (formState.status !== 3 || publishAtValue.value !== null) &&
+    payloadSnapshot() !== lastServerSnapshot
+  )
+}
+
+/** 服务器自动保存负载快照（与 lastServerSnapshot 比较，跳过无变化保存） */
+function payloadSnapshot(): string {
+  return JSON.stringify(buildPayload(formState.status))
+}
+
+/** 服务器端自动保存：静默请求，结果只更新底部状态条，不回填表单（避免覆盖正在输入的内容） */
+async function serverAutosave() {
+  const targetId = postId.value
+  if (targetId === null) return
+  const seq = ++autosaveSeq
+  const requestSnapshot = payloadSnapshot()
+  try {
+    await silentUpdatePost(targetId, buildPayload(formState.status))
+    if (seq !== autosaveSeq) return
+    lastServerSnapshot = requestSnapshot
+    savedAtText.value = dayjs().format('HH:mm')
+    draftStatus.value = 'saved-server'
+    // 服务器已接住，清理本地兜底草稿（下次变更会重新写入）
+    localStorage.removeItem(draftKey.value)
+  } catch {
+    // 静默失败：不弹错误提示，本地草稿已兜底
+    if (seq !== autosaveSeq) return
+    draftStatus.value = 'error'
+  }
 }
 
 /** 载入后检查本地草稿：与服务器内容不同则询问恢复 */
@@ -138,7 +222,7 @@ function checkLocalDraft(serverPost: AdminPostItem | null) {
     return
   }
   const differs = serverPost
-    ? snapshot(draft.form) !== snapshot(formState)
+    ? snapshot(draft.form, draft.publishAt) !== snapshot(formState, currentPublishAtIso())
     : Boolean(
         draft.form.title.trim() ||
           draft.form.content.trim() ||
@@ -159,8 +243,9 @@ function checkLocalDraft(serverPost: AdminPostItem | null) {
     cancelText: '不恢复',
     onOk: () => {
       Object.assign(formState, draft.form, { tagNames: [...draft.form.tagNames] })
+      publishAtValue.value = draft.publishAt ? dayjs(draft.publishAt) : null
       savedAtText.value = savedAt
-      draftStatus.value = 'saved'
+      draftStatus.value = 'saved-local'
       autosaveReady.value = true
     },
     onCancel: () => {
@@ -191,6 +276,8 @@ async function load() {
     formState.summary = ''
     formState.cover = ''
     formState.content = ''
+    publishAtValue.value = null
+    lastServerSnapshot = payloadSnapshot()
     checkLocalDraft(null)
     return
   }
@@ -198,6 +285,7 @@ async function load() {
   try {
     const result = await getPost(postId.value)
     fillForm(result.post)
+    lastServerSnapshot = payloadSnapshot()
     checkLocalDraft(result.post)
   } finally {
     loading.value = false
@@ -214,6 +302,23 @@ function fillForm(post: AdminPostItem) {
   formState.summary = post.summary
   formState.cover = post.cover
   formState.content = post.content
+  publishAtValue.value = post.publishAt ? dayjs(post.publishAt) : null
+}
+
+function buildPayload(nextStatus: PostStatus): PostPayload {
+  return {
+    title: formState.title.trim(),
+    slug: formState.slug.trim(),
+    summary: formState.summary.trim(),
+    content: formState.content,
+    cover: formState.cover.trim(),
+    categoryId: formState.categoryId as number,
+    tags: [...formState.tagNames],
+    status: nextStatus,
+    isTop: formState.isTop,
+    publishAt:
+      nextStatus === 3 && publishAtValue.value ? publishAtValue.value.toISOString() : undefined,
+  }
 }
 
 async function save(nextStatus: PostStatus) {
@@ -221,29 +326,32 @@ async function save(nextStatus: PostStatus) {
     message.error('请输入文章标题')
     return
   }
-  await formRef.value?.validate()
-  const payload = {
-    title: formState.title.trim(),
-    slug: formState.slug.trim(),
-    summary: formState.summary.trim(),
-    content: formState.content,
-    cover: formState.cover.trim(),
-    categoryId: formState.categoryId as number,
-    tags: formState.tagNames,
-    status: nextStatus,
-    isTop: formState.isTop,
+  if (nextStatus === 3 && !publishAtValue.value) {
+    message.error('请选择计划发布时间')
+    return
   }
+  await formRef.value?.validate()
+  const payload = buildPayload(nextStatus)
   saving.value = true
   try {
     if (postId.value) {
       await updatePost(postId.value, payload)
+      // 暂停自动保存，避免状态回填触发一次多余的保存
+      autosaveReady.value = false
       formState.status = nextStatus
-      message.success('保存成功')
+      lastServerSnapshot = JSON.stringify(payload)
+      message.success(nextStatus === 3 ? '已加入定时发布计划' : '保存成功')
       // 保存成功，本地草稿已同步到服务器，清除
       clearLocalDraft()
+      await nextTick()
+      autosaveReady.value = true
+      // 保存期间又有输入：重新进入自动保存流程，把增量落盘
+      if (payloadSnapshot() !== lastServerSnapshot) {
+        onFormChange()
+      }
     } else {
       const result = await createPost(payload)
-      message.success('创建成功')
+      message.success(nextStatus === 3 ? '已加入定时发布计划' : '创建成功')
       // 在路由切到编辑模式前清除 _new 草稿（draftKey 依赖当前路由）
       clearLocalDraft()
       // 转入编辑模式，后续保存走 PUT
@@ -252,6 +360,27 @@ async function save(nextStatus: PostStatus) {
   } finally {
     saving.value = false
   }
+}
+
+/** 版本恢复成功：用返回的 post 回填表单，清空本地草稿；暂停自动保存避免恢复内容再触发保存 */
+async function onRestored(post: AdminPostItem) {
+  autosaveReady.value = false
+  clearDraftTimer()
+  fillForm(post)
+  lastServerSnapshot = payloadSnapshot()
+  clearLocalDraft()
+  await nextTick()
+  autosaveReady.value = true
+}
+
+/** 定时发布日期禁选今天之前 */
+function disabledDate(current: Dayjs): boolean {
+  return current.isBefore(dayjs().startOf('day'))
+}
+
+/** a-date-picker 的 update:value 可能是 string/null，统一收敛为 Dayjs | null */
+function onPublishAtChange(value: Dayjs | string | null) {
+  publishAtValue.value = dayjs.isDayjs(value) ? value : null
 }
 
 function goBack() {
@@ -297,8 +426,18 @@ onBeforeUnmount(() => {
         />
       </div>
       <a-space class="post-edit__actions">
+        <a-button v-if="postId" @click="revisionOpen = true">
+          <template #icon><HistoryOutlined /></template>
+          版本历史
+        </a-button>
         <a-button :loading="saving" @click="save(0)">保存草稿</a-button>
-        <a-button type="primary" :loading="saving" @click="save(1)">发布</a-button>
+        <a-button
+          type="primary"
+          :loading="saving"
+          @click="formState.status === 3 ? save(3) : save(1)"
+        >
+          {{ formState.status === 3 ? '定时发布' : '发布' }}
+        </a-button>
       </a-space>
     </div>
 
@@ -319,7 +458,8 @@ onBeforeUnmount(() => {
               </span>
               <span class="post-edit__status-save" :class="{ 'post-edit__status-save--error': draftStatus === 'error' }">
                 <template v-if="draftStatus === 'saving'">正在保存…</template>
-                <template v-else-if="draftStatus === 'saved'">已保存至本地 {{ savedAtText }}</template>
+                <template v-else-if="draftStatus === 'saved-server'">已保存 {{ savedAtText }}</template>
+                <template v-else-if="draftStatus === 'saved-local'">已保存至本地 {{ savedAtText }}</template>
                 <template v-else-if="draftStatus === 'error'">保存失败</template>
                 <template v-else>自动保存已开启</template>
               </span>
@@ -334,7 +474,20 @@ onBeforeUnmount(() => {
                   <a-radio :value="0">草稿</a-radio>
                   <a-radio :value="1">已发布</a-radio>
                   <a-radio :value="2">隐藏</a-radio>
+                  <a-radio :value="3">定时发布</a-radio>
                 </a-radio-group>
+              </a-form-item>
+              <a-form-item v-if="formState.status === 3" label="计划发布时间" required>
+                <a-date-picker
+                  :value="publishAtValue ?? undefined"
+                  show-time
+                  format="YYYY-MM-DD HH:mm"
+                  placeholder="选择到点自动发布的时间"
+                  style="width: 100%"
+                  :disabled-date="disabledDate"
+                  @update:value="onPublishAtChange"
+                />
+                <p class="post-edit__hint">到点由服务器自动上线，到点前可在文章列表查看。</p>
               </a-form-item>
               <a-form-item label="置顶" name="isTop">
                 <a-switch v-model:checked="formState.isTop" />
@@ -401,6 +554,13 @@ onBeforeUnmount(() => {
     </a-spin>
 
     <MediaSelectModal v-model:open="coverModalOpen" @select="formState.cover = $event" />
+
+    <PostRevisionDrawer
+      v-model:open="revisionOpen"
+      :post-id="postId"
+      :current-content="formState.content"
+      @restored="onRestored"
+    />
   </div>
 </template>
 

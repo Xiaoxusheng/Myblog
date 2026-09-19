@@ -37,7 +37,7 @@ const columns: TableColumnsType = [
   { title: '标签', key: 'tags', width: 160 },
   { title: '状态', key: 'status', width: 120 },
   { title: '浏览/评论', key: 'stats', width: 90 },
-  { title: '发布时间', key: 'publishedAt', width: 130 },
+  { title: '发布时间', key: 'publishedAt', width: 170 },
   { title: '操作', key: 'action', width: 160, fixed: 'right' },
 ]
 
@@ -162,6 +162,7 @@ onMounted(() => {
               { label: '草稿', value: 0 },
               { label: '已发布', value: 1 },
               { label: '隐藏', value: 2 },
+              { label: '定时发布', value: 3 },
             ]"
             @change="onFilterChange"
           />
@@ -189,7 +190,7 @@ onMounted(() => {
         :data-source="list"
         :loading="loading"
         :pagination="pagination"
-        :scroll="{ x: 1010 }"
+        :scroll="{ x: 1050 }"
         row-key="id"
         @change="onTableChange"
       >
@@ -223,7 +224,11 @@ onMounted(() => {
           </template>
 
           <template v-else-if="column.key === 'publishedAt'">
-            {{ formatTime(record.publishedAt || record.createdAt) }}
+            <div v-if="record.status === 3" class="cell-scheduled">
+              <span class="cell-scheduled__badge">计划</span>
+              <span class="tabular-nums">{{ formatTime(record.publishedAt || record.publishAt) }}</span>
+            </div>
+            <template v-else>{{ formatTime(record.publishedAt || record.createdAt) }}</template>
           </template>
 
           <template v-else-if="column.key === 'action'">
@@ -255,5 +260,22 @@ onMounted(() => {
 
 .post-title:hover {
   color: var(--admin-brand);
+}
+
+/* 定时发布：计划时间标注 */
+.cell-scheduled {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cell-scheduled__badge {
+  flex: none;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--admin-brand);
+  background: var(--admin-brand-bg);
+  border-radius: var(--admin-radius-sm);
 }
 </style>
