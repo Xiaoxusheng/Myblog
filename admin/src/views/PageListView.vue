@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import type { TableColumnsType } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
+import { useFeedback } from '@/composables/useFeedback'
 import { deletePage, getPages } from '@/api/pages'
 import { POST_STATUS_MAP } from '@/constants/status'
 import { formatTime } from '@/utils/format'
 import type { PageItem, PageStatus } from '@/types/api'
 
 const router = useRouter()
+const { message } = useFeedback()
 
-const loading = ref(false)
-const list = ref<PageItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const {
+  loading,
+  error,
+  list,
+  pagination,
+  load,
+  onTableChange,
+  reloadAfterDelete,
+} = useTable<PageItem>(({ page, pageSize }) =>
+  getPages({ page, pageSize }),
+)
 
 const columns: TableColumnsType = [
   { title: '标题', dataIndex: 'title', key: 'title', width: 240, ellipsis: true },
@@ -27,39 +37,10 @@ const columns: TableColumnsType = [
   { title: '操作', key: 'action', width: 140, fixed: 'right' },
 ]
 
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50'],
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-async function load() {
-  loading.value = true
-  try {
-    const result = await getPages({ page: page.value, pageSize: pageSize.value })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
-
-function onTableChange(paginationConfig: TablePaginationConfig) {
-  page.value = paginationConfig.current || 1
-  pageSize.value = paginationConfig.pageSize || 10
-  void load()
-}
-
 async function onDelete(record: PageItem) {
   await deletePage(record.id)
   message.success('删除成功')
-  if (list.value.length === 1 && page.value > 1) {
-    page.value -= 1
-  }
-  await load()
+  await reloadAfterDelete()
 }
 
 onMounted(load)
@@ -81,7 +62,10 @@ onMounted(load)
     </PageHeader>
 
     <a-card :bordered="false">
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -90,6 +74,9 @@ onMounted(load)
         row-key="id"
         @change="onTableChange"
       >
+        <template #emptyText>
+          <TableEmpty text="暂无页面，点击右上角「新建页面」创建" />
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag :color="POST_STATUS_MAP[record.status as PageStatus].color">

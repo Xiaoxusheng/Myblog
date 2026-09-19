@@ -1,17 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { message } from 'ant-design-vue'
-import type { FormInstance, TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import { onMounted, reactive, ref } from 'vue'
+import type { FormInstance, TableColumnsType } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
+import { useFeedback } from '@/composables/useFeedback'
 import { createCategory, deleteCategory, getCategories, updateCategory } from '@/api/taxonomy'
 import type { Category } from '@/types/api'
 
-const loading = ref(false)
-const list = ref<Category[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const { message } = useFeedback()
+
+const {
+  loading,
+  error,
+  list,
+  pagination,
+  load,
+  onTableChange,
+  reloadAfterDelete,
+} = useTable<Category>(({ page, pageSize }) =>
+  getCategories({ page, pageSize }),
+)
 
 const columns: TableColumnsType = [
   { title: '名称', dataIndex: 'name', key: 'name', width: 180 },
@@ -20,32 +31,6 @@ const columns: TableColumnsType = [
   { title: '文章数', dataIndex: 'postCount', key: 'postCount', width: 100 },
   { title: '操作', key: 'action', width: 140, fixed: 'right' },
 ]
-
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50'],
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-async function load() {
-  loading.value = true
-  try {
-    const result = await getCategories({ page: page.value, pageSize: pageSize.value })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
-
-function onTableChange(paginationConfig: TablePaginationConfig) {
-  page.value = paginationConfig.current || 1
-  pageSize.value = paginationConfig.pageSize || 10
-  void load()
-}
 
 // 新建 / 编辑弹窗
 const modalOpen = ref(false)
@@ -111,10 +96,7 @@ async function submitModal() {
 async function onDelete(record: Category) {
   await deleteCategory(record.id)
   message.success('删除成功')
-  if (list.value.length === 1 && page.value > 1) {
-    page.value -= 1
-  }
-  await load()
+  await reloadAfterDelete()
 }
 
 onMounted(load)
@@ -136,7 +118,10 @@ onMounted(load)
     </PageHeader>
 
     <a-card :bordered="false">
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -145,6 +130,9 @@ onMounted(load)
         row-key="id"
         @change="onTableChange"
       >
+        <template #emptyText>
+          <TableEmpty text="暂无分类，点击右上角「新建分类」创建" />
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'description'">
             <a-tooltip v-if="record.description" :title="record.description">

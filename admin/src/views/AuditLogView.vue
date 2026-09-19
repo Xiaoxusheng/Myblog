@@ -1,18 +1,34 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import { onMounted, ref } from 'vue'
+import type { TableColumnsType } from 'ant-design-vue'
 import { SearchOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
 import { getAuditLogs } from '@/api/audit'
 import { formatTime } from '@/utils/format'
 import type { AuditLogItem } from '@/types/api'
 
-const loading = ref(false)
-const list = ref<AuditLogItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(20)
 const actionFilter = ref('')
+
+const {
+  loading,
+  error,
+  list,
+  page,
+  pagination,
+  load,
+  onTableChange,
+} = useTable<AuditLogItem>(
+  ({ page, pageSize }) =>
+    getAuditLogs({
+      action: actionFilter.value.trim() || undefined,
+      page,
+      pageSize,
+    }),
+  { defaultPageSize: 20, pageSizeOptions: ['20', '50'] },
+)
 
 const columns: TableColumnsType = [
   { title: '时间', key: 'createdAt', width: 160 },
@@ -21,38 +37,8 @@ const columns: TableColumnsType = [
   { title: '说明', dataIndex: 'description', key: 'description', ellipsis: true },
 ]
 
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showSizeChanger: true,
-  pageSizeOptions: ['20', '50'],
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-async function load() {
-  loading.value = true
-  try {
-    const result = await getAuditLogs({
-      action: actionFilter.value.trim() || undefined,
-      page: page.value,
-      pageSize: pageSize.value,
-    })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
-
 function onSearch() {
   page.value = 1
-  void load()
-}
-
-function onTableChange(p: TablePaginationConfig) {
-  page.value = p.current || 1
-  pageSize.value = p.pageSize || 20
   void load()
 }
 
@@ -78,7 +64,10 @@ onMounted(load)
         </a-button>
       </div>
 
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -102,7 +91,7 @@ onMounted(load)
           </template>
         </template>
         <template #emptyText>
-          <a-empty description="暂无操作记录" />
+          <TableEmpty text="暂无操作记录" />
         </template>
       </a-table>
     </a-card>

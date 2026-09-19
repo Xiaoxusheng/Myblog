@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
-import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import type { TableColumnsType } from 'ant-design-vue'
 import {
   CommentOutlined,
   EyeOutlined,
@@ -16,6 +15,10 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import PvTrendChart from '@/components/PvTrendChart.vue'
 import DistributionBars from '@/components/DistributionBars.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
+import { useFeedback } from '@/composables/useFeedback'
 import { deletePost, getPosts, updatePostStatus } from '@/api/posts'
 import { getPostAnalytics } from '@/api/analytics'
 import { getCategories } from '@/api/taxonomy'
@@ -32,12 +35,8 @@ import type {
 
 const route = useRoute()
 const router = useRouter()
+const { message } = useFeedback()
 
-const loading = ref(false)
-const list = ref<AdminPostItem[]>([])
-const total = ref(0)
-const page = ref(Number(route.query.page) || 1)
-const pageSize = ref(10)
 const categories = ref<Category[]>([])
 
 // 筛选条件：keyword 需回车/点击搜索才生效
@@ -50,6 +49,30 @@ const categoryId = ref<number | ''>(
   route.query.categoryId !== undefined && route.query.categoryId !== '' ? Number(route.query.categoryId) : '',
 )
 
+const {
+  loading,
+  error,
+  list,
+  page,
+  pageSize,
+  pagination,
+  load,
+  onTableChange,
+  reloadAfterDelete,
+} = useTable<AdminPostItem>(
+  ({ page, pageSize }) =>
+    getPosts({
+      keyword: keyword.value || undefined,
+      status: status.value === '' ? undefined : status.value,
+      categoryId: categoryId.value === '' ? undefined : categoryId.value,
+      page,
+      pageSize,
+    }),
+  {
+    initialPage: Number(route.query.page) || 1,
+  },
+)
+
 const columns: TableColumnsType = [
   { title: '标题', dataIndex: 'title', key: 'title', width: 240, ellipsis: true },
   { title: '分类', dataIndex: ['category', 'name'], key: 'category', width: 110 },
@@ -60,16 +83,8 @@ const columns: TableColumnsType = [
   { title: '操作', key: 'action', width: 200, fixed: 'right' },
 ]
 
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50'],
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-function syncQuery() {
+// 筛选/翻页变化同步到 URL,便于分享与后退(docs/09 §5.1)
+watch([page, pageSize], () => {
   void router.replace({
     query: {
       page: page.value > 1 ? String(page.value) : undefined,
@@ -78,25 +93,7 @@ function syncQuery() {
       categoryId: categoryId.value !== '' ? String(categoryId.value) : undefined,
     },
   })
-}
-
-async function load() {
-  loading.value = true
-  syncQuery()
-  try {
-    const result = await getPosts({
-      keyword: keyword.value || undefined,
-      status: status.value === '' ? undefined : status.value,
-      categoryId: categoryId.value === '' ? undefined : categoryId.value,
-      page: page.value,
-      pageSize: pageSize.value,
-    })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
+})
 
 async function loadCategories() {
   const result = await getCategories({ page: 1, pageSize: 100 })
@@ -114,12 +111,6 @@ function onFilterChange() {
   void load()
 }
 
-function onTableChange(paginationConfig: TablePaginationConfig) {
-  page.value = paginationConfig.current || 1
-  pageSize.value = paginationConfig.pageSize || 10
-  void load()
-}
-
 async function togglePublish(record: AdminPostItem) {
   const next: PostStatus = record.status === 1 ? 2 : 1
   await updatePostStatus(record.id, next)
@@ -130,11 +121,7 @@ async function togglePublish(record: AdminPostItem) {
 async function onDelete(record: AdminPostItem) {
   await deletePost(record.id)
   message.success('删除成功')
-  // 当前页删空后回退一页
-  if (list.value.length === 1 && page.value > 1) {
-    page.value -= 1
-  }
-  await load()
+  await reloadAfterDelete()
 }
 
 function goCreate() {
@@ -276,7 +263,10 @@ onMounted(() => {
         </a-button>
       </div>
 
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -285,6 +275,9 @@ onMounted(() => {
         row-key="id"
         @change="onTableChange"
       >
+        <template #emptyText>
+          <TableEmpty text="暂无文章，点击右上角「新建文章」开始写作" />
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
             <a class="post-title" @click="goEdit(record)">{{ record.title }}</a>

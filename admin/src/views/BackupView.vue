@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { message } from 'ant-design-vue'
 import type { TableColumnsType } from 'ant-design-vue'
 import { CloudDownloadOutlined, DatabaseOutlined, FileZipOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useFeedback } from '@/composables/useFeedback'
 import { createBackup, deleteBackup, downloadBackup, getBackups } from '@/api/backups'
 import { formatTime } from '@/utils/format'
 import type { BackupItem } from '@/types/api'
 
+const { message } = useFeedback()
+
 const loading = ref(false)
+const error = ref('')
 const creating = ref<'database' | 'full' | null>(null)
 const list = ref<BackupItem[]>([])
 
@@ -30,9 +35,12 @@ const totalSize = computed(() => list.value.reduce((sum, item) => sum + item.siz
 
 async function load() {
   loading.value = true
+  error.value = ''
   try {
     const data = await getBackups()
     list.value = data.list
+  } catch {
+    error.value = '备份列表加载失败，请检查网络后重试'
   } finally {
     loading.value = false
   }
@@ -89,7 +97,10 @@ onMounted(load)
 
     <a-card :bordered="false">
       <template #title>备份文件<span v-if="list.length" class="backup-total">（{{ list.length }} 个，共 {{ humanSize(totalSize) }}）</span></template>
+      <LoadError v-if="error" :message="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -127,7 +138,7 @@ onMounted(load)
           </template>
         </template>
         <template #emptyText>
-          <a-empty description="暂无备份，点击上方按钮立即创建" />
+          <TableEmpty text="暂无备份，点击上方按钮立即创建" />
         </template>
       </a-table>
     </a-card>

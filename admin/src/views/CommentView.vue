@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
-import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import type { TableColumnsType } from 'ant-design-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
+import { useFeedback } from '@/composables/useFeedback'
 import { batchComments, deleteComment, getComments, replyComment, updateCommentStatus } from '@/api/comments'
 import { COMMENT_STATUS_MAP } from '@/constants/status'
 import { formatTime } from '@/utils/format'
@@ -13,6 +16,7 @@ type TabKey = 'all' | '0' | '1' | '2' | '3' | '4'
 
 const route = useRoute()
 const router = useRouter()
+const { message, modal } = useFeedback()
 
 // 支持仪表盘快捷入口 /comments?status=0 直达对应 Tab
 const initialTab = (() => {
@@ -21,15 +25,28 @@ const initialTab = (() => {
 })()
 
 const activeTab = ref<TabKey>(initialTab)
-const loading = ref(false)
-const list = ref<CommentAdmin[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
 
 /** 仅看某篇文章的评论（drawer 入口） */
 const postFilter = ref<number | undefined>(undefined)
 const postFilterTitle = ref('')
+
+const {
+  loading,
+  error,
+  list,
+  page,
+  pagination,
+  load,
+  onTableChange,
+} = useTable<CommentAdmin>(
+  ({ page, pageSize }) =>
+    getComments({
+      status: activeTab.value === 'all' ? undefined : (Number(activeTab.value) as CommentStatus),
+      postId: postFilter.value,
+      page,
+      pageSize,
+    }),
+)
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -51,31 +68,6 @@ const columns: TableColumnsType = [
   { title: '操作', key: 'action', width: 250, fixed: 'right' },
 ]
 
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showSizeChanger: true,
-  pageSizeOptions: ['10', '20', '50'],
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-async function load() {
-  loading.value = true
-  try {
-    const result = await getComments({
-      status: activeTab.value === 'all' ? undefined : (Number(activeTab.value) as CommentStatus),
-      postId: postFilter.value,
-      page: page.value,
-      pageSize: pageSize.value,
-    })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
-
 function syncQuery() {
   void router.replace({
     query: {
@@ -88,12 +80,6 @@ function syncQuery() {
 function onTabChange() {
   page.value = 1
   syncQuery()
-  void load()
-}
-
-function onTableChange(paginationConfig: TablePaginationConfig) {
-  page.value = paginationConfig.current || 1
-  pageSize.value = paginationConfig.pageSize || 10
   void load()
 }
 
@@ -132,7 +118,7 @@ async function runBatch(action: 'approve' | 'reject' | 'spam' | 'delete') {
     }
   }
   if (action === 'delete') {
-    Modal.confirm({
+    modal.confirm({
       title: '批量删除',
       content: `将删除选中的 ${selectedRowKeys.value.length} 条评论及其回复，删除后不可恢复，确定吗？`,
       okText: '删除',
@@ -254,7 +240,10 @@ onMounted(load)
         </a-space>
       </div>
 
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -265,6 +254,9 @@ onMounted(load)
         row-key="id"
         @change="onTableChange"
       >
+        <template #emptyText>
+          <TableEmpty :text="activeTab === 'all' ? '暂无评论' : '该状态下暂无评论'" />
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nickname'">
             <span>{{ record.nickname }}</span>

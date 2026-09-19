@@ -1,19 +1,37 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { message } from 'ant-design-vue'
-import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
+import { onMounted, reactive, ref } from 'vue'
+import type { TableColumnsType } from 'ant-design-vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import TableEmpty from '@/components/TableEmpty.vue'
+import { useTable } from '@/composables/useTable'
+import { useFeedback } from '@/composables/useFeedback'
 import { createBlacklist, deleteBlacklist, getBlacklist } from '@/api/moderation'
 import { formatTime } from '@/utils/format'
 import type { BlacklistItem } from '@/types/api'
 
-const loading = ref(false)
-const list = ref<BlacklistItem[]>([])
-const total = ref(0)
-const page = ref(1)
-const pageSize = ref(10)
+const { message } = useFeedback()
+
 const typeFilter = ref<'ip' | 'email' | 'keyword' | ''>('')
+
+const {
+  loading,
+  error,
+  list,
+  page,
+  pagination,
+  load,
+  onTableChange,
+  reloadAfterDelete,
+} = useTable<BlacklistItem>(
+  ({ page, pageSize }) =>
+    getBlacklist({
+      type: typeFilter.value || undefined,
+      page,
+      pageSize,
+    }),
+)
 
 const columns: TableColumnsType = [
   { title: '类型', key: 'type', width: 110 },
@@ -31,34 +49,6 @@ const typeColor: Record<BlacklistItem['type'], string> = {
   ip: 'blue',
   email: 'purple',
   keyword: 'orange',
-}
-
-const pagination = computed<TablePaginationConfig>(() => ({
-  current: page.value,
-  pageSize: pageSize.value,
-  total: total.value,
-  showTotal: (t: number) => `共 ${t} 条`,
-}))
-
-async function load() {
-  loading.value = true
-  try {
-    const result = await getBlacklist({
-      type: typeFilter.value || undefined,
-      page: page.value,
-      pageSize: pageSize.value,
-    })
-    list.value = result.list
-    total.value = result.total
-  } finally {
-    loading.value = false
-  }
-}
-
-function onTableChange(p: TablePaginationConfig) {
-  page.value = p.current || 1
-  pageSize.value = p.pageSize || 10
-  void load()
 }
 
 function onFilterChange() {
@@ -96,10 +86,7 @@ async function submitCreate() {
 async function onDelete(record: BlacklistItem) {
   await deleteBlacklist(record.id)
   message.success('已移出黑名单')
-  if (list.value.length === 1 && page.value > 1) {
-    page.value -= 1
-  }
-  await load()
+  await reloadAfterDelete()
 }
 
 onMounted(load)
@@ -123,7 +110,10 @@ onMounted(load)
         </a-button>
       </div>
 
+      <LoadError v-if="error" @retry="load" />
+
       <a-table
+        v-else
         :columns="columns"
         :data-source="list"
         :loading="loading"
@@ -132,6 +122,9 @@ onMounted(load)
         row-key="id"
         @change="onTableChange"
       >
+        <template #emptyText>
+          <TableEmpty text="暂无黑名单条目，命中规则的评论才会被拦截" />
+        </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
             <a-tag :color="typeColor[record.type as BlacklistItem['type']]">

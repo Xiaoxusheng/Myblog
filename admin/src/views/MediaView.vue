@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { message } from 'ant-design-vue'
 import type { UploadRequestOption } from 'ant-design-vue/es/vc-upload/interface'
 import {
   CopyOutlined,
@@ -10,13 +9,18 @@ import {
   UploadOutlined,
 } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import LoadError from '@/components/LoadError.vue'
+import { useFeedback } from '@/composables/useFeedback'
 import { deleteUpload, getUploads, uploadImage } from '@/api/media'
 import { copyText, formatBytes, formatTime } from '@/utils/format'
 import type { UploadItem } from '@/types/api'
 
 type ViewMode = 'grid' | 'list'
 
+const { message } = useFeedback()
+
 const loading = ref(false)
+const error = ref('')
 const list = ref<UploadItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -41,10 +45,13 @@ const pagination = computed(() => ({
 
 async function load() {
   loading.value = true
+  error.value = ''
   try {
     const result = await getUploads({ page: page.value, pageSize })
     list.value = result.list
     total.value = result.total
+  } catch {
+    error.value = '媒体列表加载失败，请检查网络后重试'
   } finally {
     loading.value = false
   }
@@ -135,7 +142,9 @@ onMounted(load)
     </PageHeader>
 
     <a-card :bordered="false">
-      <a-spin :spinning="loading">
+      <LoadError v-if="error" :message="error" @retry="load" />
+
+      <a-spin v-else :spinning="loading">
         <a-empty v-if="!loading && list.length === 0" description="媒体库暂无图片，点击右上角上传" />
 
         <!-- 网格视图：4:3 缩略图，hover 显示操作 -->
