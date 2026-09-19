@@ -24,10 +24,15 @@ var (
 	jwtSecret string
 )
 
-// SetConfig 由 router.Setup 注入运行配置
+// SetConfig 由 router.Setup 注入运行配置；并注入埋点哈希盐（优先加密密钥，回退 JWT 密钥）
 func SetConfig(cfg *config.Config) {
 	uploadDir = cfg.UploadDir
 	jwtSecret = cfg.JWTSecret
+	if cfg.CryptoKey != "" {
+		model.SetHashSecret(cfg.CryptoKey)
+	} else {
+		model.SetHashSecret(cfg.JWTSecret)
+	}
 }
 
 // ---------- 通用查询助手 ----------

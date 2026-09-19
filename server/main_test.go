@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"myblog/server/config"
+	"myblog/server/handler"
 	"myblog/server/middleware"
 	"myblog/server/model"
 	"myblog/server/router"
@@ -34,6 +35,7 @@ func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	middleware.ResetCommentRateLimit()
 	middleware.ResetLoginRateLimit()
+	handler.ResetTrackCounters()
 
 	cfg := &config.Config{
 		Port:      "0",

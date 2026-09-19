@@ -19,7 +19,7 @@
 
 **PostDetail**：PostSummary 全部字段 + `content`(Markdown 原文) + `updatedAt`
 
-**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`)
+**AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`) + `seriesId`(0=不属于专题) + `seriesSort`(专题内序号)
 
 **PostRevisionItem**（版本列表项，不含 content）：`{id,postId,version,remark,createdAt}`；`remark` 为该版本的变更说明（如 `首次保存`、`修改标题、正文`、`恢复自 v3`）
 
@@ -68,6 +68,7 @@
 | 53 | GET `/series` | `{list:[Series]}` 仅 visible，sort 升序，postCount=已发布文章数 |
 | 54 | GET `/series/:slug` | `{series:Series,posts:[PostSummary]}` 仅已发布文章，按专题内序号排列；404 → 10004 |
 | 55 | GET `/redirects/resolve?path=/post/old` | `{redirect:{source,target,type}\|null}` 仅 enabled；无匹配返回 `{redirect:null}`（code 0）；供前台 404 兜底路由使用 |
+| 66 | POST `/track` | 无鉴权埋点：body `{path, postId?, referer?}`（前台路由切换时上报，`navigator.sendBeacon` 或 fetch keepalive）。写 page_views：UA 解析 device/browser/os、referer 归类 `direct/search/github/social/other`、IP 仅存 SHA-256 哈希（不存明文）。同 IP 每分钟 ≤60 条，超限与非法输入返回 `{ok:false}`（HTTP 200，不打错误码） |
 
 ## 管理接口（Bearer）
 
@@ -78,7 +79,7 @@
 | 14 | PUT `/admin/auth/profile` | `{nickname,email,avatar}` → `{user:User}` |
 
 ### 仪表盘
-| 15 | GET `/admin/stats` | `{postCount,draftCount,scheduledCount,commentCount,pendingCommentCount,viewCount,likeCount,linkCount,trend:[{date:"2026-09-13",posts,comments}](近7天，按 created_at),recentComments:[{id,postTitle,nickname,content,status,createdAt}](5条),scheduledPosts:[{id,title,publishAt}](计划发布文章 ≤5 条，publishAt 升序)}` |
+| 15 | GET `/admin/stats` | `{postCount,draftCount,scheduledCount,commentCount,pendingCommentCount,viewCount,likeCount,linkCount,trend:[{date:"2026-09-13",posts,comments}](近7天，按 created_at),recentComments:[{id,postTitle,nickname,content,status,createdAt}](5条),scheduledPosts:[{id,title,publishAt}](计划发布文章 ≤5 条，publishAt 升序),todayPv,todayUv,yesterdayPv,yesterdayUv}` |
 
 ### 文章
 | 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前；status 可为 `0/1/2/3` |
@@ -136,6 +137,8 @@
 | 63 | POST `/admin/redirects` | `{source,target,type,enabled}`；source/target 必须以 `/` 开头的站内路径（去 query/hash）；type 301\|302；source≠target；**环检测**：沿 target 链回溯若回到 source 或超过 10 层 → 10001 |
 | 64 | PUT `/admin/redirects/:id` | 同 63（环检测排除自身后校验） |
 | 65 | DELETE `/admin/redirects/:id` | data:null |
+| 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
+| 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 
 ## 联调冒烟清单（QA 用）
 
@@ -149,3 +152,4 @@
 8. 创建专题 → 两篇文章设 seriesId=1/2 → `/series/:slug` 按序返回；文章详情含 series.index/total 与 seriesPrev/Next
 9. 创建重定向 `/post/a → /post/b`（301）→ `/redirects/resolve?path=/post/a` 返回 target；再建 `/post/b → /post/a` → 10001 环检测
 10. 修改文章 slug → 自动出现旧 slug→新 slug 的 301 重定向
+11. 前台页面多次访问（/track 上报）→ `/admin/analytics` PV/UV/热门文章/来源/设备 与实际一致

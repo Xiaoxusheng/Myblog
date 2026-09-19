@@ -43,6 +43,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 		api.GET("/series", handler.ListSeries)
 		api.GET("/series/:slug", handler.GetSeries)
 		api.GET("/redirects/resolve", handler.ResolveRedirect)
+		api.POST("/track", handler.Track)
 		api.POST("/posts/:slug/like", handler.LikePost)
 		api.GET("/archive", handler.Archive)
 		api.GET("/pages/:slug", handler.GetPage)
@@ -65,6 +66,10 @@ func Setup(cfg *config.Config) *gin.Engine {
 
 		// 仪表盘
 		admin.GET("/stats", handler.Stats)
+
+		// 访问分析
+		admin.GET("/analytics", handler.Analytics)
+		admin.GET("/analytics/posts/:id", handler.PostAnalytics)
 
 		// 文章
 		admin.GET("/posts", handler.AdminListPosts)

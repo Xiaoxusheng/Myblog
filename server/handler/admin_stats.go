@@ -7,6 +7,7 @@ import (
 	"myblog/server/model"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // Stats GET /api/v1/admin/stats —— 计数卡片 + 近 7 天发布/评论趋势 + 最近 5 条评论
@@ -150,6 +151,13 @@ func Stats(c *gin.Context) {
 		scheduledPosts = append(scheduledPosts, scheduledPost{ID: r.ID, Title: r.Title, PublishAt: r.PublishAt})
 	}
 
+	// 今日/昨日 PV/UV（page_views，按 created_at 本地日切分；复用上方趋势的 now）
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	yesterdayStart := todayStart.AddDate(0, 0, -1)
+	tomorrowStart := todayStart.AddDate(0, 0, 1)
+	todayPv, todayUv := pvUvBetween(db, todayStart, tomorrowStart)
+	yesterdayPv, yesterdayUv := pvUvBetween(db, yesterdayStart, todayStart)
+
 	common.OK(c, gin.H{
 		"postCount":           postCount,
 		"draftCount":          draftCount,
@@ -162,5 +170,27 @@ func Stats(c *gin.Context) {
 		"trend":               trend,
 		"recentComments":      recent,
 		"scheduledPosts":      scheduledPosts,
+		"todayPv":             todayPv,
+		"todayUv":             todayUv,
+		"yesterdayPv":         yesterdayPv,
+		"yesterdayUv":         yesterdayUv,
 	})
+}
+
+// pvUvBetween 时间段内 PV 与 UV（UV=visitor_hash 去重）
+func pvUvBetween(db *gorm.DB, start, end time.Time) (pv int64, uv int64) {
+	type uvRow struct {
+		VisitorHash string `gorm:"column:visitor_hash"`
+	}
+	var rows []uvRow
+	if err := db.Model(&model.PageView{}).
+		Where("created_at >= ? AND created_at < ?", start, end).
+		Select("visitor_hash").Find(&rows).Error; err != nil {
+		return 0, 0
+	}
+	seen := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		seen[r.VisitorHash] = true
+	}
+	return int64(len(rows)), int64(len(seen))
 }

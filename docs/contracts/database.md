@@ -108,6 +108,21 @@ key string PK(size:64), value text。存储 Settings 结构化对象的各字段
 ## uploads
 id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100)
 
+## page_views（访问统计；隐私：不存明文 IP，仅 SHA-256 哈希）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| path | string size:512 | 被访问路径（/post/xxx、/about 等） |
+| post_id | uint index | 0=非文章页 |
+| visitor_hash | string index size:64 | SHA-256(ip+UA+密钥)，UV 去重键 |
+| ip_hash | string size:64 | SHA-256(ip+密钥)，滥用审计用 |
+| user_agent | string size:512 | 原始 UA（解析后存 device/browser/os，原始值留诊断） |
+| referer | string size:512 | 原始 referer |
+| referer_source | string size:16 | direct/search/github/social/other |
+| device_type | string size:16 | desktop/mobile/tablet |
+| browser / os | string size:32 | UA 粗解析 |
+| created_at | time index | 事件时间（不可变行，无 updated_at） |
+
 ## Seed（首次启动写入，幂等）
 
 - 用户：`admin / admin123`（bcrypt）
