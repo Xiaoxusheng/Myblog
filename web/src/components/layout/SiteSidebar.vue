@@ -1,11 +1,11 @@
 <template>
   <aside class="page-aside sidebar">
-    <section v-if="site.settings.notice" class="side-card card">
+    <section v-if="site.settings.notice" v-reveal class="side-card card">
       <h3 class="side-title">公告</h3>
       <p class="notice">{{ site.settings.notice }}</p>
     </section>
 
-    <section class="side-card card">
+    <section v-reveal="{ delay: 60 }" class="side-card card">
       <h3 class="side-title">热门文章</h3>
       <div v-if="hotLoading" class="hot-skeletons" aria-hidden="true">
         <div v-for="i in 5" :key="i" class="hot-skeleton">
@@ -26,7 +26,7 @@
       <p v-else class="side-empty">暂无热门文章</p>
     </section>
 
-    <section v-if="cloudTags.length" class="side-card card">
+    <section v-if="cloudTags.length" v-reveal="{ delay: 120 }" class="side-card card">
       <h3 class="side-title">标签云</h3>
       <div class="tag-cloud">
         <RouterLink

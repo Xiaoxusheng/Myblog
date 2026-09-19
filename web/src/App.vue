@@ -2,9 +2,14 @@
   <div class="app-shell">
     <SiteHeader />
     <main class="app-main">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <Transition name="page" mode="out-in">
+          <component :is="Component" :key="route.path" />
+        </Transition>
+      </RouterView>
     </main>
     <SiteFooter />
+    <BackTop />
     <ToastHost />
   </div>
 </template>
@@ -14,6 +19,7 @@ import { onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SiteHeader from '@/components/layout/SiteHeader.vue'
 import SiteFooter from '@/components/layout/SiteFooter.vue'
+import BackTop from '@/components/common/BackTop.vue'
 import ToastHost from '@/components/common/ToastHost.vue'
 import { useSiteStore } from '@/stores/site'
 import { useThemeStore } from '@/stores/theme'

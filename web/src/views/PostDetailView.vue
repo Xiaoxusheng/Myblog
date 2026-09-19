@@ -1,5 +1,6 @@
 <template>
   <div class="container post-detail" :class="{ 'with-toc': toc.length > 0 }">
+    <ReadingProgress />
     <article class="post-main">
       <!-- 加载骨架 -->
       <div v-if="loading" class="post-skeleton" aria-hidden="true">
@@ -47,10 +48,10 @@
         </header>
 
         <div v-if="post.cover" class="post-cover">
-          <img :src="post.cover" :alt="post.title" />
+          <img ref="coverEl" :src="post.cover" :alt="post.title" @load="onImgLoad" />
         </div>
 
-        <div class="post-content card">
+        <div v-reveal class="post-content card">
           <!-- 内容由后台管理员通过 Markdown 维护，markdown-it 渲染时不放行内嵌 HTML -->
           <div class="markdown-body" v-html="html" @click="onContentClick"></div>
         </div>
@@ -61,18 +62,28 @@
               # {{ tag.name }}
             </RouterLink>
           </div>
-          <button class="like-btn" :class="{ liked }" :aria-pressed="liked" @click="onLike">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-              />
-            </svg>
+          <button
+            class="like-btn"
+            :class="{ liked, bursting }"
+            :aria-pressed="liked"
+            @click="onLike"
+          >
+            <span class="like-heart">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+              <span v-if="bursting" class="like-burst" aria-hidden="true">
+                <i v-for="i in 6" :key="i" class="burst-dot" :style="{ '--angle': `${(i - 1) * 60}deg` }"></i>
+              </span>
+            </span>
             <span>{{ formatNumber(likeCount) }}</span>
             <span class="like-text">{{ liked ? '已赞' : '点赞' }}</span>
           </button>
         </div>
 
-        <nav v-if="prev || next" class="post-nav" aria-label="上下篇">
+        <nav v-if="prev || next" v-reveal class="post-nav" aria-label="上下篇">
           <RouterLink v-if="prev" :to="`/post/${prev.slug}`" class="nav-card card">
             <span class="nav-label">上一篇</span>
             <span class="nav-title">{{ prev.title }}</span>
@@ -91,7 +102,7 @@
           </span>
         </nav>
 
-        <section v-if="related.length" class="related">
+        <section v-if="related.length" v-reveal="{ delay: 80 }" class="related">
           <h2 class="related-heading">相关文章</h2>
           <div class="related-grid">
             <RouterLink
@@ -122,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPostDetail, likePost } from '@/api/post'
 import { ApiError } from '@/api/http'
@@ -139,6 +150,7 @@ import CommentSection from '@/components/post/CommentSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 import Lightbox from '@/components/common/Lightbox.vue'
+import ReadingProgress from '@/components/common/ReadingProgress.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -159,6 +171,8 @@ const error = ref('')
 const notFound = ref(false)
 const liked = ref(false)
 const likeCount = ref(0)
+const bursting = ref(false)
+let burstTimer: ReturnType<typeof setTimeout> | null = null
 
 // 骨架行宽节奏，避免每行等宽的呆板感
 function lineWidth(index: number): string {

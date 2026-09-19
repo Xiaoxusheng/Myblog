@@ -38,19 +38,30 @@
       tabindex="-1"
       aria-hidden="true"
     >
-      <img :src="post.cover" :alt="post.title" loading="lazy" />
+      <img ref="coverEl" :src="post.cover" :alt="post.title" loading="lazy" @load="onImgLoad" />
     </RouterLink>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { PostSummary } from '@/types'
 import { formatDate, formatNumber } from '@/utils/format'
 
 const props = defineProps<{ post: PostSummary }>()
 
 const displayDate = computed(() => formatDate(props.post.publishedAt || props.post.createdAt))
+
+// 封面加载完成后淡入（缓存图在 mounted 前可能已 complete，需补一次）
+const coverEl = ref<HTMLImageElement | null>(null)
+
+function onImgLoad(): void {
+  coverEl.value?.classList.add('loaded')
+}
+
+onMounted(() => {
+  if (coverEl.value?.complete) coverEl.value.classList.add('loaded')
+})
 </script>
 
 <style scoped>
@@ -99,10 +110,16 @@ const displayDate = computed(() => formatDate(props.post.publishedAt || props.po
 
 .post-card-title a {
   color: var(--text-1);
+  background-image: linear-gradient(var(--brand), var(--brand));
+  background-size: 0% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 calc(100% - 1px);
+  transition: background-size 0.3s var(--ease-out-quart), color var(--transition);
 }
 
 .post-card-title a:hover {
   color: var(--brand);
+  background-size: 100% 2px;
 }
 
 .post-card-summary {
@@ -159,10 +176,16 @@ const displayDate = computed(() => formatDate(props.post.publishedAt || props.po
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease-out;
+  opacity: 0;
+  transform: scale(1);
+  transition: opacity 0.45s ease-out, transform 0.35s var(--ease-out-quart);
 }
 
-.post-card:hover .post-card-cover img {
+.post-card-cover img.loaded {
+  opacity: 1;
+}
+
+.post-card:hover .post-card-cover img.loaded {
   transform: scale(1.04);
 }
 

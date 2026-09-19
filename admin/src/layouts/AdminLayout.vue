@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import {
@@ -9,6 +9,7 @@ import {
   FileTextOutlined,
   LinkOutlined,
   LogoutOutlined,
+  MenuOutlined,
   PictureOutlined,
   ProfileOutlined,
   SettingOutlined,
@@ -22,6 +23,15 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const collapsed = ref(false)
+/** 小屏（≤768px）侧边栏改抽屉，不常驻占宽 */
+const isMobile = ref(false)
+const drawerOpen = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+function onMediaChange(e: MediaQueryListEvent): void {
+  isMobile.value = e.matches
+  if (!isMobile.value) drawerOpen.value = false
+}
 
 interface MenuItem {
   key: string
@@ -63,6 +73,7 @@ function onMenuClick(item: MenuItem) {
   if (route.path !== item.key) {
     void router.push(item.key)
   }
+  if (isMobile.value) drawerOpen.value = false
 }
 
 function goProfile() {
@@ -92,12 +103,21 @@ onMounted(() => {
   if (auth.isLoggedIn && !auth.user) {
     void auth.fetchMe()
   }
+  mediaQuery = window.matchMedia('(max-width: 768px)')
+  isMobile.value = mediaQuery.matches
+  mediaQuery.addEventListener('change', onMediaChange)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener('change', onMediaChange)
 })
 </script>
 
 <template>
   <a-layout class="admin-layout">
+    <!-- 桌面端常驻侧边栏 -->
     <a-layout-sider
+      v-if="!isMobile"
       v-model:collapsed="collapsed"
       collapsible
       breakpoint="lg"
@@ -116,8 +136,36 @@ onMounted(() => {
       </a-menu>
     </a-layout-sider>
 
+    <!-- 移动端抽屉侧边栏 -->
+    <a-drawer
+      v-if="isMobile"
+      v-model:open="drawerOpen"
+      placement="left"
+      :width="232"
+      :closable="false"
+      class="admin-drawer"
+      root-class-name="admin-drawer"
+    >
+      <div class="sider-logo drawer-logo">
+        <span>MyBlog 管理后台</span>
+      </div>
+      <a-menu
+        theme="dark"
+        mode="inline"
+        :selected-keys="[activeKey]"
+        style="border-inline-end: 0"
+      >
+        <a-menu-item v-for="item in menuItems" :key="item.key" @click="onMenuClick(item)">
+          <component :is="item.icon" />
+          <span>{{ item.title }}</span>
+        </a-menu-item>
+      </a-menu>
+    </a-drawer>
+
     <a-layout>
       <a-layout-header class="admin-header">
+        <MenuOutlined v-if="isMobile" class="admin-header__menu" @click="drawerOpen = true" />
+
         <a-breadcrumb class="admin-header__crumbs">
           <a-breadcrumb-item>
             <RouterLink to="/dashboard">首页</RouterLink>
@@ -220,11 +268,39 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .admin-header {
-    padding: 0 16px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .admin-header__menu {
+    font-size: 18px;
+    padding: 6px;
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.72);
   }
 
   .admin-header__username {
     display: none;
   }
+}
+</style>
+
+<style>
+/* 抽屉传送到 body，需全局样式：深色底 + 菜单贴合边缘 */
+.admin-drawer .ant-drawer-body {
+  padding: 0;
+  background: #001529;
+}
+
+.admin-drawer .drawer-logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 </style>

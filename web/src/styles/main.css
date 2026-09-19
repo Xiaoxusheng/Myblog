@@ -29,11 +29,13 @@
   --danger: #dc2626;
 
   /* 表面细节 */
-  --header-bg: rgba(255, 255, 255, 0.85);
+  --header-bg: rgba(255, 255, 255, 0.72);
+  --header-bg-scrolled: rgba(255, 255, 255, 0.88);
   --code-bg: #f6f8fa;
   --code-border: #e6e8eb;
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-md: 0 12px 32px -16px rgba(16, 24, 40, 0.18);
+  --shadow-lg: 0 24px 48px -16px rgba(16, 24, 40, 0.22);
 
   /* 几何 */
   --radius-lg: 12px;
@@ -44,6 +46,7 @@
   --header-offset: 76px;
 
   --transition: 0.18s ease-out;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 html.dark {
@@ -64,11 +67,13 @@ html.dark {
   --brand-soft-border: rgba(69, 179, 165, 0.38);
   --danger: #f87171;
 
-  --header-bg: rgba(16, 20, 24, 0.82);
+  --header-bg: rgba(16, 20, 24, 0.68);
+  --header-bg-scrolled: rgba(16, 20, 24, 0.86);
   --code-bg: #1a2027;
   --code-border: #2a323d;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.68);
 }
 
 /* ---------- Reset ---------- */
@@ -135,6 +140,15 @@ ol {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--brand-hover);
+}
+
+html.dark ::selection {
+  color: var(--brand);
 }
 
 * {
@@ -333,6 +347,37 @@ html.dark .skeleton::after {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* ---------- 进场动效（v-reveal 指令驱动） ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s var(--ease-out-quart), transform 0.5s var(--ease-out-quart);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* ---------- 路由切换过渡 ---------- */
+.page-enter-active {
+  transition: opacity 0.22s var(--ease-out-quart), transform 0.22s var(--ease-out-quart);
+}
+
+.page-leave-active {
+  transition: opacity 0.15s ease-out;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

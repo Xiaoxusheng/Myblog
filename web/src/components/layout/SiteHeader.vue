@@ -1,5 +1,5 @@
 <template>
-  <header class="site-header">
+  <header class="site-header" :class="{ scrolled }">
     <div class="header-inner container">
       <RouterLink to="/" class="brand">
         <img v-if="site.settings.logo" :src="site.settings.logo" alt="" />
@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSiteStore } from '@/stores/site'
 import SearchBox from '@/components/common/SearchBox.vue'
@@ -66,6 +66,11 @@ import ThemeToggle from '@/components/common/ThemeToggle.vue'
 const route = useRoute()
 const site = useSiteStore()
 const menuOpen = ref(false)
+const scrolled = ref(false)
+
+function onScroll(): void {
+  scrolled.value = window.scrollY > 4
+}
 
 const navItems = computed(() => {
   const path = route.path
@@ -89,6 +94,15 @@ watch(
     menuOpen.value = false
   }
 )
+
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', onScroll)
+})
 </script>
 
 <style scoped>
@@ -97,9 +111,22 @@ watch(
   top: 0;
   z-index: 100;
   background: var(--header-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
+  transition: background 0.25s ease-out, border-color 0.25s ease-out,
+    box-shadow 0.25s ease-out;
+}
+
+.site-header.scrolled {
+  background: var(--header-bg-scrolled);
+  border-bottom-color: var(--border);
+  box-shadow: 0 4px 16px -8px rgba(16, 24, 40, 0.12);
+}
+
+html.dark .site-header.scrolled {
+  box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.5);
 }
 
 .header-inner {

@@ -1,11 +1,30 @@
 <template>
   <div class="container page-layout">
     <section class="page-main">
+      <header v-reveal class="hero">
+        <p class="hero-kicker">PERSONAL BLOG</p>
+        <h1 class="hero-title">{{ site.settings.siteName || 'MyBlog' }}</h1>
+        <p class="hero-desc">{{ site.settings.siteDescription || '记录、思考与分享' }}</p>
+        <div class="hero-stats">
+          <span class="hero-stat"><strong>{{ total }}</strong> 文章</span>
+          <span class="hero-sep"></span>
+          <span class="hero-stat"><strong>{{ site.categories.length }}</strong> 分类</span>
+          <span class="hero-sep"></span>
+          <span class="hero-stat"><strong>{{ site.tags.length }}</strong> 标签</span>
+        </div>
+      </header>
+
       <ListSkeleton v-if="loading" />
       <ErrorState v-else-if="error" :message="error" @retry="reload" />
       <template v-else>
         <div v-if="items.length" class="post-list">
-          <ArticleCard v-for="post in items" :key="post.id" :post="post" />
+          <div
+            v-for="(post, index) in items"
+            :key="post.id"
+            v-reveal="{ delay: Math.min(index * 55, 275) }"
+          >
+            <ArticleCard :post="post" />
+          </div>
         </div>
         <EmptyState
           v-else
@@ -93,6 +112,75 @@ onMounted(async () => {
 <style scoped>
 .page-main {
   min-width: 0;
+}
+
+.hero {
+  position: relative;
+  padding: 10px 0 30px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 品牌色的一抹柔光，只作为 Hero 的背景点缀 */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -28px -20px auto;
+  height: 180px;
+  background: radial-gradient(
+    480px 160px at 12% 0%,
+    var(--brand-soft),
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.hero > * {
+  position: relative;
+}
+
+.hero-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--brand);
+}
+
+.hero-title {
+  margin-top: 8px;
+  font-size: clamp(26px, 4vw, 32px);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+}
+
+.hero-desc {
+  margin-top: 8px;
+  max-width: 560px;
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.75;
+}
+
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.hero-stat strong {
+  color: var(--text-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border-strong);
 }
 
 .post-list {
