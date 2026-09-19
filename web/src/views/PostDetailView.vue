@@ -98,6 +98,9 @@
           </button>
         </div>
 
+        <!-- 文末结束符：刊物「完」标记（docs/06 §7.1） -->
+        <div class="post-end" aria-hidden="true">· · ·</div>
+
         <nav v-if="prev || next" v-reveal class="post-nav" aria-label="上下篇">
           <RouterLink v-if="prev" :to="`/post/${prev.slug}`" class="nav-card">
             <span class="nav-label"><span class="nav-arrow">←</span>上一篇</span>
@@ -437,6 +440,7 @@ watch(slug, () => {
   margin-top: 16px;
   font-family: var(--font-mono);
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
 }
 
@@ -619,7 +623,18 @@ watch(slug, () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 32px;
-  margin-top: 36px;
+  margin-top: 20px;
+}
+
+/* 文末结束符：mono 居中三点，宣告正文完结（docs/06 §7.1） */
+.post-end {
+  margin: 36px 0 8px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--text-3);
+  user-select: none;
 }
 
 /* 本专题导航组：kicker 栏头 + 复用 nav-card 结构 */
@@ -654,8 +669,12 @@ watch(slug, () => {
   align-items: flex-end;
 }
 
+/* 方向标签与专题栏头同一 kicker 语言（docs/06 §7.2） */
 .nav-label {
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   color: var(--text-3);
 }
 

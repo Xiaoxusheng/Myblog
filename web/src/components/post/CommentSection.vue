@@ -117,8 +117,10 @@ onMounted(() => {
 
 .heading-count {
   margin-left: 6px;
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
 }
 
