@@ -8,3 +8,8 @@ server/uploads/*
 .vscode/
 *.log
 .DS_Store
+
+# 本地冒烟测试/临时产物，不入库
+.smoke-*
+.smoke/
+.tmp-*
