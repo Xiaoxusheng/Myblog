@@ -396,6 +396,8 @@ watch(slug, () => {
 
 .post-toc-aside {
   min-width: 0;
+  /* 拉伸到整行高度：给 sticky TOC 全程行程，否则会随页面滚走（docs/07 §7.1 修复） */
+  align-self: stretch;
 }
 
 @media (max-width: 1199px) {

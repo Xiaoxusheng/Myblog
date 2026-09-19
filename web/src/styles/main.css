@@ -489,3 +489,96 @@ html.dark .skeleton::after {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- 打印样式：文章即出版物（docs/07 §7.2） ---------- */
+@media print {
+  /* 黑白化：高亮 token 全量收敛灰阶，变量层一份覆盖即可 */
+  :root {
+    --bg: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f6f6f4;
+    --border: #dddddd;
+    --border-strong: #bbbbbb;
+    --text-1: #111111;
+    --text-2: #333333;
+    --text-3: #666666;
+    --brand: #111111;
+    --brand-hover: #111111;
+    --brand-soft: transparent;
+    --brand-soft-border: #999999;
+    --code-bg: #f6f6f4;
+    --code-border: #dddddd;
+    --hl-comment: #666666;
+    --hl-keyword: #111111;
+    --hl-string: #111111;
+    --hl-number: #111111;
+    --hl-title: #111111;
+    --hl-attr: #111111;
+    --hl-name: #111111;
+    --hl-tag: #666666;
+    --hl-variable: #111111;
+    --hl-meta: #111111;
+    --hl-builtin: #111111;
+    --hl-add: #111111;
+    --hl-del: #111111;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+    font-size: 12pt;
+  }
+
+  /* 隐藏 chrome：只留标题/meta/封面/正文/标签/上下篇 */
+  .site-header,
+  .site-footer,
+  .page-aside,
+  .post-toc-aside,
+  .comment-section,
+  .like-btn,
+  .toc-toggle,
+  .reading-progress,
+  .backtop,
+  .post-end,
+  .pagination,
+  .mobile-discover,
+  .toc-mask {
+    display: none !important;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .markdown-body {
+    font-size: 11.5pt;
+    line-height: 1.7;
+  }
+
+  /* 外链落款：印刷品里链接必须可见；站内锚点不落款 */
+  .markdown-body a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.85em;
+    color: #666;
+    word-break: break-all;
+  }
+
+  .markdown-body a {
+    text-decoration-color: #999;
+  }
+
+  /* 分页保护：标题不孤悬页尾，代码/表格/引用不拦腰截断 */
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    break-after: avoid;
+  }
+
+  .markdown-body pre,
+  .markdown-body table,
+  .markdown-body blockquote,
+  .markdown-body img {
+    break-inside: avoid;
+  }
+}
