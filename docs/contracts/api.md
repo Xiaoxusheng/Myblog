@@ -17,7 +17,7 @@
 
 **PostSummary（列表项）**：`id,title,slug,summary,cover,viewCount,likeCount,status,isTop,createdAt,publishedAt,category:{id,name,slug},tags:[{id,name,slug}]`（不含 content）
 
-**PostDetail**：PostSummary 全部字段 + `content`(Markdown 原文) + `updatedAt`
+**PostDetail**：PostSummary 全部字段 + `content`(Markdown 原文) + `updatedAt` + `seoTitle`/`seoDescription`/`canonical`/`ogImage`（SEO 扩展，空串=用默认规则）
 
 **AdminPostItem**：PostSummary + `content` + `categoryId` + `tagNames:[string]` + `commentCount` + `publishAt`(定时发布的计划时间，RFC3339；其余状态为 `null`) + `seriesId`(0=不属于专题) + `seriesSort`(专题内序号) + `seoTitle` + `seoDescription` + `canonical` + `ogImage`（SEO 扩展字段，均可空串）
 

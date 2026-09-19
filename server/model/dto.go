@@ -35,11 +35,15 @@ type PostSummaryDTO struct {
 	Tags        []TagRefDTO     `json:"tags"`
 }
 
-// PostDetailDTO 详情 = PostSummary + content + updatedAt
+// PostDetailDTO 详情 = PostSummary + content + updatedAt + SEO 扩展
 type PostDetailDTO struct {
 	PostSummaryDTO
-	Content   string    `json:"content"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Content        string    `json:"content"`
+	SeoTitle       string    `json:"seoTitle"`
+	SeoDescription string    `json:"seoDescription"`
+	Canonical      string    `json:"canonical"`
+	OgImage        string    `json:"ogImage"`
+	UpdatedAt      time.Time `json:"updatedAt"`
 }
 
 // AdminPostItemDTO = PostSummary + content + categoryId + tagNames + commentCount + publishAt + series
@@ -107,6 +111,10 @@ func ToPostDetail(p *Post) PostDetailDTO {
 	return PostDetailDTO{
 		PostSummaryDTO: ToPostSummary(p),
 		Content:        p.Content,
+		SeoTitle:       p.SeoTitle,
+		SeoDescription: p.SeoDescription,
+		Canonical:      p.Canonical,
+		OgImage:        p.OgImage,
 		UpdatedAt:      p.UpdatedAt,
 	}
 }
