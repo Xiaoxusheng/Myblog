@@ -19,7 +19,19 @@
       </nav>
 
       <div class="header-actions">
-        <SearchBox class="header-search" />
+        <button
+          class="search-trigger"
+          type="button"
+          aria-label="打开搜索"
+          aria-haspopup="dialog"
+          @click="palette.open()"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
+          </svg>
+          <span class="st-text">搜索…</span>
+          <span class="kbd st-kbd">{{ kbdHint }}</span>
+        </button>
         <ThemeToggle />
         <button
           class="icon-btn menu-toggle"
@@ -39,7 +51,18 @@
 
     <Transition name="menu">
       <div v-if="menuOpen" class="mobile-panel">
-        <SearchBox />
+        <button
+          class="search-trigger search-trigger-full"
+          type="button"
+          aria-label="打开搜索"
+          aria-haspopup="dialog"
+          @click="onMobileSearch"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
+          </svg>
+          <span class="st-text">搜索文章…</span>
+        </button>
         <nav class="mobile-nav" aria-label="移动端导航">
           <RouterLink
             v-for="item in navItems"
@@ -60,13 +83,24 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSiteStore } from '@/stores/site'
-import SearchBox from '@/components/common/SearchBox.vue'
+import { useCommandPalette } from '@/composables/useCommandPalette'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
 
 const route = useRoute()
 const site = useSiteStore()
+const palette = useCommandPalette()
 const menuOpen = ref(false)
 const scrolled = ref(false)
+
+/** kbd 徽标按平台显示：Mac 为 ⌘ K，其余为 Ctrl K（触屏移动端由 CSS 隐藏） */
+const kbdHint = computed(() =>
+  /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent) ? '⌘ K' : 'Ctrl K'
+)
+
+function onMobileSearch(): void {
+  menuOpen.value = false
+  palette.open()
+}
 
 function onScroll(): void {
   scrolled.value = window.scrollY > 4
@@ -197,8 +231,39 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
-.header-search {
+/* 搜索入口：外观延续搜索框形态，语义为打开命令面板的按钮（docs/06 §5） */
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 190px;
+  height: 34px;
+  padding: 0 8px 0 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-size: 13.5px;
+  transition: border-color var(--transition), background var(--transition),
+    color var(--transition);
+}
+
+.search-trigger:hover {
+  background: var(--border);
+  color: var(--text-2);
+}
+
+.st-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.st-kbd {
+  flex-shrink: 0;
 }
 
 .menu-toggle {
@@ -211,7 +276,15 @@ onBeforeUnmount(() => {
 
 @media (max-width: 767px) {
   .main-nav,
-  .header-search {
+  .search-trigger:not(.search-trigger-full) {
+    display: none;
+  }
+
+  .search-trigger-full {
+    width: 100%;
+  }
+
+  .st-kbd {
     display: none;
   }
 

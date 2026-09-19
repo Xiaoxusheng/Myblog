@@ -11,6 +11,7 @@
     <SiteFooter />
     <BackTop />
     <ToastHost />
+    <CommandPalette />
   </div>
 </template>
 
@@ -21,6 +22,7 @@ import SiteHeader from '@/components/layout/SiteHeader.vue'
 import SiteFooter from '@/components/layout/SiteFooter.vue'
 import BackTop from '@/components/common/BackTop.vue'
 import ToastHost from '@/components/common/ToastHost.vue'
+import CommandPalette from '@/components/common/CommandPalette.vue'
 import { useSiteStore } from '@/stores/site'
 import { useThemeStore } from '@/stores/theme'
 import { applyDocumentTitle } from '@/utils/title'

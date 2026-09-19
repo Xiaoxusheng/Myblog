@@ -290,6 +290,21 @@ html.dark ::selection {
   color: var(--text-3);
 }
 
+/* ---------- 键位徽标（header 快捷键提示 / 命令面板 / 正文 kbd 共用，docs/06 §4.5） ---------- */
+.kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  user-select: none;
+}
+
 /* ---------- 通用组件类 ---------- */
 .btn {
   display: inline-flex;
