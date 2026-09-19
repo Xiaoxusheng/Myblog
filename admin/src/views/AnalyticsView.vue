@@ -101,6 +101,12 @@ async function loadSearchStats() {
   }
 }
 
+const searchColumns: TableColumnsType = [
+  { title: '关键词', dataIndex: 'keyword', key: 'keyword', ellipsis: true },
+  { title: '搜索次数', dataIndex: 'count', key: 'count', width: 120 },
+  { title: '无结果次数', dataIndex: 'noResultCount', key: 'noResultCount', width: 120 },
+]
+
 const topColumns: TableColumnsType = [
   { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
   { title: 'PV', dataIndex: 'pv', key: 'pv', width: 90 },
@@ -211,23 +217,21 @@ onMounted(() => {
           <a-spin :spinning="searchLoading">
             <a-table
               v-if="searchStats.length > 0"
+              :columns="searchColumns"
               :data-source="searchStats"
               :pagination="false"
               row-key="keyword"
             >
-              <a-table-column title="关键词" data-index="keyword" />
-              <a-table-column title="搜索次数" key="count" :width="120">
-                <template #body="{ record }">
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'count'">
                   <span class="tabular-nums">{{ record.count }}</span>
                 </template>
-              </a-table-column>
-              <a-table-column title="无结果次数" key="noResultCount" :width="120">
-                <template #body="{ record }">
+                <template v-else-if="column.key === 'noResultCount'">
                   <span class="tabular-nums" :class="{ 'search-no-result': record.noResultCount > 0 }">
                     {{ record.noResultCount }}
                   </span>
                 </template>
-              </a-table-column>
+              </template>
             </a-table>
             <a-empty v-else description="暂无搜索记录" class="analytics-empty" />
           </a-spin>
