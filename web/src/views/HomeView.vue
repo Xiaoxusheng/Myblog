@@ -24,7 +24,7 @@
               <RouterLink
                 v-if="featured.category"
                 :to="`/category/${featured.category.slug}`"
-                class="chip cat"
+                class="chip"
               >
                 {{ featured.category.name }}
               </RouterLink>

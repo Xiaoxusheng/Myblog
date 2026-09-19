@@ -73,14 +73,14 @@ const copyright = computed(
 .footer-name {
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: 17px;
+  font-size: var(--fs-lg);
   line-height: 1.4;
 }
 
 .footer-desc {
   margin-top: 8px;
   max-width: 360px;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.8;
 }
@@ -103,7 +103,7 @@ const copyright = computed(
 }
 
 .footer-col a {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   background-image: linear-gradient(var(--brand), var(--brand));
   background-size: 0% 1px;
@@ -123,7 +123,7 @@ const copyright = computed(
   align-items: center;
   gap: 4px 20px;
   padding-top: 20px;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }

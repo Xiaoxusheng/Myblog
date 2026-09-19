@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchPosts } from '@/api/post'
 import { usePagedList } from '@/composables/usePagedList'
 import { useSiteStore } from '@/stores/site'
@@ -56,6 +56,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import SiteSidebar from '@/components/layout/SiteSidebar.vue'
 
 const route = useRoute()
+const router = useRouter()
 const site = useSiteStore()
 
 const slug = computed(() => String(route.params.slug))
@@ -75,7 +76,23 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / list.pageS
 
 function handlePageChange(next: number): void {
   list.goToPage(next)
+  // 同步到 URL，便于分享与后退（与首页一致，docs/08 §7.4）
+  void router.replace({
+    query: { ...route.query, page: next > 1 ? String(next) : undefined }
+  })
 }
+
+// 浏览器前进/后退时同步页码
+watch(
+  () => route.query.page,
+  () => {
+    const qp = Number(route.query.page) || 1
+    if (qp !== list.page.value) {
+      list.page.value = qp
+      void list.load()
+    }
+  }
+)
 
 /** 确保站点信息就绪后，再按分类加载文章（重试入口复用） */
 async function initSlug(): Promise<void> {

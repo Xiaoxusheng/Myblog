@@ -189,7 +189,7 @@ onBeforeUnmount(() => {
   /* 报头化：衬线站名（docs/05 §5.1） */
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: 17.5px;
+  font-size: var(--fs-lg);
   line-height: 1.3;
 }
 
@@ -216,7 +216,7 @@ onBeforeUnmount(() => {
   position: relative;
   padding: 6px 10px;
   color: var(--text-2);
-  font-size: 14px;
+  font-size: var(--fs-md);
   transition: color var(--transition);
 }
 
@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: var(--surface-2);
   color: var(--text-3);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   transition: border-color var(--transition), background var(--transition),
     color var(--transition), transform var(--transition);
 }
@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
   .mobile-nav a {
     padding: 12px 4px;
     color: var(--text-1);
-    font-size: 15px;
+    font-size: var(--fs-base);
     border-bottom: 1px solid var(--border);
   }
 

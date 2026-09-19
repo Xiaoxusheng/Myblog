@@ -28,7 +28,7 @@
             <RouterLink
               v-if="post.category"
               :to="`/category/${post.category.slug}`"
-              class="chip cat"
+              class="chip"
             >
               {{ post.category.name }}
             </RouterLink>
@@ -208,6 +208,7 @@ import { formatDate, formatNumber } from '@/utils/format'
 import { isPostLiked, markPostLiked } from '@/utils/storage'
 import { applyDocumentTitle } from '@/utils/title'
 import { setSeo } from '@/utils/seo'
+import { readPxVar } from '@/utils/metrics'
 import { useMarkdownActions } from '@/composables/useMarkdownActions'
 import type { PostDetail, PostNav, PostSeriesRef, PostSummary } from '@/types'
 import PostToc from '@/components/post/PostToc.vue'
@@ -354,7 +355,8 @@ function goToTocItem(id: string): void {
   window.setTimeout(() => {
     const el = document.getElementById(id)
     if (!el) return
-    const top = el.getBoundingClientRect().top + window.scrollY - 76
+    const top =
+      el.getBoundingClientRect().top + window.scrollY - readPxVar('--header-offset', 76)
     window.scrollTo({ top, behavior: 'smooth' })
   }, 220)
 }

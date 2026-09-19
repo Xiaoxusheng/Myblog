@@ -107,6 +107,10 @@ function submitSearch(): void {
 
 function handlePageChange(next: number): void {
   list.goToPage(next)
+  // page 追加到 URL（keyword 仍为主键，docs/08 §7.4）
+  void router.replace({
+    query: { ...route.query, page: next > 1 ? String(next) : undefined }
+  })
 }
 
 // 关键词变化（含浏览器前进/后退）时重新搜索

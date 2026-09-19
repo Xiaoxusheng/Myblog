@@ -92,7 +92,7 @@ onMounted(() => {
 }
 
 .post-row-title {
-  font-size: 17px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -104,7 +104,7 @@ onMounted(() => {
   border-radius: 999px;
   background: var(--brand-soft);
   color: var(--brand);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   line-height: 1.6;
   vertical-align: 2px;
@@ -122,7 +122,7 @@ onMounted(() => {
 .post-row-summary {
   margin-top: 7px;
   color: var(--text-2);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   line-height: 1.75;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -141,7 +141,7 @@ onMounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 

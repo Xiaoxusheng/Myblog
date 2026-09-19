@@ -54,7 +54,7 @@ const emit = defineEmits<{ retry: [] }>()
 
 .error-title {
   margin-top: 12px;
-  font-size: 15.5px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: var(--text-2);
 }
@@ -62,7 +62,7 @@ const emit = defineEmits<{ retry: [] }>()
 .error-desc {
   margin-top: 6px;
   margin-bottom: 16px;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -78,7 +78,7 @@ const emit = defineEmits<{ retry: [] }>()
   border: none;
   background: transparent;
   color: var(--brand);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   padding: 0;
 }
 

@@ -57,6 +57,9 @@ export function usePagedList<T>(
   function goToPage(next: number): void {
     if (next === page.value) return
     page.value = next
+    // 翻页统一回顶（首页经 router scrollBehavior 回顶，此处幂等）
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
     void load()
   }
 

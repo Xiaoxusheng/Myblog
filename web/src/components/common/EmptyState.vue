@@ -66,21 +66,21 @@ withDefaults(
 
 .empty-title {
   margin-top: 18px;
-  font-size: 15.5px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: var(--text-2);
 }
 
 .compact .empty-title {
   margin-top: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 400;
   color: var(--text-3);
 }
 
 .empty-desc {
   margin-top: 6px;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 

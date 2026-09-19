@@ -65,7 +65,7 @@ function go(target: number): void {
   background: transparent;
   color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   transition: color var(--transition);

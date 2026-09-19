@@ -269,7 +269,7 @@ html.dark .palette-overlay {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-base);
   color: var(--text-1);
 }
 
@@ -286,7 +286,7 @@ html.dark .palette-overlay {
 .palette-group {
   padding: 8px 10px 6px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -317,7 +317,7 @@ html.dark .palette-overlay {
   flex-shrink: 0;
   width: 22px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -328,14 +328,14 @@ html.dark .palette-overlay {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text-1);
 }
 
 .palette-row-meta {
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -358,14 +358,14 @@ html.dark .palette-overlay {
 .palette-empty {
   padding: 28px 12px;
   text-align: center;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 
 .palette-empty a {
   display: inline-block;
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* ---------- 进出场 ---------- */

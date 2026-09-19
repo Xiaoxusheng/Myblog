@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { TocItem } from '@/utils/markdown'
+import { readPxVar } from '@/utils/metrics'
 
 const props = defineProps<{ headings: TocItem[] }>()
 
@@ -35,6 +36,8 @@ const bodyEl = ref<HTMLElement | null>(null)
 const railTop = ref(0)
 const railHeight = ref(0)
 let ticking = false
+/** 消费 CSS 变量 --header-offset（76px），mounted 时读一次即可 */
+let headerOffset = 76
 
 function updateRail(): void {
   const list = bodyEl.value
@@ -58,7 +61,8 @@ function updateRail(): void {
 }
 
 function updateActive(): void {
-  const offset = window.scrollY + 96
+  // 检测线比定位线低 20px，避免标题在阈值附近抖动
+  const offset = window.scrollY + headerOffset + 20
   let current = ''
   for (const item of props.headings) {
     const el = document.getElementById(item.id)
@@ -85,11 +89,12 @@ function onScroll(): void {
 function goTo(id: string): void {
   const el = document.getElementById(id)
   if (!el) return
-  const top = el.getBoundingClientRect().top + window.scrollY - 76
+  const top = el.getBoundingClientRect().top + window.scrollY - headerOffset
   window.scrollTo({ top, behavior: 'smooth' })
 }
 
 onMounted(() => {
+  headerOffset = readPxVar('--header-offset', headerOffset)
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll, { passive: true })
   updateActive()

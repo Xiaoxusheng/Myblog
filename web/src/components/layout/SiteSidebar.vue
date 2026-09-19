@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
 .side-title {
   margin: 0 0 14px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
 .notice {
   padding-left: 12px;
   border-left: 2px solid var(--brand-soft-border);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.8;
   white-space: pre-wrap;
@@ -165,7 +165,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   width: 24px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -181,7 +181,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-1);
   transition: color var(--transition);
 }
@@ -193,7 +193,7 @@ onBeforeUnmount(() => {
 .hot-views {
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   color: var(--text-1);
   transition: color var(--transition);
 }
@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
 .series-count {
   flex-shrink: 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
 .side-more {
   display: inline-block;
   margin-top: 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 

@@ -87,7 +87,7 @@ const toast = useToast()
   border-radius: 10px;
   background: var(--popover);
   color: var(--text-1);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
   box-shadow: var(--shadow-md);
 }
 
