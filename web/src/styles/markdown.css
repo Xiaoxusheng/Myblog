@@ -40,6 +40,15 @@ html.dark {
   overflow-wrap: break-word;
 }
 
+/* 首尾元素不留额外空隙，避免与卡片 padding 叠加 */
+.markdown-body > :first-child {
+  margin-top: 0 !important;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0 !important;
+}
+
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
@@ -209,6 +218,14 @@ html.dark {
   background: var(--surface-2);
   font-weight: 600;
   white-space: nowrap;
+}
+
+.markdown-body tbody tr {
+  transition: background 0.15s ease-out;
+}
+
+.markdown-body tbody tr:hover {
+  background: var(--surface-2);
 }
 
 /* ---------- highlight.js token 配色 ---------- */

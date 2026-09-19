@@ -15,6 +15,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// dummyBcryptHash 用户名不存在时也执行一次同代价的 bcrypt 比较，
+// 避免通过响应耗时探测用户名是否存在（时序侧信道）。
+var dummyBcryptHash = []byte("$2a$10$vi1hqIQLtqQA8HlMXdgy2.fPx8zDY96I8P7l6IFQufxmFYP8W1ilq")
+
 // Login POST /api/v1/admin/auth/login —— remember=true 签发 7 天，否则 24h；失败 20001
 func Login(c *gin.Context) {
 	var req struct {
@@ -34,6 +38,8 @@ func Login(c *gin.Context) {
 	var user model.User
 	err := model.DB.Where("username = ?", strings.TrimSpace(req.Username)).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(req.Password)) // 时序对齐，结果无意义
+		middleware.MarkLoginFailure(c)
 		common.Fail(c, common.CodeLoginFailed, "用户名或密码错误")
 		return
 	}
@@ -42,10 +48,12 @@ func Login(c *gin.Context) {
 		return
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
+		middleware.MarkLoginFailure(c)
 		common.Fail(c, common.CodeLoginFailed, "用户名或密码错误")
 		return
 	}
 
+	middleware.MarkLoginSuccess(c)
 	ttl := 24 * time.Hour
 	if req.Remember {
 		ttl = 7 * 24 * time.Hour
@@ -154,8 +162,10 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	updates := map[string]any{"nickname": req.Nickname, "email": req.Email, "avatar": req.Avatar}
-	if err := model.DB.Model(user).Updates(updates).Error; err != nil {
+	// struct + Select 更新：走 GORM serializer，email 透明加密落库
+	//（map 更新不触发 serializer，会绕过加密）
+	updates := model.User{Nickname: req.Nickname, Email: req.Email, Avatar: req.Avatar}
+	if err := model.DB.Model(user).Select("nickname", "email", "avatar").Updates(updates).Error; err != nil {
 		common.ServerError(c, err)
 		return
 	}

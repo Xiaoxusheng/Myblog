@@ -19,11 +19,21 @@ import (
 
 const testJWTSecret = "test-secret-key"
 
+// testCryptoKeyHex 32 字节加密密钥（hex），供加密相关用例注入
+const testCryptoKeyHex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 // newTestApp 每个用例独立的 SQLite 内存库 + 完整路由 + 幂等种子数据
 func newTestApp(t *testing.T) *gin.Engine {
 	t.Helper()
+	return newTestAppCfg(t, nil)
+}
+
+// newTestAppCfg 同 newTestApp，tune 允许用例在 Open 前调整配置（如注入加密密钥）
+func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	middleware.ResetCommentRateLimit()
+	middleware.ResetLoginRateLimit()
 
 	cfg := &config.Config{
 		Port:      "0",
@@ -31,6 +41,9 @@ func newTestApp(t *testing.T) *gin.Engine {
 		DBType:    "sqlite",
 		DBPath:    fmt.Sprintf("file:memdb%d?mode=memory&cache=shared", time.Now().UnixNano()),
 		UploadDir: t.TempDir(),
+	}
+	if tune != nil {
+		tune(cfg)
 	}
 	db, err := model.Open(cfg)
 	if err != nil {

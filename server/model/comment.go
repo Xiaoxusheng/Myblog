@@ -15,11 +15,11 @@ type Comment struct {
 	PostID    uint      `gorm:"index" json:"postId"`
 	ParentID  uint      `gorm:"index;default:0" json:"parentId"`
 	Nickname  string    `gorm:"type:varchar(64)" json:"nickname"`
-	Email     string    `gorm:"type:varchar(128)" json:"email"` // 不对公开侧返回
+	Email     string    `gorm:"type:varchar(512);serializer:securetext" json:"email"` // 不对公开侧返回，静态加密
 	Website   string    `gorm:"type:varchar(256)" json:"website"`
 	Content   string    `gorm:"type:text" json:"content"`
 	Status    int8      `gorm:"index;default:0" json:"status"`
-	IP        string    `gorm:"type:varchar(64)" json:"ip"` // 仅管理端可见
+	IP        string    `gorm:"type:varchar(256);serializer:securetext" json:"ip"` // 仅管理端可见，静态加密
 	IsAdmin   bool      `json:"isAdmin"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

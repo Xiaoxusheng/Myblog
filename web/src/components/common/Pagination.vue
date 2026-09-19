@@ -86,6 +86,16 @@ function go(target: number): void {
   border-color: var(--brand);
   color: #fff;
   font-weight: 500;
+  animation: page-pop 0.28s var(--ease-out-quart);
+}
+
+@keyframes page-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .page-ellipsis {

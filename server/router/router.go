@@ -2,6 +2,8 @@
 package router
 
 import (
+	"log"
+
 	"myblog/server/config"
 	"myblog/server/handler"
 	"myblog/server/middleware"
@@ -14,7 +16,12 @@ func Setup(cfg *config.Config) *gin.Engine {
 	handler.SetConfig(cfg)
 
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS())
+	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.CORSOrigins), middleware.SecurityHeaders())
+	// ClientIP 仅信任配置的代理（默认回环 + 内网段），
+	// 防止直连公网的请求伪造 X-Forwarded-For 绕过限流、污染评论 IP。
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Fatalf("router: 设置可信代理失败：%v", err)
+	}
 	r.MaxMultipartMemory = 12 << 20
 
 	// 上传文件静态服务
@@ -39,10 +46,10 @@ func Setup(cfg *config.Config) *gin.Engine {
 		api.GET("/links", handler.ListLinks)
 	}
 
-	// 登录不走 JWT
+	// 登录不走 JWT，挂防爆破限流
 	adminLogin := api.Group("/admin")
 	{
-		adminLogin.POST("/auth/login", handler.Login)
+		adminLogin.POST("/auth/login", middleware.LoginRateLimit(), handler.Login)
 	}
 
 	// ---------- 管理接口（Bearer JWT） ----------

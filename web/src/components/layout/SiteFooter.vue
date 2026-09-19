@@ -51,10 +51,16 @@ const copyright = computed(
 
 .footer-line a {
   color: var(--text-3);
+  background-image: linear-gradient(var(--brand), var(--brand));
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: color var(--transition), background-size 0.25s var(--ease-out-quart);
 }
 
 .footer-line a:hover {
   color: var(--brand);
+  background-size: 100% 1px;
 }
 
 .footer-meta {

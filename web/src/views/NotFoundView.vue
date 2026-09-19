@@ -1,9 +1,9 @@
 <template>
   <div class="container not-found">
-    <p class="code">404</p>
-    <p class="title">页面不存在或已被移动</p>
-    <p class="desc">你访问的地址可能输错了，或者内容已经被删除。</p>
-    <div class="actions">
+    <p v-reveal class="code">404</p>
+    <p v-reveal="{ delay: 80 }" class="title">页面不存在或已被移动</p>
+    <p v-reveal="{ delay: 140 }" class="desc">你访问的地址可能输错了，或者内容已经被删除。</p>
+    <div v-reveal="{ delay: 200 }" class="actions">
       <RouterLink class="btn btn-primary" to="/">返回首页</RouterLink>
       <RouterLink class="btn btn-ghost" to="/archives">去归档看看</RouterLink>
     </div>

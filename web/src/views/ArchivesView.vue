@@ -15,7 +15,7 @@
     <ErrorState v-else-if="error" :message="error" @retry="load" />
 
     <template v-else>
-      <section v-for="group in years" :key="group.year" class="year-group">
+      <section v-for="group in years" :key="group.year" v-reveal class="year-group">
         <h2 class="year-title">
           {{ group.year }}
           <span class="year-count">{{ group.items.length }} 篇</span>

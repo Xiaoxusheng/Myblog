@@ -59,7 +59,7 @@
 ## 管理接口（Bearer）
 
 ### 认证
-| 11 | POST `/admin/auth/login` | `{username,password,remember?}` → `{token,user:User}`；remember=true 签发 7 天，否则 24h |
+| 11 | POST `/admin/auth/login` | `{username,password,remember?}` → `{token,user:User}`；remember=true 签发 7 天，否则 24h；同 IP 连续失败 5 次锁定 15 分钟→20003 |
 | 12 | GET `/admin/auth/me` | `{user:User}` |
 | 13 | PUT `/admin/auth/password` | `{oldPassword,newPassword}`(≥6位) → data:null |
 | 14 | PUT `/admin/auth/profile` | `{nickname,email,avatar}` → `{user:User}` |

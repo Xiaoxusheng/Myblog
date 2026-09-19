@@ -238,11 +238,32 @@ async function onLike(): Promise<void> {
     likeCount.value = await likePost(slug.value)
     liked.value = true
     markPostLiked(post.value.id)
+    // 心跳 + 粒子迸发只播一次，播完即收
+    bursting.value = true
+    if (burstTimer) clearTimeout(burstTimer)
+    burstTimer = setTimeout(() => {
+      bursting.value = false
+    }, 700)
     toast.success('感谢点赞！')
   } catch (e) {
     toast.error(e instanceof ApiError ? e.message : '点赞失败，请稍后重试')
   }
 }
+
+// 封面加载完成后淡入
+const coverEl = ref<HTMLImageElement | null>(null)
+
+function onImgLoad(): void {
+  coverEl.value?.classList.add('loaded')
+}
+
+onMounted(() => {
+  if (coverEl.value?.complete) coverEl.value.classList.add('loaded')
+})
+
+onBeforeUnmount(() => {
+  if (burstTimer) clearTimeout(burstTimer)
+})
 
 watch(slug, () => void load(), { immediate: true })
 </script>
@@ -328,6 +349,12 @@ watch(slug, () => void load(), { immediate: true })
   width: 100%;
   max-height: 430px;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+
+.post-cover img.loaded {
+  opacity: 1;
 }
 
 .post-content {
@@ -385,6 +412,63 @@ watch(slug, () => void load(), { immediate: true })
   font-size: 13px;
 }
 
+/* 点赞心跳 + 粒子迸发（一次性反馈） */
+.like-heart {
+  position: relative;
+  display: inline-flex;
+}
+
+.like-btn.liked .like-heart svg {
+  animation: heart-pop 0.45s var(--ease-out-quart);
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.35);
+  }
+  62% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.like-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.burst-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: burst 0.55s var(--ease-out-quart) 0.1s backwards;
+}
+
+@keyframes burst {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(
+        calc(-50% + cos(var(--angle)) * 20px),
+        calc(-50% + sin(var(--angle)) * 20px)
+      )
+      scale(0.35);
+    opacity: 0;
+  }
+}
+
 /* 上一篇/下一篇 */
 .post-nav {
   display: grid;
@@ -418,11 +502,19 @@ watch(slug, () => void load(), { immediate: true })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color var(--transition);
+  transition: color var(--transition), transform 0.25s var(--ease-out-quart);
 }
 
 a.nav-card:hover .nav-title {
   color: var(--brand);
+}
+
+a.nav-card:not(.next):hover .nav-title {
+  transform: translateX(-3px);
+}
+
+a.nav-card.next:hover .nav-title {
+  transform: translateX(3px);
 }
 
 .nav-card.placeholder .nav-title {
@@ -449,12 +541,14 @@ a.nav-card:hover .nav-title {
 
 .related-card {
   padding: 14px 16px;
-  transition: border-color var(--transition), box-shadow 0.2s ease-out;
+  transition: border-color var(--transition), box-shadow 0.2s ease-out,
+    transform 0.2s var(--ease-out-quart);
 }
 
 .related-card:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .related-title {

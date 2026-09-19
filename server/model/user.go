@@ -8,7 +8,7 @@ type User struct {
 	Username  string    `gorm:"type:varchar(64);uniqueIndex" json:"username"`
 	Password  string    `gorm:"type:varchar(128)" json:"-"` // bcrypt，不外泄
 	Nickname  string    `gorm:"type:varchar(64)" json:"nickname"`
-	Email     string    `gorm:"type:varchar(128)" json:"email"`
+	Email     string    `gorm:"type:varchar(512);serializer:securetext" json:"email"` // 静态加密
 	Avatar    string    `gorm:"type:varchar(512)" json:"avatar"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

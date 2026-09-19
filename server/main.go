@@ -29,6 +29,10 @@ func main() {
 	if err := model.Seed(db); err != nil {
 		log.Fatalf("启动失败：初始化种子数据：%v", err)
 	}
+	// 存量明文敏感字段（评论邮箱/IP、管理员邮箱）一次性加密，幂等
+	if err := model.MigratePIIEncryption(db); err != nil {
+		log.Fatalf("启动失败：加密存量敏感字段：%v", err)
+	}
 	if err := os.MkdirAll(cfg.UploadDir, 0o755); err != nil {
 		log.Fatalf("启动失败：创建上传目录 %s：%v", cfg.UploadDir, err)
 	}
