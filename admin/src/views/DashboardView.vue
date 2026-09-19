@@ -18,10 +18,12 @@ import {
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import TrendChart from '@/components/TrendChart.vue'
+import PvTrendChart from '@/components/PvTrendChart.vue'
 import { getStats } from '@/api/stats'
+import { getAnalytics } from '@/api/analytics'
 import { COMMENT_STATUS_MAP } from '@/constants/status'
 import { formatTime } from '@/utils/format'
-import type { Stats } from '@/types/api'
+import type { AnalyticsTrendPoint, Stats } from '@/types/api'
 
 const router = useRouter()
 
@@ -38,6 +40,24 @@ async function load() {
     error.value = true
   } finally {
     loading.value = false
+  }
+  // 访问趋势（近 7 天 PV/UV）与内容统计并行加载；失败/空数据面板显示空态，不影响主视图
+  void loadVisitTrend()
+}
+
+/** 近 7 天访问趋势：来自 /admin/analytics?range=7d 的 trend（契约 #67） */
+const visitTrend = ref<AnalyticsTrendPoint[]>([])
+const visitTrendLoading = ref(false)
+
+async function loadVisitTrend() {
+  visitTrendLoading.value = true
+  try {
+    const result = await getAnalytics('7d')
+    visitTrend.value = result.trend
+  } catch {
+    visitTrend.value = []
+  } finally {
+    visitTrendLoading.value = false
   }
 }
 
@@ -91,7 +111,7 @@ const cards = computed<StatItem[]>(() => {
       title: '总浏览量',
       value: s.viewCount,
       icon: EyeOutlined,
-      hint: `获赞 ${s.likeCount}`,
+      hint: `今日 ${s.todayPv} · 昨日 ${s.yesterdayPv}`,
     },
     {
       key: 'likeCount',
@@ -224,6 +244,15 @@ function goEditPost(id: number) {
         <a-empty v-else description="暂无趋势数据" class="dashboard-empty" />
       </a-card>
 
+      <!-- 访问趋势：近 7 天 PV/UV（来自 /admin/analytics），失败或空数据显示空态 -->
+      <a-card title="访问趋势（近 7 天）" class="dashboard-section">
+        <div v-if="visitTrendLoading" class="dashboard-spin">
+          <a-spin />
+        </div>
+        <PvTrendChart v-else-if="visitTrend.length > 0" :data="visitTrend" />
+        <a-empty v-else description="暂无访问趋势数据" class="dashboard-empty" />
+      </a-card>
+
       <!-- 计划发布 + 最近评论：桌面并排，移动端上下堆叠 -->
       <a-row :gutter="[16, 16]" class="dashboard-section">
         <a-col :xs="24" :lg="12">
@@ -344,6 +373,12 @@ function goEditPost(id: number) {
 
 .dashboard-empty {
   padding: 24px 0;
+}
+
+.dashboard-spin {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
 }
 
 .stat-card-skeleton {

@@ -285,4 +285,89 @@ export interface Stats {
   trend: TrendPoint[]
   recentComments: RecentComment[]
   scheduledPosts: ScheduledPost[]
+  /** 访问统计扩展（契约 #15）：今日/昨日 PV、UV */
+  todayPv: number
+  todayUv: number
+  yesterdayPv: number
+  yesterdayUv: number
+}
+
+/* --------------------------------------------------------------------------
+   访问分析（契约 #66-#68）
+   -------------------------------------------------------------------------- */
+
+/** /admin/analytics 时间范围 */
+export type AnalyticsRange = 'today' | '7d' | '30d' | '90d'
+/** /admin/analytics/posts/:id 时间范围（不支持 today） */
+export type PostAnalyticsRange = '7d' | '30d' | '90d'
+
+/** 访问趋势点（按日分桶） */
+export interface AnalyticsTrendPoint {
+  date: string
+  pv: number
+  uv: number
+}
+
+/** 热门文章（≤10 条，pv 降序） */
+export interface AnalyticsTopPost {
+  postId: number
+  title: string
+  pv: number
+  uv: number
+  likeCount: number
+  commentCount: number
+}
+
+/** 来源归类：direct/search/github/social/other */
+export type AnalyticsSource = 'direct' | 'search' | 'github' | 'social' | 'other'
+
+/** 设备归类：desktop/mobile/tablet */
+export type AnalyticsDevice = 'desktop' | 'mobile' | 'tablet'
+
+export interface AnalyticsSourceItem {
+  source: AnalyticsSource
+  pv: number
+}
+
+export interface AnalyticsDeviceItem {
+  device: AnalyticsDevice
+  pv: number
+}
+
+export interface AnalyticsBrowserItem {
+  browser: string
+  pv: number
+}
+
+export interface AnalyticsOsItem {
+  os: string
+  pv: number
+}
+
+/** 分布条通用项（来源/设备/浏览器/操作系统统一成 名称+pv 供 DistributionBars 渲染） */
+export interface AnalyticsDistItem {
+  name: string
+  pv: number
+}
+
+/** GET /admin/analytics 响应 */
+export interface AnalyticsData {
+  range: AnalyticsRange
+  totals: { pv: number; uv: number }
+  trend: AnalyticsTrendPoint[]
+  topPosts: AnalyticsTopPost[]
+  sources: AnalyticsSourceItem[]
+  devices: AnalyticsDeviceItem[]
+  browsers: AnalyticsBrowserItem[]
+  oses: AnalyticsOsItem[]
+}
+
+/** GET /admin/analytics/posts/:id 响应 */
+export interface PostAnalyticsData {
+  post: { id: number; title: string }
+  range: PostAnalyticsRange
+  totals: { pv: number; uv: number; likeCount: number; commentCount: number }
+  trend: AnalyticsTrendPoint[]
+  sources: AnalyticsSourceItem[]
+  devices: AnalyticsDeviceItem[]
 }

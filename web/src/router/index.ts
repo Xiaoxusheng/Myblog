@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { applyDocumentTitle } from '@/utils/title'
 import { setSeo } from '@/utils/seo'
+import { sendTrack } from '@/api/track'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -103,6 +104,11 @@ router.afterEach((to) => {
   applyDocumentTitle(to.meta.title)
   // 默认清空 SEO meta，具体页面（首页/文章/自定义页）加载后自行覆盖
   setSeo({})
+  // 访问埋点：路由切换上报一次；文章详情页跳过（由 PostDetailView 数据加载
+  // 成功后带 postId 上报），避免无 postId 的重复计数
+  if (to.name !== 'post-detail') {
+    sendTrack({ path: to.path })
+  }
 })
 
 export default router

@@ -22,6 +22,12 @@ const router = createRouter({
           meta: { title: '仪表盘' },
         },
         {
+          path: 'analytics',
+          name: 'analytics',
+          component: () => import('@/views/AnalyticsView.vue'),
+          meta: { title: '访问分析' },
+        },
+        {
           path: 'posts',
           name: 'posts',
           component: () => import('@/views/PostListView.vue'),

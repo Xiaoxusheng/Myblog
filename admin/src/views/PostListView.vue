@@ -3,13 +3,32 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import {
+  CommentOutlined,
+  EyeOutlined,
+  LikeOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined,
+} from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
+import StatCard from '@/components/StatCard.vue'
+import PvTrendChart from '@/components/PvTrendChart.vue'
+import DistributionBars from '@/components/DistributionBars.vue'
 import { deletePost, getPosts, updatePostStatus } from '@/api/posts'
+import { getPostAnalytics } from '@/api/analytics'
 import { getCategories } from '@/api/taxonomy'
 import { POST_STATUS_MAP } from '@/constants/status'
 import { formatTime } from '@/utils/format'
-import type { AdminPostItem, Category, PostStatus } from '@/types/api'
+import type {
+  AdminPostItem,
+  AnalyticsDistItem,
+  Category,
+  PostAnalyticsData,
+  PostAnalyticsRange,
+  PostStatus,
+} from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,7 +57,7 @@ const columns: TableColumnsType = [
   { title: '状态', key: 'status', width: 120 },
   { title: '浏览/评论', key: 'stats', width: 90 },
   { title: '发布时间', key: 'publishedAt', width: 170 },
-  { title: '操作', key: 'action', width: 160, fixed: 'right' },
+  { title: '操作', key: 'action', width: 200, fixed: 'right' },
 ]
 
 const pagination = computed<TablePaginationConfig>(() => ({
@@ -126,6 +145,78 @@ function goEdit(record: AdminPostItem) {
   void router.push(`/posts/edit/${record.id}`)
 }
 
+/* ---------------- 单篇文章分析抽屉（契约 #68） ---------------- */
+
+const ANALYTICS_RANGE_OPTIONS: { label: string; value: PostAnalyticsRange }[] = [
+  { label: '近 7 天', value: '7d' },
+  { label: '近 30 天', value: '30d' },
+  { label: '近 90 天', value: '90d' },
+]
+
+const analyticsOpen = ref(false)
+const analyticsLoading = ref(false)
+const analyticsError = ref(false)
+const postAnalytics = ref<PostAnalyticsData | null>(null)
+const analyticsRange = ref<PostAnalyticsRange>('7d')
+const analyticsPost = ref<{ id: number; title: string } | null>(null)
+
+/** 来源/设备中文映射，与访问分析页一致 */
+const SOURCE_MAP: Record<string, string> = {
+  direct: '直接访问',
+  search: '搜索引擎',
+  github: 'GitHub',
+  social: '社交平台',
+  other: '其他',
+}
+
+const DEVICE_MAP: Record<string, string> = {
+  desktop: '桌面',
+  mobile: '移动',
+  tablet: '平板',
+}
+
+const analyticsTrend = computed(() => postAnalytics.value?.trend ?? [])
+
+const analyticsSourceItems = computed<AnalyticsDistItem[]>(() =>
+  (postAnalytics.value?.sources ?? []).map((item) => ({
+    name: SOURCE_MAP[item.source] ?? item.source,
+    pv: item.pv,
+  })),
+)
+
+const analyticsDeviceItems = computed<AnalyticsDistItem[]>(() =>
+  (postAnalytics.value?.devices ?? []).map((item) => ({
+    name: DEVICE_MAP[item.device] ?? item.device,
+    pv: item.pv,
+  })),
+)
+
+async function loadPostAnalytics() {
+  if (!analyticsPost.value) return
+  analyticsLoading.value = true
+  analyticsError.value = false
+  try {
+    postAnalytics.value = await getPostAnalytics(analyticsPost.value.id, analyticsRange.value)
+  } catch {
+    // 拦截器已 toast 具体原因
+    analyticsError.value = true
+  } finally {
+    analyticsLoading.value = false
+  }
+}
+
+function openAnalytics(record: AdminPostItem) {
+  analyticsPost.value = { id: record.id, title: record.title }
+  analyticsRange.value = '7d'
+  postAnalytics.value = null
+  analyticsOpen.value = true
+  void loadPostAnalytics()
+}
+
+function onAnalyticsRangeChange() {
+  void loadPostAnalytics()
+}
+
 onMounted(() => {
   void load()
   void loadCategories()
@@ -190,7 +281,7 @@ onMounted(() => {
         :data-source="list"
         :loading="loading"
         :pagination="pagination"
-        :scroll="{ x: 1050 }"
+        :scroll="{ x: 1100 }"
         row-key="id"
         @change="onTableChange"
       >
@@ -234,6 +325,7 @@ onMounted(() => {
           <template v-else-if="column.key === 'action'">
             <a-space :size="0">
               <a-button type="link" size="small" @click="goEdit(record)">编辑</a-button>
+              <a-button type="link" size="small" @click="openAnalytics(record)">分析</a-button>
               <a-button type="link" size="small" @click="togglePublish(record)">
                 {{ record.status === 1 ? '下架' : '发布' }}
               </a-button>
@@ -250,6 +342,81 @@ onMounted(() => {
         </template>
       </a-table>
     </a-card>
+
+    <!-- 单篇文章分析抽屉 -->
+    <a-drawer
+      v-model:open="analyticsOpen"
+      title="文章分析"
+      width="min(760px, 100vw)"
+      destroy-on-close
+    >
+      <template #extra>
+        <a-segmented
+          v-model:value="analyticsRange"
+          :options="ANALYTICS_RANGE_OPTIONS"
+          :disabled="analyticsLoading"
+          @change="onAnalyticsRangeChange"
+        />
+      </template>
+
+      <div class="post-analytics__subject">
+        <span class="post-analytics__subject-label">当前文章</span>
+        <span class="post-analytics__subject-title" :title="analyticsPost?.title">
+          {{ analyticsPost?.title || '-' }}
+        </span>
+      </div>
+
+      <!-- 加载骨架 -->
+      <div v-if="analyticsLoading && !postAnalytics" class="post-analytics__skeleton">
+        <a-skeleton active :title="false" :paragraph="{ rows: 2 }" />
+        <a-skeleton active :title="false" :paragraph="{ rows: 6 }" />
+      </div>
+
+      <!-- 错误态 -->
+      <a-empty v-else-if="analyticsError" description="分析数据加载失败">
+        <a-button type="primary" @click="loadPostAnalytics">重试</a-button>
+      </a-empty>
+
+      <template v-else-if="postAnalytics">
+        <!-- PV / UV / 点赞 / 评论 数字块 -->
+        <a-spin :spinning="analyticsLoading">
+          <a-row :gutter="[12, 12]">
+            <a-col :xs="12" :sm="6">
+              <StatCard title="浏览 PV" :value="postAnalytics.totals.pv" :icon="EyeOutlined" />
+            </a-col>
+            <a-col :xs="12" :sm="6">
+              <StatCard title="访客 UV" :value="postAnalytics.totals.uv" :icon="TeamOutlined" />
+            </a-col>
+            <a-col :xs="12" :sm="6">
+              <StatCard title="点赞" :value="postAnalytics.totals.likeCount" :icon="LikeOutlined" />
+            </a-col>
+            <a-col :xs="12" :sm="6">
+              <StatCard title="评论" :value="postAnalytics.totals.commentCount" :icon="CommentOutlined" />
+            </a-col>
+          </a-row>
+
+          <a-card title="访问趋势" class="post-analytics__section" :body-style="{ padding: '8px 12px 0' }">
+            <PvTrendChart v-if="analyticsTrend.length > 0" :data="analyticsTrend" :height="260" />
+            <a-empty v-else description="暂无趋势数据" class="post-analytics__empty" />
+          </a-card>
+
+          <a-row :gutter="[12, 12]" class="post-analytics__section">
+            <a-col :xs="24" :sm="12">
+              <a-card title="来源分布" class="post-analytics__dist">
+                <DistributionBars v-if="analyticsSourceItems.length > 0" :items="analyticsSourceItems" />
+                <a-empty v-else description="暂无数据" class="post-analytics__empty" />
+              </a-card>
+            </a-col>
+            <a-col :xs="24" :sm="12">
+              <a-card title="设备分布" class="post-analytics__dist">
+                <DistributionBars v-if="analyticsDeviceItems.length > 0" :items="analyticsDeviceItems" />
+                <a-empty v-else description="暂无数据" class="post-analytics__empty" />
+              </a-card>
+            </a-col>
+          </a-row>
+        </a-spin>
+      </template>
+    </a-drawer>
   </div>
 </template>
 
@@ -277,5 +444,50 @@ onMounted(() => {
   color: var(--admin-brand);
   background: var(--admin-brand-bg);
   border-radius: var(--admin-radius-sm);
+}
+
+/* 文章分析抽屉 */
+.post-analytics__subject {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  min-width: 0;
+}
+
+.post-analytics__subject-label {
+  flex: none;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--admin-brand);
+  background: var(--admin-brand-bg);
+  border-radius: var(--admin-radius-sm);
+}
+
+.post-analytics__subject-title {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-analytics__skeleton {
+  padding: 4px 0;
+}
+
+.post-analytics__section {
+  margin-top: 16px;
+}
+
+.post-analytics__dist {
+  height: 100%;
+}
+
+.post-analytics__empty {
+  padding: 16px 0;
 }
 </style>

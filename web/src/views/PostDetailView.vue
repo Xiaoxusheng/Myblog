@@ -197,6 +197,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPostDetail, likePost } from '@/api/post'
+import { sendTrack } from '@/api/track'
 import { ApiError } from '@/api/http'
 import { useSiteStore } from '@/stores/site'
 import { renderMarkdown, type TocItem } from '@/utils/markdown'
@@ -267,6 +268,8 @@ async function load(): Promise<void> {
   try {
     const data = await fetchPostDetail(slug.value)
     post.value = data.post
+    // 文章页埋点：加载成功才计数，并带上 postId 供单篇分析归集
+    sendTrack({ path: route.path, postId: data.post.id })
     prev.value = data.prev ?? null
     next.value = data.next ?? null
     related.value = data.related ?? []

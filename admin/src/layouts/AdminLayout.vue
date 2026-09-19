@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import {
   AppstoreOutlined,
+  BarChartOutlined,
   BookOutlined,
   CommentOutlined,
   DashboardOutlined,
@@ -47,8 +48,13 @@ interface MenuGroup {
   items: MenuItem[]
 }
 
-/** 侧边栏视觉分组：内容 / 互动 / 资源 / 系统 */
+/** 侧边栏视觉分组：数据 / 内容 / 互动 / 资源 / 系统 */
 const menuGroups: MenuGroup[] = [
+  {
+    key: 'data',
+    label: '数据',
+    items: [{ key: '/analytics', title: '访问分析', icon: BarChartOutlined }],
+  },
   {
     key: 'content',
     label: '内容',
