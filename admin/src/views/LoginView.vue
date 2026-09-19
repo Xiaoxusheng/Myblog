@@ -156,13 +156,32 @@ onMounted(refreshCaptcha)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--admin-bg, #f5f6f8);
+  background: linear-gradient(180deg, #fafbfd 0%, #eef1f6 100%);
   padding: 24px;
 }
 
+/* 顶部极淡品牌光晕，打破平坦但不抢戏 */
+.login-view::before {
+  content: '';
+  position: absolute;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 720px;
+  height: 320px;
+  background: radial-gradient(ellipse at center, rgba(22, 119, 255, 0.08), transparent 70%);
+  pointer-events: none;
+}
+
 .login-box {
+  position: relative;
   width: 100%;
-  max-width: 232px;
+  max-width: 264px;
+  padding: 24px 22px 18px;
+  background: #fff;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 21, 41, 0.06);
   text-align: center;
 }
 
@@ -171,7 +190,7 @@ onMounted(refreshCaptcha)
   align-items: center;
   justify-content: center;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .login-brand__logo {
@@ -195,8 +214,8 @@ onMounted(refreshCaptcha)
 }
 
 .login-title {
-  margin: 0 0 18px;
-  font-size: 16px;
+  margin: 0 0 16px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--admin-muted);
 }
@@ -255,9 +274,7 @@ onMounted(refreshCaptcha)
 }
 
 .login-foot {
-  position: absolute;
-  bottom: 16px;
-  margin: 0;
+  margin: 16px 0 0;
   font-size: 11px;
   color: var(--admin-muted);
 }
