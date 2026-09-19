@@ -1,0 +1,16 @@
+# 端口冲突覆盖示例
+# 场景：宿主机 80 / 8080 端口已被其他服务占用时（如已有站点、已有 API 服务），
+# 把本文件复制到项目根目录并命名为 docker-compose.override.yml，
+# compose 会自动合并加载，无需改动 docker-compose.yml。
+#
+#   cp deploy/compose.ports-override.example.yml docker-compose.override.yml
+#
+# 效果：博客 API(8080) 不再对宿主机暴露（仅由 nginx 容器在内部网络反代访问），
+#       前台与管理端改用下面自定义端口，按需修改左侧宿主端口即可。
+services:
+  server:
+    ports: !reset [] # 清空 compose 主文件中 server 的端口映射（需 Compose v2.24+）
+  nginx:
+    ports: !override
+      - "8091:80" # 前台
+      - "8092:8081" # 管理端
