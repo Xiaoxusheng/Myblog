@@ -13,7 +13,7 @@
 - [x] [Admin] admin/ 全部页面 + AntD + md-editor-v3 + ECharts + npm run build 通过 ✅
 - [x] [Orchestrator] 联调：起后端，冒烟清单（api.md 末尾）逐项过
 - [x] [Orchestrator] 前台/管理端页面视觉验收
-- [x] [Orchestrator] Docker 部署物齐备（本机无 docker，服务器首部署时闭环；含 MySQL 双模式文档）
+- [x] [Orchestrator] Docker 部署物齐备 + 已部署到 xyx.homes 并线上验收通过
 - [x] [Orchestrator] README 定稿、最终提交
 
 ## DOING

@@ -3,7 +3,7 @@
 任务：D:\myblog 个人博客系统（前台 + 管理端 + Go 后端 + Docker 部署）
 最终目标：按 docs/ 契约完成全栈博客，构建/测试通过，可本地运行演示，可 Docker 部署
 
-当前阶段：全部完成（2026-09-19）
+当前阶段：已部署到服务器 xyx.homes（2026-09-19）
 整体进度：100%
 
 已完成：
@@ -23,4 +23,11 @@
 - 冒烟 + 页面视觉验收 ✅
 - Docker build/compose up 未在本机验证（本机无 docker），需在服务器按部署文档验证
 
-遗留：无阻塞。待服务器实际部署一次以闭环。
+已部署（2026-09-19）：
+- [x] 服务器 xyx.homes（CentOS7, Docker 26, Compose v2）：/opt/myblog
+- [x] 端口冲突处理：80/8080 被占用 → override 改 8091(前台)/8092(管理端)，API 不对外暴露；firewalld 已放行
+- [x] .env 随机强密的已生成（仅存服务器 /opt/myblog/.env，chmod 600）
+- [x] 部署期两修：admin/media.ts TS2339（改类型安全断言 + deploy 用 npm ci 锁版本）；nginx:alpine→1.25-alpine（CentOS7 老内核 pwrite pid EPERM）
+- [x] 线上验收：前台/管理端/RSS/API 200，MySQL 登录签发 JWT，siteUrl 已设 http://xyx.homes:8091
+
+遗留：提醒用户改默认密码 admin/admin123。
