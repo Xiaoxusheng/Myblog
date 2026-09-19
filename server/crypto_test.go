@@ -188,15 +188,13 @@ func TestLoginRateLimit(t *testing.T) {
 	app := newTestApp(t)
 
 	for i := 0; i < 5; i++ {
-		rec := doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "",
-			map[string]any{"username": "admin", "password": "wrong-password"})
+		rec := attemptLogin(t, app, "admin", "wrong-password")
 		if e := decode(t, rec); e.Code != 20001 {
 			t.Fatalf("第 %d 次错误登录应返回 20001，实际 %d", i+1, e.Code)
 		}
 	}
 
-	rec := doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "",
-		map[string]any{"username": "admin", "password": "admin123"})
+	rec := attemptLogin(t, app, "admin", "admin123")
 	e := decode(t, rec)
 	if e.Code != 20003 {
 		t.Fatalf("锁定后正确密码也应被拒绝（20003），实际 %d（%s）", e.Code, e.Message)

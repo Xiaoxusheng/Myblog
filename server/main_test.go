@@ -108,10 +108,26 @@ func decodeInto(t *testing.T, e envelope, v any) {
 	}
 }
 
+// attemptLogin 走完整验证码流程的登录（#11/#86），返回原始响应
+func attemptLogin(t *testing.T, r http.Handler, username, password string) *httptest.ResponseRecorder {
+	t.Helper()
+	capRec := doJSON(t, r, http.MethodGet, "/api/v1/admin/auth/captcha", "", nil)
+	capEnv := decode(t, capRec)
+	var capData struct {
+		CaptchaID string `json:"captchaId"`
+	}
+	decodeInto(t, capEnv, &capData)
+	captchaCode := handler.GetCaptchaAnswer(capData.CaptchaID)
+	return doJSON(t, r, http.MethodPost, "/api/v1/admin/auth/login", "",
+		map[string]any{
+			"username": username, "password": password,
+			"captchaId": capData.CaptchaID, "captchaCode": captchaCode,
+		})
+}
+
 func loginToken(t *testing.T, r http.Handler) string {
 	t.Helper()
-	rec := doJSON(t, r, http.MethodPost, "/api/v1/admin/auth/login", "",
-		map[string]any{"username": "admin", "password": "admin123"})
+	rec := attemptLogin(t, r, "admin", "admin123")
 	e := decode(t, rec)
 	if e.Code != 0 {
 		t.Fatalf("登录失败：code=%d msg=%s", e.Code, e.Message)

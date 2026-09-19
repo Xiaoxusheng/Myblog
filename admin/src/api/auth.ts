@@ -5,8 +5,15 @@ export function login(payload: {
   username: string
   password: string
   remember?: boolean
+  captchaId: string
+  captchaCode: string
 }): Promise<LoginResult> {
   return http.post('/admin/auth/login', payload)
+}
+
+/** 图形验证码（契约 #86）：image 为 SVG 字符串，单次有效，5 分钟过期 */
+export function getCaptcha(): Promise<{ captchaId: string; image: string }> {
+  return http.get('/admin/auth/captcha')
 }
 
 export function getMe(): Promise<{ user: User }> {

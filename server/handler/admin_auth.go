@@ -19,12 +19,15 @@ import (
 // 避免通过响应耗时探测用户名是否存在（时序侧信道）。
 var dummyBcryptHash = []byte("$2a$10$vi1hqIQLtqQA8HlMXdgy2.fPx8zDY96I8P7l6IFQufxmFYP8W1ilq")
 
-// Login POST /api/v1/admin/auth/login —— remember=true 签发 7 天，否则 24h；失败 20001
+// Login POST /api/v1/admin/auth/login —— 先校验图形验证码（#86，单次有效），
+// remember=true 签发 7 天，否则 24h；密码失败 20001，验证码失败 10001
 func Login(c *gin.Context) {
 	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Remember bool   `json:"remember"`
+		Username    string `json:"username"`
+		Password    string `json:"password"`
+		Remember    bool   `json:"remember"`
+		CaptchaID   string `json:"captchaId"`
+		CaptchaCode string `json:"captchaCode"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.Fail(c, common.CodeParamError, "参数错误")
@@ -32,6 +35,11 @@ func Login(c *gin.Context) {
 	}
 	if strings.TrimSpace(req.Username) == "" || req.Password == "" {
 		common.Fail(c, common.CodeParamError, "用户名和密码不能为空")
+		return
+	}
+	// 验证码先于密码校验；错误不消耗登录失败次数（防爆破计数只针对密码尝试）
+	if !verifyCaptcha(req.CaptchaID, req.CaptchaCode) {
+		common.Fail(c, common.CodeParamError, "验证码不正确或已过期，请刷新后重试")
 		return
 	}
 

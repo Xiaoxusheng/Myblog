@@ -54,6 +54,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 	// 登录不走 JWT，挂防爆破限流
 	adminLogin := api.Group("/admin")
 	{
+		adminLogin.GET("/auth/captcha", handler.AdminGetCaptcha)
 		adminLogin.POST("/auth/login", middleware.LoginRateLimit(), handler.Login)
 	}
 

@@ -17,8 +17,7 @@ func TestLoginSuccess(t *testing.T) {
 // 登录失败：密码错误 → HTTP 200 + code 20001
 func TestLoginWrongPassword(t *testing.T) {
 	app := newTestApp(t)
-	rec := doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "",
-		map[string]any{"username": "admin", "password": "wrong-password"})
+	rec := attemptLogin(t, app, "admin", "wrong-password")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("业务错误应返回 HTTP 200，实际 %d", rec.Code)
 	}
@@ -125,14 +124,12 @@ func TestChangePassword(t *testing.T) {
 	}
 
 	// 旧密码登录失败
-	rec = doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "",
-		map[string]any{"username": "admin", "password": "admin123"})
+	rec = attemptLogin(t, app, "admin", "admin123")
 	if e := decode(t, rec); e.Code != 20001 {
 		t.Fatalf("旧密码登录应 20001，实际 %d", e.Code)
 	}
 	// 新密码登录成功
-	rec = doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "",
-		map[string]any{"username": "admin", "password": "newpass123", "remember": true})
+	rec = attemptLogin(t, app, "admin", "newpass123")
 	if e := decode(t, rec); e.Code != 0 {
 		t.Fatalf("新密码登录失败：%s", e.Message)
 	}

@@ -43,7 +43,7 @@ func TestSQLInjectionLogin(t *testing.T) {
 		{"username": "' OR '1'='1' -- ", "password": "' OR '1'='1"},
 	}
 	for i, p := range payloads {
-		rec := doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "", p)
+		rec := attemptLogin(t, app, p["username"].(string), p["password"].(string))
 		e := decode(t, rec)
 		if e.Code != 20001 {
 			t.Fatalf("payload #%d 未被拒绝：code=%d msg=%s", i, e.Code, e.Message)

@@ -26,8 +26,14 @@ export const useAuthStore = defineStore('auth', {
     setUser(user: User | null) {
       this.user = user
     },
-    async login(username: string, password: string, remember?: boolean) {
-      const result = await loginApi({ username, password, remember })
+    async login(payload: {
+      username: string
+      password: string
+      remember?: boolean
+      captchaId: string
+      captchaCode: string
+    }) {
+      const result = await loginApi(payload)
       this.setToken(result.token)
       this.setUser(result.user)
     },
