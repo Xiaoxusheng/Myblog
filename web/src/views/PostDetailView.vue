@@ -41,6 +41,8 @@
             </template>
             <span class="dot">·</span>
             <span>阅读 {{ formatNumber(post.viewCount) }}</span>
+            <span class="dot">·</span>
+            <span>约 {{ readingMinutes }} 分钟</span>
           </div>
         </header>
 
@@ -50,7 +52,7 @@
 
         <div class="post-content card">
           <!-- 内容由后台管理员通过 Markdown 维护，markdown-it 渲染时不放行内嵌 HTML -->
-          <div class="markdown-body" v-html="html"></div>
+          <div class="markdown-body" v-html="html" @click="onContentClick"></div>
         </div>
 
         <div class="post-footer">
@@ -114,6 +116,8 @@
     <aside v-if="toc.length" class="post-toc-aside">
       <PostToc :headings="toc" />
     </aside>
+
+    <Lightbox :src="preview?.src ?? ''" :alt="preview?.alt" @close="closePreview" />
   </div>
 </template>
 
@@ -127,16 +131,20 @@ import { renderMarkdown, type TocItem } from '@/utils/markdown'
 import { formatDate, formatNumber } from '@/utils/format'
 import { isPostLiked, markPostLiked } from '@/utils/storage'
 import { applyDocumentTitle } from '@/utils/title'
+import { setSeo } from '@/utils/seo'
+import { useMarkdownActions } from '@/composables/useMarkdownActions'
 import type { PostDetail, PostNav, PostSummary } from '@/types'
 import PostToc from '@/components/post/PostToc.vue'
 import CommentSection from '@/components/post/CommentSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import Lightbox from '@/components/common/Lightbox.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const site = useSiteStore()
 const toast = useToast()
+const { preview, onContentClick, closePreview } = useMarkdownActions()
 
 const slug = computed(() => String(route.params.slug))
 
@@ -158,6 +166,20 @@ function lineWidth(index: number): string {
   return widths[(index - 1) % widths.length]
 }
 
+/** 阅读时长（分钟）：中文按 400 字/分钟，其余按 200 词/分钟，至少 1 分钟 */
+const readingMinutes = computed<number>(() => {
+  const text = (post.value?.content ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+  const cjk = (text.match(/[\u4e00-\u9fff]/g) ?? []).length
+  const words = text
+    .replace(/[\u4e00-\u9fff]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean).length
+  return Math.max(1, Math.round(cjk / 400 + words / 200))
+})
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -174,6 +196,11 @@ async function load(): Promise<void> {
     likeCount.value = data.post.likeCount ?? 0
     liked.value = isPostLiked(data.post.id)
     applyDocumentTitle(data.post.title)
+    setSeo({
+      description: data.post.summary,
+      keywords: data.post.tags.map((t) => t.name).join(','),
+      ogType: 'article',
+    })
   } catch (e) {
     if (e instanceof ApiError && e.code === 10004) {
       notFound.value = true
@@ -181,6 +208,7 @@ async function load(): Promise<void> {
       error.value = e instanceof ApiError ? e.message : '加载失败，请稍后重试'
     }
     applyDocumentTitle('文章')
+    setSeo({})
   } finally {
     loading.value = false
   }

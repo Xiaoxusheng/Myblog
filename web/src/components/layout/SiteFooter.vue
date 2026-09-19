@@ -10,6 +10,8 @@
       <p class="footer-line footer-meta">
         <a href="/rss" target="_blank" rel="noopener noreferrer">RSS 订阅</a>
         <span class="sep">·</span>
+        <a href="/sitemap.xml" target="_blank" rel="noopener noreferrer">网站地图</a>
+        <span class="sep">·</span>
         <span>Powered by MyBlog</span>
       </p>
     </div>

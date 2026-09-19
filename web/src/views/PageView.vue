@@ -21,9 +21,11 @@
       </header>
       <div class="page-content card">
         <!-- 内容来自管理员维护的 Markdown，渲染时不放行内嵌 HTML -->
-        <div class="markdown-body" v-html="html"></div>
+        <div class="markdown-body" v-html="html" @click="onContentClick"></div>
       </div>
     </template>
+
+    <Lightbox :src="preview?.src ?? ''" :alt="preview?.alt" @close="closePreview" />
   </div>
 </template>
 
@@ -34,12 +36,16 @@ import { fetchPage } from '@/api/content'
 import { ApiError } from '@/api/http'
 import { renderMarkdown } from '@/utils/markdown'
 import { applyDocumentTitle } from '@/utils/title'
+import { setSeo } from '@/utils/seo'
+import { useMarkdownActions } from '@/composables/useMarkdownActions'
 import type { CustomPage } from '@/types'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import Lightbox from '@/components/common/Lightbox.vue'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
+const { preview, onContentClick, closePreview } = useMarkdownActions()
 
 const page = ref<CustomPage | null>(null)
 const html = ref('')
@@ -56,12 +62,14 @@ async function load(): Promise<void> {
     page.value = data
     html.value = renderMarkdown(data.content ?? '').html
     applyDocumentTitle(data.title)
+    setSeo({ description: data.content?.slice(0, 120).replace(/[#*`\n]/g, ' ').trim() })
   } catch (e) {
     if (e instanceof ApiError && e.code === 10004) {
       notFound.value = true
     } else {
       error.value = e instanceof ApiError ? e.message : '加载失败，请稍后重试'
     }
+    setSeo({})
   } finally {
     loading.value = false
   }

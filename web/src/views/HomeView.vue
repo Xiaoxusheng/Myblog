@@ -30,6 +30,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { fetchPosts } from '@/api/post'
 import { usePagedList } from '@/composables/usePagedList'
 import { useSiteStore } from '@/stores/site'
+import { setSeo } from '@/utils/seo'
 import type { PostSummary } from '@/types'
 import ArticleCard from '@/components/common/ArticleCard.vue'
 import ListSkeleton from '@/components/common/ListSkeleton.vue'
@@ -82,6 +83,10 @@ onMounted(async () => {
   const qp = Number(route.query.page) || 1
   if (qp > 1) list.page.value = qp
   await list.load()
+  setSeo({
+    description: site.settings.siteDescription,
+    keywords: site.settings.siteKeywords
+  })
 })
 </script>
 

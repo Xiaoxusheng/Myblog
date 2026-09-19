@@ -126,6 +126,48 @@ html.dark {
   font-size: 0.87em;
 }
 
+/* 代码块容器 + 复制按钮 */
+.markdown-body .code-block {
+  position: relative;
+}
+
+.markdown-body .code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.6;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease-out, color 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.markdown-body .code-block:hover .code-copy,
+.markdown-body .code-copy:focus-visible {
+  opacity: 1;
+}
+
+.markdown-body .code-copy:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.markdown-body .code-copy.copied {
+  color: var(--brand);
+  border-color: var(--brand);
+  opacity: 1;
+}
+
+.markdown-body img {
+  cursor: zoom-in;
+}
+
 /* 代码块 */
 .markdown-body pre {
   margin: 1.35em 0;

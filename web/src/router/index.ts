@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { applyDocumentTitle } from '@/utils/title'
+import { setSeo } from '@/utils/seo'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -88,6 +89,8 @@ const router = createRouter({
 
 router.afterEach((to) => {
   applyDocumentTitle(to.meta.title)
+  // 默认清空 SEO meta，具体页面（首页/文章/自定义页）加载后自行覆盖
+  setSeo({})
 })
 
 export default router

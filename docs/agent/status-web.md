@@ -51,3 +51,14 @@
 - 浏览器端视觉/交互验收（亮暗双主题、移动端真机）未执行——dev server 未长期运行，留待联调阶段
 - `web/Dockerfile` 按分工由 Backend Agent 负责，未创建
 - 契约疑问（未改动契约，仅代码容错）：契约未写明顶级评论 `parentId` 具体取值（前端已按 0/null 双兼容处理）
+
+
+## 第二轮增强（2026-09-19，由 Orchestrator 完成）
+
+- 代码块一键复制：markdown.ts 包裹 .code-block + .code-copy；composables/useMarkdownActions.ts 委托点击，含 http 内网 execCommand 兜底与"已复制/复制失败"反馈
+- 图片懒加载（已有）+ 点击 lightbox 预览：新组件 components/common/Lightbox.vue（遮罩/Esc/关闭按钮/滚动锁）
+- 阅读时长：PostDetailView meta 区"约 N 分钟"（中文 400 字/分 + 英文 200 词/分）
+- TOC 滚动高亮：第一轮已实现（scroll+rAF），本轮验证通过
+- SEO meta：utils/seo.ts（description/keywords/OG），路由 afterEach 重置、首页/文章/自定义页覆盖；页脚新增"网站地图"链接
+- 验证：npm run build（vue-tsc+vite）零错误；浏览器实测复制反馈/阅读时长/lightbox 开关/SEO meta/页脚链接全部通过
+- 已知环境限制：无头后台标签页 rAF 节流时 CSS 过渡不推进（transitionend 不触发），真实前台浏览器不受影响

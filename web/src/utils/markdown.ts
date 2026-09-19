@@ -112,5 +112,8 @@ export function renderMarkdown(source: string): RenderedMarkdown {
   // 外链新窗口;图片懒加载（渲染后的确定性字符串处理）
   html = html.replace(/<a\s+href=/g, '<a target="_blank" rel="noopener noreferrer" href=')
   html = html.replace(/<img\s/g, '<img loading="lazy" ')
+  // 代码块包一层，便于放复制按钮（点击行为在 useMarkdownActions 里委托处理）
+  html = html.replace(/<pre>/g, '<div class="code-block"><button class="code-copy" type="button">复制</button><pre>')
+  html = html.replace(/<\/pre>/g, '</pre></div>')
   return { html, toc: tocResult }
 }
