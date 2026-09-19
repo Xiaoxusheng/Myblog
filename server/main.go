@@ -13,12 +13,17 @@ import (
 	"time"
 
 	"myblog/server/config"
+	"myblog/server/handler"
 	"myblog/server/model"
 	"myblog/server/router"
 )
 
+// version 构建时可用 -ldflags "-X main.version=v1.2.0" 注入；默认 dev
+var version = "dev"
+
 func main() {
 	cfg := config.Load()
+	handler.SetVersion(version)
 
 	db, err := model.Open(cfg)
 	if err != nil {

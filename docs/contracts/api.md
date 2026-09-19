@@ -65,6 +65,8 @@
 | 10 | GET `/rss`（根路径） | RSS 2.0 XML，最近 20 篇，链接用 settings.siteUrl |
 | 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
 | 49 | GET `/robots.txt`（根路径） | 纯文本：Allow 全站、Disallow /api/ 与 /admin、声明 Sitemap 地址 |
+| 83 | GET `/llms.txt`（根路径） | AEO：站点简介、核心页面、分类/专题（仅可见）、已发布文章索引（title+URL+摘要，≤200 篇），纯文本 |
+| 84 | GET `/admin/health` | `{version,goVersion,dbType,dbStatus,postCount,commentCount,mediaCount,uploadSize,latestBackupAt}`；克制采集，不含磁盘空间等平台敏感信息 |
 | 53 | GET `/series` | `{list:[Series]}` 仅 visible，sort 升序，postCount=已发布文章数 |
 | 54 | GET `/series/:slug` | `{series:Series,posts:[PostSummary]}` 仅已发布文章，按专题内序号排列；404 → 10004 |
 | 55 | GET `/redirects/resolve?path=/post/old` | `{redirect:{source,target,type}\|null}` 仅 enabled；无匹配返回 `{redirect:null}`（code 0）；供前台 404 兜底路由使用 |

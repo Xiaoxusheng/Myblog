@@ -31,6 +31,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 	r.GET("/rss", handler.RSS)
 	r.GET("/sitemap.xml", handler.Sitemap)
 	r.GET("/robots.txt", handler.Robots)
+	r.GET("/llms.txt", handler.LlmsTxt)
 
 	api := r.Group("/api/v1")
 	{
@@ -70,6 +71,9 @@ func Setup(cfg *config.Config) *gin.Engine {
 		// 访问分析
 		admin.GET("/analytics", handler.Analytics)
 		admin.GET("/analytics/posts/:id", handler.PostAnalytics)
+
+		// 系统健康
+		admin.GET("/health", handler.Health)
 
 		// 文章
 		admin.GET("/posts", handler.AdminListPosts)
