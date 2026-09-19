@@ -1,5 +1,6 @@
 /* ============================================================
    MyBlog 前台全局样式：设计令牌（双主题）/ Reset / 布局骨架 / 通用类
+   设计基准：docs/04-前台UI设计规范.md（现代编辑部式极简）
    ============================================================ */
 
 :root {
@@ -8,44 +9,43 @@
   --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Consolas,
     'Liberation Mono', Menlo, monospace;
 
-  /* 中性层 */
-  --bg: #f6f7f9;
+  /* 中性层（纸感暖灰） */
+  --bg: #f9f9f8;
   --surface: #ffffff;
-  --surface-2: #eef0f3;
+  --surface-2: #f2f1ef;
   --popover: #ffffff;
-  --border: #e4e7ec;
-  --border-strong: #cfd4dc;
+  --border: #e8e6e3;
+  --border-strong: #d9d6d2;
 
-  /* 文本 */
-  --text-1: #1f2430;
-  --text-2: #4b5563;
-  --text-3: #8b93a1;
+  /* 文本（三级灰阶，墨色） */
+  --text-1: #1c1c1a;
+  --text-2: #55534e;
+  --text-3: #96938d;
 
-  /* 品牌与语义 */
+  /* 品牌与语义：accent 只出现在链接 hover / 当前态 / 精选标记 / focus */
   --brand: #0f766e;
-  --brand-hover: #0c5e57;
-  --brand-soft: rgba(15, 118, 110, 0.08);
-  --brand-soft-border: rgba(15, 118, 110, 0.28);
+  --brand-hover: #0b5d56;
+  --brand-soft: rgba(15, 118, 110, 0.07);
+  --brand-soft-border: rgba(15, 118, 110, 0.25);
   --danger: #dc2626;
 
-  /* 表面细节 */
-  --header-bg: rgba(255, 255, 255, 0.72);
-  --header-bg-scrolled: rgba(255, 255, 255, 0.88);
-  --code-bg: #f6f8fa;
-  --code-border: #e6e8eb;
-  /* 阴影只留两档低强度：内容优先，靠边框与背景分层 */
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 8px 24px -12px rgba(16, 24, 40, 0.12);
+  /* 表面细节：阴影仅用于浮层，内容层靠 hairline 分层 */
+  --header-bg: rgba(249, 249, 248, 0.8);
+  --header-bg-scrolled: rgba(249, 249, 248, 0.92);
+  --code-bg: #f4f3f1;
+  --code-border: #e8e6e3;
+  --shadow-sm: 0 1px 2px rgba(28, 28, 26, 0.05);
+  --shadow-md: 0 12px 32px -16px rgba(28, 28, 26, 0.16);
 
-  /* 几何：克制的圆角体系 */
-  --radius-lg: 10px;
+  /* 几何：圆角只在封面/代码块/按钮层级出现 */
+  --radius-lg: 12px;
   --radius-md: 8px;
   --radius-sm: 6px;
   --header-height: 60px;
-  --container-width: 1080px;
+  --container-width: 1120px;
   --header-offset: 76px;
   /* 正文阅读列宽 */
-  --reading-width: 760px;
+  --reading-width: 720px;
 
   /* 排版刻度 */
   --fs-xs: 12px;
@@ -55,7 +55,7 @@
   --fs-lg: 17px;
   --fs-xl: 20px;
   --fs-2xl: 26px;
-  --fs-display: clamp(30px, 5vw, 40px);
+  --fs-display: clamp(32px, 5vw, 44px);
 
   /* 动效：hover 快、进出场稳 */
   --transition: 0.16s ease-out;
@@ -64,29 +64,29 @@
 }
 
 html.dark {
-  --bg: #101418;
-  --surface: #171c22;
-  --surface-2: #20262e;
-  --popover: #1c222a;
-  --border: #272e38;
-  --border-strong: #3a434f;
+  --bg: #121211;
+  --surface: #1a1a18;
+  --surface-2: #232320;
+  --popover: #1e1e1c;
+  --border: #2a2a27;
+  --border-strong: #3d3d38;
 
-  --text-1: #e6e9ed;
-  --text-2: #a6adba;
-  --text-3: #737d8c;
+  --text-1: #e8e7e3;
+  --text-2: #a3a19a;
+  --text-3: #71706a;
 
-  --brand: #45b3a5;
-  --brand-hover: #66c9bc;
-  --brand-soft: rgba(69, 179, 165, 0.12);
-  --brand-soft-border: rgba(69, 179, 165, 0.38);
+  --brand: #4dbdb0;
+  --brand-hover: #6fd0c5;
+  --brand-soft: rgba(77, 189, 176, 0.1);
+  --brand-soft-border: rgba(77, 189, 176, 0.35);
   --danger: #f87171;
 
-  --header-bg: rgba(16, 20, 24, 0.68);
-  --header-bg-scrolled: rgba(16, 20, 24, 0.86);
-  --code-bg: #1a2027;
-  --code-border: #2a323d;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --header-bg: rgba(18, 18, 17, 0.75);
+  --header-bg-scrolled: rgba(18, 18, 17, 0.9);
+  --code-bg: #1b1b19;
+  --code-border: #2a2a27;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 12px 32px -16px rgba(0, 0, 0, 0.6);
 }
 
 /* ---------- Reset ---------- */
@@ -186,18 +186,24 @@ html.dark ::selection {
   padding: 0 20px;
 }
 
+@media (min-width: 768px) {
+  .container {
+    padding: 0 24px;
+  }
+}
+
 /* 主列 + 侧栏 */
 .page-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 32px;
+  gap: 48px;
   align-items: start;
-  padding: 28px 0 56px;
+  padding: 28px 0 64px;
 }
 
 .page-aside {
   position: sticky;
-  top: calc(var(--header-height) + 16px);
+  top: calc(var(--header-height) + 24px);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -222,12 +228,23 @@ html.dark ::selection {
 @media (max-width: 1023px) {
   .page-layout {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
     padding-top: 20px;
   }
 
   .page-aside {
     display: none;
   }
+}
+
+/* ---------- 编辑感小字（kicker / 栏头 / 统计行） ---------- */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
 /* ---------- 通用组件类 ---------- */
@@ -300,21 +317,21 @@ html.dark ::selection {
   color: var(--text-1);
 }
 
+/* 标签/分类：编辑部式纯文字，去底色 */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 10px;
-  border-radius: 6px;
-  background: var(--surface-2);
+  padding: 2px 2px;
+  border-radius: 4px;
+  background: transparent;
   color: var(--text-2);
   font-size: 12.5px;
   line-height: 1.7;
-  transition: background var(--transition), color var(--transition);
+  transition: color var(--transition);
 }
 
 a.chip:hover {
-  background: var(--brand-soft);
   color: var(--brand);
 }
 

@@ -34,8 +34,8 @@ html.dark {
 
 /* ---------- 排版 ---------- */
 .markdown-body {
-  font-size: 16.5px;
-  line-height: 1.9;
+  font-size: 17px;
+  line-height: 1.85;
   color: var(--text-1);
   overflow-wrap: break-word;
 }
@@ -43,6 +43,7 @@ html.dark {
 @media (max-width: 640px) {
   .markdown-body {
     font-size: 15.5px;
+    line-height: 1.8;
   }
 }
 
@@ -72,8 +73,9 @@ html.dark {
 }
 
 .markdown-body h2 {
+  margin-top: 2.2em;
   font-size: 21px;
-  padding-bottom: 0.4em;
+  padding-bottom: 0.45em;
   border-bottom: 1px solid var(--border);
 }
 
@@ -97,12 +99,11 @@ html.dark {
   text-decoration: underline;
 }
 
+/* 编辑部式引用：竖线 + 弱化文字，无底色 */
 .markdown-body blockquote {
-  margin: 1.3em 0;
-  padding: 0.65em 1.1em;
-  border-left: 3px solid var(--brand-soft-border);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--surface-2);
+  margin: 1.4em 0;
+  padding: 0.15em 0 0.15em 1.2em;
+  border-left: 2px solid var(--border-strong);
   color: var(--text-2);
 }
 
@@ -131,10 +132,9 @@ html.dark {
   border: 1px solid var(--border);
 }
 
-/* 行内代码 */
+/* 行内代码：浅底无边框 */
 .markdown-body code {
   padding: 0.15em 0.45em;
-  border: 1px solid var(--code-border);
   border-radius: 5px;
   background: var(--code-bg);
   font-family: var(--font-mono);
@@ -211,15 +211,15 @@ html.dark {
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-mono);
 }
 
-/* 表格 */
+/* 表格：编辑部式横线表，去竖线 */
 .markdown-body table {
   display: block;
   width: 100%;
-  margin: 1.35em 0;
+  margin: 1.5em 0;
   border-collapse: collapse;
   font-size: 14px;
   overflow-x: auto;
@@ -227,13 +227,13 @@ html.dark {
 
 .markdown-body th,
 .markdown-body td {
-  padding: 8px 13px;
-  border: 1px solid var(--border);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
   text-align: left;
 }
 
-.markdown-body th {
-  background: var(--surface-2);
+.markdown-body thead th {
+  border-bottom: 2px solid var(--border-strong);
   font-weight: 600;
   white-space: nowrap;
 }
