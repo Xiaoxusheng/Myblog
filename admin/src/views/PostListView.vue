@@ -32,15 +32,13 @@ const categoryId = ref<number | ''>(
 )
 
 const columns: TableColumnsType = [
-  { title: '标题', dataIndex: 'title', key: 'title', width: 280, ellipsis: true },
-  { title: '分类', dataIndex: ['category', 'name'], key: 'category', width: 120 },
-  { title: '标签', key: 'tags', width: 180 },
-  { title: '状态', key: 'status', width: 90 },
-  { title: '置顶', key: 'isTop', width: 80 },
-  { title: '浏览', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
-  { title: '评论', dataIndex: 'commentCount', key: 'commentCount', width: 80 },
-  { title: '发布时间', key: 'publishedAt', width: 150 },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' },
+  { title: '标题', dataIndex: 'title', key: 'title', width: 240, ellipsis: true },
+  { title: '分类', dataIndex: ['category', 'name'], key: 'category', width: 110 },
+  { title: '标签', key: 'tags', width: 160 },
+  { title: '状态', key: 'status', width: 120 },
+  { title: '浏览/评论', key: 'stats', width: 90 },
+  { title: '发布时间', key: 'publishedAt', width: 130 },
+  { title: '操作', key: 'action', width: 160, fixed: 'right' },
 ]
 
 const pagination = computed<TablePaginationConfig>(() => ({
@@ -191,7 +189,7 @@ onMounted(() => {
         :data-source="list"
         :loading="loading"
         :pagination="pagination"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 1010 }"
         row-key="id"
         @change="onTableChange"
       >
@@ -217,11 +215,11 @@ onMounted(() => {
             <a-tag :color="POST_STATUS_MAP[record.status as PostStatus].color">
               {{ POST_STATUS_MAP[record.status as PostStatus].text }}
             </a-tag>
+            <a-tag v-if="record.isTop" color="orange">置顶</a-tag>
           </template>
 
-          <template v-else-if="column.key === 'isTop'">
-            <a-tag v-if="record.isTop" color="orange">置顶</a-tag>
-            <span v-else class="cell-secondary">-</span>
+          <template v-else-if="column.key === 'stats'">
+            {{ record.viewCount }} / {{ record.commentCount }}
           </template>
 
           <template v-else-if="column.key === 'publishedAt'">

@@ -53,6 +53,8 @@
 | 8 | GET `/pages/:slug` | 已发布自定义页面 `{page:Page}` |
 | 9 | GET `/links` | `{list:[Link]}` 仅 visible |
 | 10 | GET `/rss`（根路径） | RSS 2.0 XML，最近 20 篇，链接用 settings.siteUrl |
+| 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
+| 49 | GET `/robots.txt`（根路径） | 纯文本：Allow 全站、Disallow /api/ 与 /admin、声明 Sitemap 地址 |
 
 ## 管理接口（Bearer）
 

@@ -20,8 +20,10 @@ func Setup(cfg *config.Config) *gin.Engine {
 	// 上传文件静态服务
 	r.Static("/uploads", cfg.UploadDir)
 
-	// RSS（根路径特例，返回 XML）
+	// RSS / Sitemap / Robots（根路径特例）
 	r.GET("/rss", handler.RSS)
+	r.GET("/sitemap.xml", handler.Sitemap)
+	r.GET("/robots.txt", handler.Robots)
 
 	api := r.Group("/api/v1")
 	{
