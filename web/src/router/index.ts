@@ -52,6 +52,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '标签' }
   },
   {
+    path: '/series',
+    name: 'series',
+    component: () => import('@/views/SeriesView.vue'),
+    meta: { title: '专题' }
+  },
+  {
+    path: '/series/:slug',
+    name: 'series-detail',
+    component: () => import('@/views/SeriesDetailView.vue'),
+    meta: { title: '专题' }
+  },
+  {
     path: '/search',
     name: 'search',
     component: () => import('@/views/SearchView.vue'),

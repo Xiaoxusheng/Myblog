@@ -76,6 +76,18 @@ const router = createRouter({
           meta: { title: '编辑页面', parentTitle: '页面管理', parentPath: '/pages', activeMenu: '/pages' },
         },
         {
+          path: 'series',
+          name: 'series',
+          component: () => import('@/views/SeriesView.vue'),
+          meta: { title: '专题管理' },
+        },
+        {
+          path: 'redirects',
+          name: 'redirects',
+          component: () => import('@/views/RedirectView.vue'),
+          meta: { title: '重定向管理' },
+        },
+        {
           path: 'links',
           name: 'links',
           component: () => import('@/views/LinkView.vue'),

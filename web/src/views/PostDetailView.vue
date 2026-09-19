@@ -44,6 +44,15 @@
             <span>阅读 {{ formatNumber(post.viewCount) }}</span>
             <span class="dot">·</span>
             <span>约 {{ readingMinutes }} 分钟</span>
+            <template v-if="series">
+              <span class="dot">·</span>
+              <span>
+                专题：<RouterLink :to="`/series/${series.slug}`" class="series-link">
+                  {{ series.name }}
+                </RouterLink>
+                <span class="dot">·</span>第 {{ series.index }} / {{ series.total }} 篇
+              </span>
+            </template>
             <button v-if="toc.length" class="toc-toggle" type="button" @click="tocOpen = true">
               目录
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -107,6 +116,29 @@
             <span class="nav-title">没有更多了</span>
           </span>
         </nav>
+
+        <!-- 本专题上下篇：与全局上下篇并列，仅在文章属于专题时展示 -->
+        <div v-if="series && (seriesPrev || seriesNext)" v-reveal class="series-nav">
+          <p class="series-nav-label">本专题</p>
+          <nav class="post-nav" aria-label="本专题上下篇">
+            <RouterLink v-if="seriesPrev" :to="`/post/${seriesPrev.slug}`" class="nav-card card">
+              <span class="nav-label"><span class="nav-arrow">←</span>本专题上一篇</span>
+              <span class="nav-title">{{ seriesPrev.title }}</span>
+            </RouterLink>
+            <span v-else class="nav-card card placeholder">
+              <span class="nav-label"><span class="nav-arrow">←</span>本专题上一篇</span>
+              <span class="nav-title">已是本专题第一篇</span>
+            </span>
+            <RouterLink v-if="seriesNext" :to="`/post/${seriesNext.slug}`" class="nav-card card next">
+              <span class="nav-label">本专题下一篇<span class="nav-arrow">→</span></span>
+              <span class="nav-title">{{ seriesNext.title }}</span>
+            </RouterLink>
+            <span v-else class="nav-card card placeholder">
+              <span class="nav-label">本专题下一篇<span class="nav-arrow">→</span></span>
+              <span class="nav-title">已是本专题最后一篇</span>
+            </span>
+          </nav>
+        </div>
 
         <section v-if="related.length" v-reveal="{ delay: 80 }" class="related">
           <h2 class="related-heading">相关文章</h2>
@@ -173,7 +205,7 @@ import { isPostLiked, markPostLiked } from '@/utils/storage'
 import { applyDocumentTitle } from '@/utils/title'
 import { setSeo } from '@/utils/seo'
 import { useMarkdownActions } from '@/composables/useMarkdownActions'
-import type { PostDetail, PostNav, PostSummary } from '@/types'
+import type { PostDetail, PostNav, PostSeriesRef, PostSummary } from '@/types'
 import PostToc from '@/components/post/PostToc.vue'
 import CommentSection from '@/components/post/CommentSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -193,6 +225,9 @@ const post = ref<PostDetail | null>(null)
 const prev = ref<PostNav | null>(null)
 const next = ref<PostNav | null>(null)
 const related = ref<PostSummary[]>([])
+const series = ref<PostSeriesRef | null>(null)
+const seriesPrev = ref<PostNav | null>(null)
+const seriesNext = ref<PostNav | null>(null)
 const html = ref('')
 const toc = ref<TocItem[]>([])
 const loading = ref(true)
@@ -235,6 +270,9 @@ async function load(): Promise<void> {
     prev.value = data.prev ?? null
     next.value = data.next ?? null
     related.value = data.related ?? []
+    series.value = data.series ?? null
+    seriesPrev.value = data.seriesPrev ?? null
+    seriesNext.value = data.seriesNext ?? null
     const rendered = renderMarkdown(data.post.content ?? '')
     html.value = rendered.html
     toc.value = rendered.toc
@@ -404,6 +442,15 @@ watch(slug, () => {
   color: var(--border-strong);
 }
 
+/* meta 区专题链接：略强于周围灰字，hover 走品牌色 */
+.series-link {
+  color: var(--text-2);
+}
+
+.series-link:hover {
+  color: var(--brand);
+}
+
 .post-cover {
   margin-top: 22px;
   border-radius: var(--radius-lg);
@@ -569,6 +616,23 @@ watch(slug, () => {
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-top: 30px;
+}
+
+/* 本专题导航组：小标题 + 复用全局 nav-card 结构 */
+.series-nav {
+  margin-top: 30px;
+}
+
+.series-nav-label {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+}
+
+.series-nav .post-nav {
+  margin-top: 0;
 }
 
 .nav-card {

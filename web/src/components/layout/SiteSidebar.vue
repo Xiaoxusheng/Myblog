@@ -26,6 +26,19 @@
       <p v-else class="side-empty">暂无热门文章</p>
     </section>
 
+    <section v-if="navSeries.length" v-reveal="{ delay: 90 }" class="side-card">
+      <h3 class="side-title">专题</h3>
+      <ul class="series-list">
+        <li v-for="item in navSeries" :key="item.id" class="series-row">
+          <RouterLink :to="`/series/${item.slug}`" class="series-item">
+            <span class="series-name">{{ item.name }}</span>
+            <span class="series-count">{{ item.postCount ?? 0 }} 篇</span>
+          </RouterLink>
+        </li>
+      </ul>
+      <RouterLink to="/series" class="tag-more">全部专题 →</RouterLink>
+    </section>
+
     <section v-if="cloudTags.length" v-reveal="{ delay: 120 }" class="side-card">
       <h3 class="side-title">标签</h3>
       <div class="tag-cloud">
@@ -43,8 +56,26 @@
   </aside>
 </template>
 
+<script lang="ts">
+import type { Series } from '@/types'
+import { fetchSeriesList } from '@/api/series'
+
+/**
+ * 专题导航模块级缓存：一个页面会话只发一次请求（与 useHotPosts 同一策略）
+ */
+const seriesCache: { loaded: boolean; list: Series[] } = { loaded: false, list: [] }
+
+async function loadSeriesNav(): Promise<Series[]> {
+  if (seriesCache.loaded) return seriesCache.list
+  const list = await fetchSeriesList()
+  seriesCache.list = list.slice(0, 3)
+  seriesCache.loaded = true
+  return seriesCache.list
+}
+</script>
+
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useHotPosts } from '@/composables/useHotPosts'
 import { useSiteStore } from '@/stores/site'
 import { formatNumber } from '@/utils/format'
@@ -55,8 +86,18 @@ const { hotPosts, hotLoading, hotError, load } = useHotPosts()
 
 const cloudTags = computed(() => site.tags.slice(0, 24))
 
+/** 侧栏专题导航：最多展示 3 个 */
+const navSeries = ref<Series[]>([])
+
 onMounted(() => {
   void load()
+  loadSeriesNav()
+    .then((list) => {
+      navSeries.value = list
+    })
+    .catch(() => {
+      // 侧栏专题导航加载失败静默隐藏，不影响主体内容
+    })
 })
 
 onBeforeUnmount(() => {
@@ -176,6 +217,46 @@ onBeforeUnmount(() => {
 
 .sk-short {
   width: 55%;
+}
+
+/* 专题：名称 + 篇数的轻量列表 */
+.series-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.series-row + .series-row {
+  border-top: 1px solid var(--border);
+}
+
+.series-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.series-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  color: var(--text-1);
+  transition: color var(--transition);
+}
+
+.series-item:hover .series-name {
+  color: var(--brand);
+}
+
+.series-count {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 .side-empty {

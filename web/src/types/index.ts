@@ -62,12 +62,41 @@ export interface PostNav {
   slug: string
 }
 
+/** 专题（公开侧，仅已展示） */
+export interface Series {
+  id: number
+  name: string
+  slug: string
+  description: string
+  cover: string
+  postCount?: number
+}
+
+/** GET /series/:slug 响应 */
+export interface SeriesDetailData {
+  series: Series
+  posts: PostSummary[]
+}
+
+/** 文章详情内嵌的专题信息（仅当文章属于专题时返回） */
+export interface PostSeriesRef {
+  id: number
+  name: string
+  slug: string
+  index: number
+  total: number
+}
+
 /** GET /posts/:slug 响应 */
 export interface PostDetailData {
   post: PostDetail
   prev: PostNav | null
   next: PostNav | null
   related: PostSummary[]
+  /** 专题扩展：文章所属专题及当前位置 */
+  series?: PostSeriesRef
+  seriesPrev?: PostNav | null
+  seriesNext?: PostNav | null
 }
 
 /** 公开评论（仅已通过，两级树）;顶级评论 parentId 约定为 0，容忍后端返回 null */

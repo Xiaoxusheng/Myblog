@@ -68,13 +68,17 @@ export interface PostDetail extends PostSummary {
   updatedAt: string
 }
 
-/** 管理端文章对象：PostSummary + content + categoryId + tagNames + commentCount + publishAt */
+/** 管理端文章对象：PostSummary + content + categoryId + tagNames + commentCount + publishAt + series */
 export interface AdminPostItem extends PostSummary {
   content: string
   categoryId: number
   tagNames: string[]
   commentCount: number
   publishAt: string | null
+  /** 所属专题 id；0=不属于专题 */
+  seriesId: number
+  /** 专题内序号 */
+  seriesSort: number
   updatedAt?: string
 }
 

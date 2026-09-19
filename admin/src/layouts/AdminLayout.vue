@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Modal } from 'ant-design-vue'
 import {
   AppstoreOutlined,
+  BookOutlined,
   CommentOutlined,
   DashboardOutlined,
   FileTextOutlined,
@@ -13,6 +14,7 @@ import {
   PictureOutlined,
   ProfileOutlined,
   SettingOutlined,
+  SwapOutlined,
   TagsOutlined,
   UserOutlined,
 } from '@ant-design/icons-vue'
@@ -54,6 +56,7 @@ const menuGroups: MenuGroup[] = [
       { key: '/dashboard', title: '仪表盘', icon: DashboardOutlined },
       { key: '/posts', title: '文章管理', icon: FileTextOutlined },
       { key: '/pages', title: '页面管理', icon: ProfileOutlined },
+      { key: '/series', title: '专题管理', icon: BookOutlined },
     ],
   },
   {
@@ -76,7 +79,10 @@ const menuGroups: MenuGroup[] = [
   {
     key: 'system',
     label: '系统',
-    items: [{ key: '/settings', title: '系统设置', icon: SettingOutlined }],
+    items: [
+      { key: '/redirects', title: '重定向管理', icon: SwapOutlined },
+      { key: '/settings', title: '系统设置', icon: SettingOutlined },
+    ],
   },
 ]
 

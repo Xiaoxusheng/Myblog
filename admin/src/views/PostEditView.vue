@@ -16,8 +16,9 @@ import MediaSelectModal from '@/components/MediaSelectModal.vue'
 import PostRevisionDrawer from '@/components/PostRevisionDrawer.vue'
 import { createPost, getPost, updatePost } from '@/api/posts'
 import { getCategories } from '@/api/taxonomy'
+import { getSeriesList } from '@/api/series'
 import { silentUpdatePost } from '@/utils/autosaveHttp'
-import type { AdminPostItem, Category, PostPayload, PostStatus } from '@/types/api'
+import type { AdminPostItem, Category, PostPayload, PostStatus, Series } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,6 +31,7 @@ const postId = computed<number | null>(() => {
 const loading = ref(false)
 const saving = ref(false)
 const categories = ref<Category[]>([])
+const seriesOptions = ref<Series[]>([])
 const coverModalOpen = ref(false)
 const revisionOpen = ref(false)
 
@@ -46,6 +48,10 @@ const formState = reactive({
   summary: '',
   cover: '',
   content: '',
+  /** 所属专题；0 = 不属于任何专题 */
+  seriesId: 0,
+  /** 专题内序号；null = 自动排到专题末尾（提交时按契约转为 0） */
+  seriesSort: null as number | null,
 })
 
 const formRef = ref()
@@ -152,7 +158,7 @@ function onFormChange() {
 watch(formState, onFormChange, { deep: true })
 watch(publishAtValue, onFormChange)
 
-/** 表单快照对比（tags 排序后比较，避免服务端顺序差异误报）；publishAt 参与对比 */
+/** 表单快照对比（tags 排序后比较，避免服务端顺序差异误报）；publishAt/专题归属参与对比 */
 function snapshot(form: typeof formState, publishAt?: string | null): string {
   return JSON.stringify({
     title: form.title,
@@ -165,6 +171,8 @@ function snapshot(form: typeof formState, publishAt?: string | null): string {
     cover: form.cover,
     content: form.content,
     publishAt: publishAt ?? null,
+    seriesId: form.seriesId,
+    seriesSort: form.seriesSort,
   })
 }
 
@@ -276,6 +284,8 @@ async function load() {
     formState.summary = ''
     formState.cover = ''
     formState.content = ''
+    formState.seriesId = 0
+    formState.seriesSort = null
     publishAtValue.value = null
     lastServerSnapshot = payloadSnapshot()
     checkLocalDraft(null)
@@ -302,6 +312,13 @@ function fillForm(post: AdminPostItem) {
   formState.summary = post.summary
   formState.cover = post.cover
   formState.content = post.content
+  // AdminPostItem 契约类型暂未声明 seriesId/seriesSort，后端详情已返回，读取时做安全收敛
+  const seriesFields = post as AdminPostItem & { seriesId?: number; seriesSort?: number }
+  formState.seriesId = seriesFields.seriesId ?? 0
+  formState.seriesSort =
+    typeof seriesFields.seriesSort === 'number' && seriesFields.seriesSort > 0
+      ? seriesFields.seriesSort
+      : null
   publishAtValue.value = post.publishAt ? dayjs(post.publishAt) : null
 }
 
@@ -318,6 +335,8 @@ function buildPayload(nextStatus: PostStatus): PostPayload {
     isTop: formState.isTop,
     publishAt:
       nextStatus === 3 && publishAtValue.value ? publishAtValue.value.toISOString() : undefined,
+    seriesId: formState.seriesId || 0,
+    seriesSort: formState.seriesSort ?? 0,
   }
 }
 
@@ -394,6 +413,25 @@ async function loadCategories() {
   categories.value = result.list
 }
 void loadCategories()
+
+async function loadSeriesOptions() {
+  const result = await getSeriesList({ page: 1, pageSize: 50 })
+  seriesOptions.value = result.list
+}
+void loadSeriesOptions()
+
+/** 专题 select：清空（allowClear）时归 0，表示移出专题 */
+function onSeriesChange(value: unknown) {
+  formState.seriesId = typeof value === 'number' ? value : 0
+  if (!formState.seriesId) {
+    formState.seriesSort = null
+  }
+}
+
+/** 序号输入：清空或非法值归 null，表示自动排到专题末尾 */
+function onSeriesSortChange(value: number | string | null) {
+  formState.seriesSort = typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
 
 // ---------------------------------------------------------------------------
 // 底部状态栏：字数 / 预计阅读时长（中文 400 字/分钟）
@@ -516,6 +554,32 @@ onBeforeUnmount(() => {
               <a-form-item label="Slug" name="slug">
                 <a-input v-model:value="formState.slug" placeholder="留空自动生成" />
               </a-form-item>
+            </FormSection>
+
+            <FormSection title="专题">
+              <a-form-item label="所属专题" name="seriesId">
+                <a-select
+                  :value="formState.seriesId || undefined"
+                  :options="seriesOptions.map((item) => ({ label: item.name, value: item.id }))"
+                  placeholder="不属于任何专题"
+                  allow-clear
+                  show-search
+                  option-filter-prop="label"
+                  @change="onSeriesChange"
+                />
+              </a-form-item>
+              <a-form-item label="专题内序号" name="seriesSort">
+                <a-input-number
+                  :value="formState.seriesSort ?? undefined"
+                  :min="1"
+                  :max="9999"
+                  :disabled="!formState.seriesId"
+                  placeholder="自动"
+                  style="width: 100%"
+                  @change="onSeriesSortChange"
+                />
+              </a-form-item>
+              <p class="post-edit__hint">留空自动排到专题末尾；清空专题即移出。</p>
             </FormSection>
 
             <FormSection title="封面">
