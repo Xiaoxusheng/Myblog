@@ -23,7 +23,7 @@
           <span class="hot-views">{{ formatNumber(post.viewCount) }}</span>
         </li>
       </ol>
-      <p v-else class="side-empty">暂无热门文章</p>
+      <EmptyState v-else size="compact" title="暂无热门文章" />
     </section>
 
     <section v-if="navSeries.length" v-reveal="{ delay: 90 }" class="side-section">
@@ -80,6 +80,7 @@ import { useHotPosts } from '@/composables/useHotPosts'
 import { useSiteStore } from '@/stores/site'
 import { formatNumber } from '@/utils/format'
 import ErrorState from '@/components/common/ErrorState.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const site = useSiteStore()
 const { hotPosts, hotLoading, hotError, load } = useHotPosts()
@@ -259,11 +260,6 @@ onBeforeUnmount(() => {
   font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
-}
-
-.side-empty {
-  font-size: 13px;
-  color: var(--text-3);
 }
 
 /* 标签：纯文字 chip + 更多入口 */

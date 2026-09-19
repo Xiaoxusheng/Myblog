@@ -49,6 +49,12 @@
       </div>
     </div>
 
+    <Teleport to="body">
+      <Transition name="mask">
+        <div v-if="menuOpen" class="menu-mask" aria-hidden="true" @click="menuOpen = false"></div>
+      </Transition>
+    </Teleport>
+
     <Transition name="menu">
       <div v-if="menuOpen" class="mobile-panel">
         <button
@@ -129,6 +135,15 @@ watch(
     menuOpen.value = false
   }
 )
+
+// 菜单展开时锁 body 滚动（与 TOC 抽屉同机制）
+watch(menuOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+})
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
@@ -295,6 +310,24 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+/* 菜单遮罩：Teleport 到 body，z-index 位于 header(100) 之下、内容之上 */
+.menu-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.mask-enter-active,
+.mask-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.mask-enter-from,
+.mask-leave-to {
+  opacity: 0;
+}
+
 @media (max-width: 767px) {
   .main-nav,
   .search-trigger:not(.search-trigger-full) {
@@ -336,6 +369,11 @@ onBeforeUnmount(() => {
   .mobile-nav a.active {
     color: var(--brand);
     font-weight: 500;
+  }
+
+  /* 末项去分隔线，避免与面板底边 hairline 叠成双线（docs/08 §6.4） */
+  .mobile-nav a:last-child {
+    border-bottom: none;
   }
 }
 

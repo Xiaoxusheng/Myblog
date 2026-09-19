@@ -1,6 +1,14 @@
 <template>
   <!-- 仅移动端显示：把侧栏里有价值的信息转移到主列 -->
   <section class="mobile-discover">
+    <!-- 公告：移动端侧栏隐藏后在此保留入口，视觉语言与侧栏 .notice 同源（docs/08 §6.4） -->
+    <div v-if="site.settings.notice" v-reveal class="discover-block">
+      <div class="discover-head">
+        <h2 class="discover-title">Notice</h2>
+      </div>
+      <p class="notice">{{ site.settings.notice }}</p>
+    </div>
+
     <div v-reveal class="discover-block">
       <div class="discover-head">
         <h2 class="discover-title">热门阅读</h2>
@@ -148,6 +156,16 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+
+/* 公告：左侧 accent 竖线引用式（与侧栏 .notice 同语言） */
+.notice {
+  padding-left: 12px;
+  border-left: 2px solid var(--brand-soft-border);
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
 .tag-row {

@@ -36,7 +36,7 @@
           @reply="openReply"
         />
       </ul>
-      <p v-else class="comment-empty">还没有评论，来说两句吧～</p>
+      <EmptyState v-else size="compact" title="还没有评论，来写下第一条" />
     </template>
   </section>
 </template>
@@ -49,6 +49,7 @@ import type { CommentPublic } from '@/types'
 import CommentItem from './CommentItem.vue'
 import CommentForm from './CommentForm.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{ slug: string; enabled: boolean }>()
@@ -137,15 +138,8 @@ onMounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.comment-empty {
-  margin-top: 20px;
-  text-align: center;
-  color: var(--text-3);
-  font-size: 13.5px;
-  padding: 26px 0;
+  /* 顶级评论间以 hairline 分隔（CommentItem 内处理），不留 gap */
+  gap: 0;
 }
 
 /* 骨架 */

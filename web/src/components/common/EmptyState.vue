@@ -1,6 +1,7 @@
 <template>
-  <div class="empty-state">
+  <div class="empty-state" :class="{ compact: size === 'compact' }">
     <svg
+      v-if="size !== 'compact'"
       class="empty-art"
       viewBox="0 0 200 120"
       width="176"
@@ -35,10 +36,19 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{ title?: string; description?: string }>(), {
-  title: '暂无内容',
-  description: ''
-})
+withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    /** compact：窄栏/区块内轻量空态，无插画（docs/08 §6.1） */
+    size?: 'default' | 'compact'
+  }>(),
+  {
+    title: '暂无内容',
+    description: '',
+    size: 'default'
+  }
+)
 </script>
 
 <style scoped>
@@ -50,11 +60,22 @@ withDefaults(defineProps<{ title?: string; description?: string }>(), {
   text-align: center;
 }
 
+.empty-state.compact {
+  padding: 26px 16px;
+}
+
 .empty-title {
   margin-top: 18px;
   font-size: 15.5px;
   font-weight: 500;
   color: var(--text-2);
+}
+
+.compact .empty-title {
+  margin-top: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-3);
 }
 
 .empty-desc {

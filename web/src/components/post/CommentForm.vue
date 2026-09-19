@@ -50,11 +50,16 @@
         id="cf-content"
         v-model.trim="form.content"
         rows="4"
-        maxlength="1000"
+        :maxlength="CONTENT_MAX"
         placeholder="写下你的评论…"
         :class="{ invalid: !!errors.content }"
       ></textarea>
-      <p v-if="errors.content" class="field-error">{{ errors.content }}</p>
+      <div class="content-foot">
+        <p v-if="errors.content" class="field-error">{{ errors.content }}</p>
+        <span class="char-count" :class="{ near: form.content.length > CONTENT_MAX - 100 }">
+          {{ form.content.length }} / {{ CONTENT_MAX }}
+        </span>
+      </div>
     </div>
 
     <div class="form-actions">
@@ -83,6 +88,9 @@ const toast = useToast()
 const form = reactive({ nickname: '', email: '', website: '', content: '' })
 const errors = reactive({ nickname: '', email: '', content: '' })
 const submitting = ref(false)
+
+/** 与后端评论长度限制一致的单一真相来源（docs/08 §6.2） */
+const CONTENT_MAX = 1000
 
 onMounted(() => {
   const profile = loadCommentProfile()
@@ -256,6 +264,33 @@ async function submit(): Promise<void> {
 .field-error {
   margin-top: 5px;
   font-size: 12.5px;
+  color: var(--danger);
+}
+
+/* 内容字段底部行：错误文案与字数计数共用一行，高度稳定不跳动 */
+.content-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 20px;
+  margin-top: 4px;
+}
+
+.content-foot .field-error {
+  margin-top: 0;
+}
+
+.char-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  transition: color var(--transition);
+}
+
+.char-count.near {
   color: var(--danger);
 }
 

@@ -82,13 +82,16 @@ const displayWebsite = computed(() =>
   list-style: none;
 }
 
+/* 相邻评论 hairline 分隔（顶级与二级统一语言，docs/08 §6.3） */
+.comment-item + .comment-item {
+  border-top: 1px solid var(--border);
+}
+
+/* 顶级评论去卡化：与二级同为行式，整区由「头像+昵称+时间」行承载层级 */
 .comment-main {
   display: flex;
   gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  padding: 14px 0;
 }
 
 .avatar {
@@ -174,7 +177,7 @@ const displayWebsite = computed(() =>
   color: var(--brand);
 }
 
-/* 二级回复：缩进 + 左侧细线表达层级，不做卡片套卡片 */
+/* 二级回复：缩进 + 左侧细线表达层级 */
 .comment-children {
   list-style: none;
   margin: 12px 0 0;
@@ -185,21 +188,14 @@ const displayWebsite = computed(() =>
   border-left: 2px solid var(--border);
 }
 
-.comment-children .comment-item + .comment-item {
-  border-top: 1px solid var(--border);
+.comment-children .comment-main {
+  padding: 12px 0;
 }
 
 .comment-children .avatar {
   width: 30px;
   height: 30px;
   font-size: 12.5px;
-}
-
-.comment-children .comment-main {
-  padding: 12px 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
 }
 
 @media (max-width: 640px) {
