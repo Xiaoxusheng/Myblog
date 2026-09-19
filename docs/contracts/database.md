@@ -126,6 +126,20 @@ id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100
 | link | string size:500 | 管理端跳转路径（如 /comments?status=0） |
 | read | bool index | 默认 false |
 
+## audit_logs（操作日志；禁止记录密码/JWT/完整请求体）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| action | string size:50 index | 如 post.create / post.update / comment.batch / backup.create |
+| resource_type | string size:50 | post / comment / upload / setting / backup / system |
+| resource_id | string size:50 | |
+| description | string size:500 | 摘要说明（截断，不含敏感内容） |
+| ip_hash | string size:64 | 管理员 IP 的 SHA-256 哈希 |
+| created_at | time index | |
+
+备份文件存于 `BLOG_BACKUP_DIR`（默认 backups/，不对外提供静态访问）；
+运行中服务的数据库恢复不在 API 内执行（避免热替换损坏），按部署文档手动操作。
+
 ## page_views（访问统计；隐私：不存明文 IP，仅 SHA-256 哈希）
 | 列 | 类型 | 说明 |
 |---|---|---|

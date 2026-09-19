@@ -140,6 +140,15 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.GET("/settings", handler.AdminGetSettings)
 		admin.PUT("/settings", handler.AdminUpdateSettings)
 
+		// 审计 / 备份 / 导入导出
+		admin.GET("/audit-logs", handler.AdminListAuditLogs)
+		admin.GET("/backups", handler.AdminListBackups)
+		admin.POST("/backups", handler.AdminCreateBackup)
+		admin.GET("/backups/:name/download", handler.AdminDownloadBackup)
+		admin.DELETE("/backups/:name", handler.AdminDeleteBackup)
+		admin.GET("/export", handler.AdminExport)
+		admin.POST("/import", handler.AdminImport)
+
 		// 媒体
 		admin.POST("/uploads", handler.AdminUpload)
 		admin.GET("/uploads", handler.AdminListUploads)

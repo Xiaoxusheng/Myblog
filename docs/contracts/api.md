@@ -144,6 +144,13 @@
 | 73 | GET `/admin/notifications` | `{list:[{id,type,title,content,link,read,createdAt}](≤10 条最新),unreadCount:int64}`；type：comment_pending（新待审评论）/comment_spam（捕获垃圾）/post_published（定时文章已上线）/backup（备份完成或失败） |
 | 74 | PUT `/admin/notifications/read-all` | 全部标记已读 → data:null |
 | 75 | PUT `/admin/notifications/:id/read` | 单条已读 → data:null |
+| 76 | GET `/admin/audit-logs?page=&pageSize=&action=` | 操作日志分页：`{id,action,resourceType,resourceId,description,ipHash,createdAt}`，最新在前；action 可前缀过滤（如 `post.`）；不记录密码/JWT/完整请求体 |
+| 77 | GET `/admin/backups` | `{list:[{name,size,createdAt,type}]}` type：database(文件)/full(zip)，createdAt 倒序 |
+| 78 | POST `/admin/backups` | `{type:"database"\|"full"}` → `{item:{name,size,createdAt,type}}`；database=复制数据库文件（仅 SQLite；MySQL 模式返回 10001 提示使用导出，不伪造）；full=数据库+uploads 打包 zip；成功/失败写通知(type=backup) |
+| 79 | GET `/admin/backups/:name/download` | 备份文件流下载；name 白名单校验（防路径穿越） |
+| 80 | DELETE `/admin/backups/:name` | 删除备份文件 |
+| 81 | GET `/admin/export` | 全站导出 zip：`posts.json/pages.json/categories.json/tags.json/links.json/comments.json/settings.json` + `media/`（uploads 原样） |
+| 82 | POST `/admin/import` | multipart 字段 `file`（zip，≤50MB，条目 ≤5000、解压总量 ≤200MB 防炸弹）；query `dryRun=true` 仅预览返回 `{summary:{posts:N,...},conflicts:[{type,value}]}`；`strategy=skip`(默认，冲突跳过)\|`update`(按 slug/名称更新已有)；媒体存入 uploads 跳过同名 → `{updated:int64,summary}` |
 | 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
 | 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 
