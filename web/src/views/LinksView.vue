@@ -108,8 +108,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 16px 0;
+  /* 负 margin 外扩 hover 底色；grid gap 16px 保证相邻列视觉隔离（docs/08 §5.3） */
+  margin: 0 -8px;
+  padding: 16px 8px;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.link-card:hover {
+  background: var(--surface);
 }
 
 .link-logo {
@@ -120,6 +128,11 @@ onMounted(() => {
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface-2);
+  transition: transform var(--transition-slow);
+}
+
+.link-card:hover .link-logo {
+  transform: scale(1.06);
 }
 
 .link-logo img {
@@ -148,14 +161,21 @@ onMounted(() => {
 }
 
 .link-name {
+  /* 收缩到内容宽，保证下划线长度与文字一致（与页脚同语言，docs/08 §5.3） */
+  align-self: flex-start;
   font-size: 14.5px;
   font-weight: 600;
   color: var(--text-1);
-  transition: color var(--transition);
+  background-image: linear-gradient(var(--brand), var(--brand));
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: color var(--transition), background-size 0.25s var(--ease-out-quart);
 }
 
 .link-card:hover .link-name {
   color: var(--brand);
+  background-size: 100% 1px;
 }
 
 .link-desc {

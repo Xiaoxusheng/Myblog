@@ -56,19 +56,22 @@ onMounted(() => {
   margin-top: 26px;
 }
 
-/* 纯文字标签：hover 变色，无胶囊底 */
+/* 纯文字标签：hover 变色 + surface 圆角底（docs/08 §5.2），负 margin 保持行距节奏 */
 .tag-item {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  padding: 4px 0;
+  margin: 0 -8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
   color: var(--text-2);
   font-size: 14.5px;
-  transition: color var(--transition);
+  transition: color var(--transition), background var(--transition);
 }
 
 .tag-item:hover {
   color: var(--brand);
+  background: var(--surface);
 }
 
 .tag-count {

@@ -95,9 +95,17 @@ onMounted(() => {
 .series-card {
   display: flex;
   gap: 18px;
-  padding: 18px 0;
+  /* 负 margin 外扩 hover 底色，与分类页同语言（docs/08 §5.4） */
+  margin: 0 -12px;
+  padding: 18px 12px;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   align-items: center;
+  transition: background var(--transition);
+}
+
+.series-card:hover {
+  background: var(--surface);
 }
 
 .series-cover {
@@ -108,6 +116,11 @@ onMounted(() => {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-2);
+  transition: transform var(--transition-slow);
+}
+
+.series-card:hover .series-cover {
+  transform: scale(1.05);
 }
 
 .series-cover img {
@@ -159,6 +172,11 @@ onMounted(() => {
   font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+  transition: color var(--transition);
+}
+
+.series-card:hover .series-count {
+  color: var(--brand);
 }
 
 .series-desc {

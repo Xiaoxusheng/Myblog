@@ -69,8 +69,16 @@ onMounted(() => {
 
 .cat-card {
   display: block;
-  padding: 16px 0;
+  /* 负 margin 外扩 hover 底色，保持网格列对齐不贴字（docs/08 §5.1） */
+  margin: 0 -12px;
+  padding: 16px 12px;
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.cat-card:hover {
+  background: var(--surface);
 }
 
 .cat-head {
@@ -97,6 +105,11 @@ onMounted(() => {
   font-size: 11.5px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+  transition: color var(--transition);
+}
+
+.cat-card:hover .cat-count {
+  color: var(--brand);
 }
 
 .cat-desc {
