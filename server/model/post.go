@@ -23,8 +23,10 @@ type Post struct {
 	LikeCount   int        `gorm:"default:0" json:"likeCount"`
 	Status      int8       `gorm:"index;default:0" json:"status"`
 	IsTop       bool       `json:"isTop"`
-	PublishedAt *time.Time `gorm:"index" json:"publishedAt"` // 首次置为已发布时写入；列表/RSS/sitemap 按此排序
-	PublishAt   *time.Time `gorm:"index" json:"publishAt"`   // 仅 status=3 有值：计划发布时间；调度器按到期扫描
+	PublishedAt *time.Time `gorm:"index" json:"publishedAt"`        // 首次置为已发布时写入；列表/RSS/sitemap 按此排序
+	PublishAt   *time.Time `gorm:"index" json:"publishAt"`          // 仅 status=3 有值：计划发布时间；调度器按到期扫描
+	SeriesID    uint       `gorm:"index;default:0" json:"seriesId"` // 0=不属于专题（一文至多一专题）
+	SeriesSort  int        `gorm:"default:0" json:"seriesSort"`     // 专题内序号，升序，同序按 id
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
 

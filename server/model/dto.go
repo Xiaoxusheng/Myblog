@@ -42,7 +42,7 @@ type PostDetailDTO struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// AdminPostItemDTO = PostSummary + content + categoryId + tagNames + commentCount + publishAt
+// AdminPostItemDTO = PostSummary + content + categoryId + tagNames + commentCount + publishAt + series
 type AdminPostItemDTO struct {
 	PostSummaryDTO
 	Content      string     `json:"content"`
@@ -50,6 +50,8 @@ type AdminPostItemDTO struct {
 	TagNames     []string   `json:"tagNames"`
 	CommentCount int64      `json:"commentCount"`
 	PublishAt    *time.Time `json:"publishAt"` // 仅定时发布有值
+	SeriesID     uint       `json:"seriesId"`  // 0=不属于专题
+	SeriesSort   int        `json:"seriesSort"`
 	UpdatedAt    time.Time  `json:"updatedAt"`
 }
 
@@ -118,6 +120,8 @@ func ToAdminPostItem(p *Post, commentCount int64) AdminPostItemDTO {
 		TagNames:       names,
 		CommentCount:   commentCount,
 		PublishAt:      p.PublishAt,
+		SeriesID:       p.SeriesID,
+		SeriesSort:     p.SeriesSort,
 		UpdatedAt:      p.UpdatedAt,
 	}
 }

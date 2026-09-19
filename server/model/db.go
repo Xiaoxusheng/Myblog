@@ -79,11 +79,13 @@ func AutoMigrate(db *gorm.DB) error {
 		&Category{},
 		&Tag{},
 		&PostTag{},
+		&Series{},
 		&Comment{},
 		&Link{},
 		&Page{},
 		&Setting{},
 		&Upload{},
+		&Redirect{},
 	)
 }
 

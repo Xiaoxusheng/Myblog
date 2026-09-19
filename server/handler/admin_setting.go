@@ -12,9 +12,10 @@ import (
 
 // settings 默认值（契约：key 缺省给默认值；seed 亦使用）
 var settingsDefaults = model.SettingsDTO{
-	SiteName:       "My Blog",
-	CommentEnabled: true,
-	PostPageSize:   10,
+	SiteName:                 "My Blog",
+	CommentEnabled:           true,
+	PostPageSize:             10,
+	AutoRedirectOnSlugChange: true,
 }
 
 // getSettingsDTO 读取全部设置行并映射为契约 Settings 对象
@@ -60,7 +61,19 @@ func getSettingsDTO(db *gorm.DB) model.SettingsDTO {
 			s.PostPageSize = n
 		}
 	}
+	if v, ok := m["autoRedirectOnSlugChange"]; ok {
+		s.AutoRedirectOnSlugChange = v == "true"
+	}
 	return s
+}
+
+// autoRedirectOnSlugChangeEnabled 读取 slug 变更自动 301 开关（缺省开启）
+func autoRedirectOnSlugChangeEnabled(db *gorm.DB) bool {
+	var setting model.Setting
+	if err := db.Where("key = ?", "autoRedirectOnSlugChange").First(&setting).Error; err != nil {
+		return settingsDefaults.AutoRedirectOnSlugChange
+	}
+	return setting.Value == "true"
 }
 
 // upsertSetting 按 key 写入（存在则更新）
@@ -110,6 +123,11 @@ func AdminUpdateSettings(c *gin.Context) {
 		upsertSetting(db, "commentEnabled", "false")
 	}
 	upsertSetting(db, "postPageSize", strconv.Itoa(req.PostPageSize))
+	if req.AutoRedirectOnSlugChange {
+		upsertSetting(db, "autoRedirectOnSlugChange", "true")
+	} else {
+		upsertSetting(db, "autoRedirectOnSlugChange", "false")
+	}
 
 	common.OK(c, nil)
 }

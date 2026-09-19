@@ -27,6 +27,8 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | is_top | bool | |
 | published_at | *time.Time | 首次置为已发布时写入；定时发布自动到点时写入计划时间 |
 | publish_at | *time.Time index | 仅 status=3 有值：计划发布时间；调度器按 `status=3 AND publish_at<=now` 扫描 |
+| series_id | uint index | 0=不属于专题（一文至多一专题） |
+| series_sort | int | 专题内序号，升序，同序按 id |
 
 ## post_revisions（文章版本历史，随文章删除级联删除）
 | 列 | 类型 | 说明 |
@@ -57,15 +59,8 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | visible | bool | 默认 true |
 | sort | int | 专题展示顺序，升序 |
 
-## series_posts（专题-文章关联；一篇文章至多属于一个专题）
-| 列 | 类型 | 说明 |
-|---|---|---|
-| id | uint PK | |
-| series_id | uint | uniqueIndex:idx_series_post 与 post_id 复合；单独 index |
-| post_id | uint | uniqueIndex:idx_post_series（一文一专题）；单独 index |
-| sort | int | 专题内序号，升序，同序按 id |
-
-文章删除级联删除关联；专题删除级联删除关联。
+成员关系直接存 `posts.series_id` / `posts.series_sort`（一文一专题，免 join 表）；
+删除专题时将成员文章 series_id 置 0。
 
 ## redirects（URL 重定向）
 | 列 | 类型 | 说明 |

@@ -87,12 +87,62 @@ func GetPost(c *gin.Context) {
 	}
 	post.ViewCount++
 
+	seriesInfo, seriesPrev, seriesNext := seriesContext(post)
+
 	common.OK(c, gin.H{
-		"post":    model.ToPostDetail(post),
-		"prev":    adjacentPost(post, false),
-		"next":    adjacentPost(post, true),
-		"related": relatedPosts(post),
+		"post":       model.ToPostDetail(post),
+		"prev":       adjacentPost(post, false),
+		"next":       adjacentPost(post, true),
+		"related":    relatedPosts(post),
+		"series":     seriesInfo,
+		"seriesPrev": seriesPrev,
+		"seriesNext": seriesNext,
 	})
+}
+
+// seriesContext 文章所属专题上下文（契约：series:{id,name,slug,index,total} + 相邻文章）。
+// 不属于专题或专题未展示时返回 nil，前端不渲染专题区块。
+func seriesContext(post *model.Post) (series any, prev, next *model.PostRefDTO) {
+	if post.SeriesID == 0 {
+		return nil, nil, nil
+	}
+	var seriesRow model.Series
+	if err := model.DB.Where("id = ? AND visible = ?", post.SeriesID, true).
+		First(&seriesRow).Error; err != nil {
+		return nil, nil, nil
+	}
+	var siblings []model.Post
+	if err := model.DB.Where("series_id = ? AND status = ?", post.SeriesID, model.PostPublished).
+		Order("series_sort ASC, id ASC").Find(&siblings).Error; err != nil {
+		return nil, nil, nil
+	}
+	index := -1
+	for i := range siblings {
+		if siblings[i].ID == post.ID {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return nil, nil, nil
+	}
+	ref := func(p *model.Post) *model.PostRefDTO {
+		return &model.PostRefDTO{ID: p.ID, Title: p.Title, Slug: p.Slug}
+	}
+	info := gin.H{
+		"id":    seriesRow.ID,
+		"name":  seriesRow.Name,
+		"slug":  seriesRow.Slug,
+		"index": index + 1,
+		"total": len(siblings),
+	}
+	if index > 0 {
+		prev = ref(&siblings[index-1])
+	}
+	if index < len(siblings)-1 {
+		next = ref(&siblings[index+1])
+	}
+	return info, prev, next
 }
 
 // adjacentPost 相邻文章：prev=较早发布（newer=false 取更早），next=较晚发布。

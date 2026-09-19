@@ -46,6 +46,8 @@ type SettingsDTO struct {
 	FooterText      string `json:"footerText"`
 	CommentEnabled  bool   `json:"commentEnabled"`
 	PostPageSize    int    `json:"postPageSize"`
+	// AutoRedirectOnSlugChange 文章 slug 变更时自动创建旧→新 301 重定向（默认开启）
+	AutoRedirectOnSlugChange bool `json:"autoRedirectOnSlugChange"`
 }
 
 // Upload 上传媒体

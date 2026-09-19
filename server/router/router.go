@@ -40,6 +40,9 @@ func Setup(cfg *config.Config) *gin.Engine {
 		api.GET("/posts/:slug", handler.GetPost)
 		api.GET("/posts/:slug/comments", handler.ListComments)
 		api.POST("/posts/:slug/comments", middleware.CommentRateLimit(), handler.CreateComment)
+		api.GET("/series", handler.ListSeries)
+		api.GET("/series/:slug", handler.GetSeries)
+		api.GET("/redirects/resolve", handler.ResolveRedirect)
 		api.POST("/posts/:slug/like", handler.LikePost)
 		api.GET("/archive", handler.Archive)
 		api.GET("/pages/:slug", handler.GetPage)
@@ -85,6 +88,20 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.POST("/tags", handler.AdminCreateTag)
 		admin.PUT("/tags/:id", handler.AdminUpdateTag)
 		admin.DELETE("/tags/:id", handler.AdminDeleteTag)
+
+		// 专题
+		admin.GET("/series", handler.AdminListSeries)
+		admin.POST("/series", handler.AdminCreateSeries)
+		admin.PUT("/series/:id", handler.AdminUpdateSeries)
+		admin.GET("/series/:id/posts", handler.AdminSeriesPosts)
+		admin.PUT("/series/:id/posts", handler.AdminReorderSeriesPosts)
+		admin.DELETE("/series/:id", handler.AdminDeleteSeries)
+
+		// 重定向
+		admin.GET("/redirects", handler.AdminListRedirects)
+		admin.POST("/redirects", handler.AdminCreateRedirect)
+		admin.PUT("/redirects/:id", handler.AdminUpdateRedirect)
+		admin.DELETE("/redirects/:id", handler.AdminDeleteRedirect)
 
 		// 评论
 		admin.GET("/comments", handler.AdminListComments)

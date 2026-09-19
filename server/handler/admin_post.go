@@ -24,8 +24,10 @@ type postPayload struct {
 	Tags       []string   `json:"tags"`
 	Status     int8       `json:"status"`
 	IsTop      bool       `json:"isTop"`
-	PublishAt  *time.Time `json:"publishAt"` // 定时发布计划时间；status=3 必填
-	Auto       bool       `json:"auto"`      // 前端自动保存标记：版本生成防抖
+	PublishAt  *time.Time `json:"publishAt"`  // 定时发布计划时间；status=3 必填
+	Auto       bool       `json:"auto"`       // 前端自动保存标记：版本生成防抖
+	SeriesID   uint       `json:"seriesId"`   // 0=移出专题
+	SeriesSort int        `json:"seriesSort"` // 0=自动排到末尾（已是成员则保持原序号）
 }
 
 func (p *postPayload) validate(c *gin.Context) bool {
@@ -201,6 +203,10 @@ func AdminCreatePost(c *gin.Context) {
 			return
 		}
 	}
+	if err := checkSeriesExists(req.SeriesID); err != nil {
+		common.Fail(c, common.CodeParamError, "专题不存在")
+		return
+	}
 
 	post := model.Post{
 		Title:      strings.TrimSpace(req.Title),
@@ -210,6 +216,7 @@ func AdminCreatePost(c *gin.Context) {
 		CategoryID: req.CategoryID,
 		Status:     req.Status,
 		IsTop:      req.IsTop,
+		SeriesID:   req.SeriesID,
 		// 先用一次性临时占位 slug 插入（uniqueIndex 冲突规避），随后按契约规则定稿
 		Slug: fmt.Sprintf("post-tmp-%d-%s", time.Now().UnixNano(), randomHex(4)),
 	}
@@ -233,6 +240,16 @@ func AdminCreatePost(c *gin.Context) {
 		}
 		if err := tx.Model(&post).Association("Tags").Replace(tags); err != nil {
 			return err
+		}
+		if req.SeriesID > 0 {
+			sort, err := nextSeriesSort(tx, req.SeriesID, req.SeriesSort)
+			if err != nil {
+				return err
+			}
+			post.SeriesSort = sort
+			if err := tx.Model(&post).Update("series_sort", sort).Error; err != nil {
+				return err
+			}
 		}
 		// slug 已定稿后写入首个版本（契约：创建即 v1，remark=首次保存）
 		return model.CreatePostRevision(tx, &post, "首次保存")
@@ -280,6 +297,11 @@ func AdminUpdatePost(c *gin.Context) {
 		common.Fail(c, common.CodeNotFound, "文章不存在")
 		return
 	}
+	oldSlug := post.Slug
+	if err := checkSeriesExists(req.SeriesID); err != nil {
+		common.Fail(c, common.CodeParamError, "专题不存在")
+		return
+	}
 
 	updates := map[string]any{
 		"title":       strings.TrimSpace(req.Title),
@@ -291,6 +313,10 @@ func AdminUpdatePost(c *gin.Context) {
 		"is_top":      req.IsTop,
 		// 定时发布写计划时间；离开定时状态置空
 		"publish_at": publishAtForStatus(req.Status, req.PublishAt),
+	}
+	if err := applySeriesAssignment(model.DB, &post, &req, updates); err != nil {
+		common.ServerError(c, err)
+		return
 	}
 	publishNowIfFirst(&post, req.Status, updates)
 
@@ -305,6 +331,22 @@ func AdminUpdatePost(c *gin.Context) {
 		}
 		if err := ensurePostSlug(tx, &post, req.Slug); err != nil {
 			return err
+		}
+		// slug 变更且开关开启 → 自动创建旧→新 301 重定向（契约 #19）
+		if oldSlug != "" && post.Slug != oldSlug && autoRedirectOnSlugChangeEnabled(tx) {
+			src, tgt := "/post/"+oldSlug, "/post/"+post.Slug
+			if !model.RedirectLoopExists(tx, src, tgt) {
+				if err := model.UpsertRedirectForSlug(tx, src, tgt); err != nil {
+					return err
+				}
+			}
+		}
+		// 同步结构体中的专题字段供响应与后续逻辑
+		if v, ok := updates["series_id"].(uint); ok {
+			post.SeriesID = v
+		}
+		if v, ok := updates["series_sort"].(int); ok {
+			post.SeriesSort = v
 		}
 		tags, err := upsertTagsByName(tx, req.Tags)
 		if err != nil {
