@@ -96,10 +96,29 @@ onMounted(() => {
 
 .year-count {
   margin-left: 10px;
-  font-family: var(--font-sans);
-  font-size: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
+}
+
+/* 桌面端年份粘性：随分组滚动吸附在报头下，渐变遮罩避免与时间轴硬叠（docs/06 §8.1） */
+@media (min-width: 768px) {
+  .year-group {
+    margin-top: 34px;
+  }
+
+  .year-title {
+    position: sticky;
+    top: calc(var(--header-height) + 10px);
+    z-index: 5;
+    display: flex;
+    align-items: baseline;
+    margin: -10px -12px 10px;
+    padding: 10px 12px 14px;
+    background: linear-gradient(to bottom, var(--bg) 72%, transparent);
+  }
 }
 
 .timeline {
@@ -151,6 +170,11 @@ onMounted(() => {
 }
 
 .tl-title:hover {
+  color: var(--brand);
+}
+
+/* 行 hover：日期与圆点同步走 accent（docs/06 §8.2） */
+.timeline-item:hover .tl-date {
   color: var(--brand);
 }
 
