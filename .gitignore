@@ -25,3 +25,6 @@ docs/agent/
 
 # 升级说明文档，本地保留不入库
 admin/UPGRADE-NOTES.md
+
+# WorkBuddy AI 项目数据（记忆/技能），不入库
+.workbuddy-ai/
