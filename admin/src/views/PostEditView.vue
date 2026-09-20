@@ -34,6 +34,8 @@ const postId = computed<number | null>(() => {
 })
 
 const loading = ref(false)
+/** 详情加载失败标记：驱动错误面板 + 重试，避免无数据时静默进入空表单 */
+const loadFailed = ref(false)
 const saving = ref(false)
 const categories = ref<Category[]>([])
 const seriesOptions = ref<Series[]>([])
@@ -221,6 +223,7 @@ async function load() {
     return
   }
   loading.value = true
+  loadFailed.value = false
   try {
     const result = await getPost(postId.value)
     fillForm(result.post)
@@ -228,6 +231,9 @@ async function load() {
     conflictDetected.value = false
     setBaseline()
     checkLocalDraft((draft) => formSnapshot(draft.form, draft.publishAt) !== formSnapshot(formState, currentPublishAtIso()))
+  } catch {
+    // 详情拉取失败：展示错误面板 + 重试，而非静默停留在空白表单
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
@@ -500,14 +506,22 @@ function goBack() {
 watch(postId, () => void load(), { immediate: true })
 
 async function loadCategories() {
-  const result = await getCategories({ page: 1, pageSize: 100 })
-  categories.value = result.list
+  try {
+    const result = await getCategories({ page: 1, pageSize: 100 })
+    categories.value = result.list
+  } catch {
+    // 分类下拉为辅助数据：失败时保留空列表，不阻断正文编辑
+  }
 }
 void loadCategories()
 
 async function loadSeriesOptions() {
-  const result = await getSeriesList({ page: 1, pageSize: 50 })
-  seriesOptions.value = result.list
+  try {
+    const result = await getSeriesList({ page: 1, pageSize: 50 })
+    seriesOptions.value = result.list
+  } catch {
+    // 专题下拉为辅助数据：失败时保留空列表，不阻断正文编辑
+  }
 }
 void loadSeriesOptions()
 
@@ -631,7 +645,21 @@ onBeforeUnmount(() => {
       @close="otherTabEditing = false"
     />
 
-    <a-spin :spinning="loading">
+    <!-- 详情加载失败：给明确重试入口，避免在空表单上误编辑 -->
+    <a-card v-if="loadFailed" class="post-edit__alert">
+      <a-result
+        status="warning"
+        title="文章内容加载失败"
+        sub-title="无法获取该文章数据，请确认服务已启动后重试"
+      >
+        <template #extra>
+          <a-button type="primary" @click="load">重新加载</a-button>
+          <a-button @click="goBack">返回列表</a-button>
+        </template>
+      </a-result>
+    </a-card>
+
+    <a-spin v-else :spinning="loading">
       <a-form ref="formRef" :model="formState" :rules="rules" layout="vertical">
         <div class="post-edit__body">
           <!-- 左栏：编辑器 + 底部状态栏 -->

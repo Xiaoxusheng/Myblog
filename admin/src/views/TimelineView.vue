@@ -82,6 +82,8 @@ async function loadPostOptions() {
       value: p.id,
       label: `${p.title}（${p.status === 1 ? '已发布' : p.status === 3 ? '定时' : p.status === 2 ? '隐藏' : '草稿'}）`,
     }))
+  } catch {
+    // 文章下拉为辅助数据：失败时保留空列表，不影响时间线主流程
   } finally {
     postOptionsLoading.value = false
   }

@@ -16,10 +16,10 @@ export function getPostAnalytics(id: number, range: PostAnalyticsRange): Promise
   return http.get(`/admin/analytics/posts/${id}`, { params: { range } })
 }
 
-/** 站内搜索统计（契约 #85） */
+/** 站内搜索统计（契约 #85）；页面次级面板，失败由调用方降级展示、不弹全局 toast */
 export function getSearchStats(params: { range?: '7d' | '30d' | '90d' }): Promise<{
   range: string
   list: { keyword: string; count: number; noResultCount: number }[]
 }> {
-  return http.get('/admin/analytics/searches', { params })
+  return http.get('/admin/analytics/searches', { params, silent: true })
 }

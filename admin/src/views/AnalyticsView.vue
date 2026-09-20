@@ -86,16 +86,24 @@ const osItems = computed<AnalyticsDistItem[]>(() =>
 // ---------- 搜索统计（契约 #85，range 联动） ----------
 const searchStats = ref<{ keyword: string; count: number; noResultCount: number }[]>([])
 const searchLoading = ref(false)
+/** 搜索统计是页面次级面板：失败时降级为「加载失败 + 重试」，不影响主数据区 */
+const searchError = ref(false)
 
 async function loadSearchStats() {
   if (range.value === 'today') {
     searchStats.value = [] // 后端搜索统计最小粒度为 7d
+    searchError.value = false
     return
   }
   searchLoading.value = true
+  searchError.value = false
   try {
     const result = await getSearchStats({ range: range.value as '7d' | '30d' | '90d' })
     searchStats.value = result.list
+  } catch {
+    // 接口层已标记 silent，不会弹全局 toast；此处仅做局部降级，避免未捕获的 rejection
+    searchStats.value = []
+    searchError.value = true
   } finally {
     searchLoading.value = false
   }
@@ -216,7 +224,20 @@ onMounted(() => {
         <a-card title="搜索统计" class="analytics-section">
           <a-spin :spinning="searchLoading">
             <a-table
-              v-if="searchStats.length > 0"
+              v-if="searchError"
+              :columns="searchColumns"
+              :data-source="[]"
+              :pagination="false"
+              row-key="keyword"
+            >
+              <template #emptyText>
+                <a-empty description="搜索统计加载失败">
+                  <a-button size="small" @click="loadSearchStats">重新加载</a-button>
+                </a-empty>
+              </template>
+            </a-table>
+            <a-table
+              v-else-if="searchStats.length > 0"
               :columns="searchColumns"
               :data-source="searchStats"
               :pagination="false"

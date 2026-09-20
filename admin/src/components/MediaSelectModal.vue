@@ -32,6 +32,8 @@ async function load() {
     const result = await getUploads({ page: page.value, pageSize })
     list.value = result.list
     total.value = result.total
+  } catch {
+    // 接口层已 toast 具体原因，这里仅保证不产生未处理的 rejection
   } finally {
     loading.value = false
   }
@@ -72,6 +74,8 @@ async function onUpload(file: File) {
     message.success('上传成功')
     page.value = 1
     await load()
+  } catch {
+    // 接口层已 toast 具体原因（上传失败原因），这里吞掉避免未处理 rejection
   } finally {
     uploading.value = false
   }

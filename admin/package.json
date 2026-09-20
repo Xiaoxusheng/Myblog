@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "node scripts/check-void-async.mjs && vue-tsc --noEmit && vite build",
     "type-check": "vue-tsc --noEmit",
+    "check:void": "node scripts/check-void-async.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

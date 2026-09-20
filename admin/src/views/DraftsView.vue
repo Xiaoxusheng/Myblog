@@ -168,8 +168,13 @@ async function loadOptions() {
 }
 
 async function refresh() {
-  scanLocalDrafts()
-  await load()
+  try {
+    scanLocalDrafts()
+    await load()
+  } catch {
+    // scanLocalDrafts 解析本地草稿可能抛错；load 本身已有兜底。
+    // 这里统一捕获，避免 onMounted 的 fire-and-forget 调用产生未处理 rejection
+  }
 }
 
 function onSearch() {

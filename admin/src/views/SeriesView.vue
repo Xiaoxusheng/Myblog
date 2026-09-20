@@ -47,6 +47,8 @@ async function load() {
     const result = await getSeriesList({ page: page.value, pageSize: pageSize.value })
     list.value = result.list
     total.value = result.total
+  } catch {
+    // 接口层已 toast 具体原因；此处兜底避免未处理 rejection
   } finally {
     loading.value = false
   }

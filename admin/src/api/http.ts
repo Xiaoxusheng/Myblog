@@ -1,7 +1,24 @@
 import axios, { AxiosError } from 'axios'
+import type { AxiosRequestConfig } from 'axios'
 import { message } from 'ant-design-vue'
 import router from '@/router'
 import { TOKEN_KEY } from '@/constants/status'
+
+/**
+ * 请求级扩展配置：silent=true 时拦截器不弹全局错误 toast。
+ * 用于「后台轮询 / 次级面板」这类失败不应打断用户的请求，由其调用方自行决定降级展示。
+ * 注意：业务错误与 401 的跳转逻辑不受 silent 影响，仍会照常执行。
+ *
+ * 通过 module augmentation 合进 AxiosRequestConfig，这样 `http.get(url, { silent: true })`
+ * 在 TS 下也能通过类型检查（若只导出独立 interface，实例方法签名不认这个字段）。
+ */
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean
+  }
+}
+
+export type RequestConfig = AxiosRequestConfig
 
 /** 业务错误（携带契约错误码） */
 export class ApiError extends Error {
@@ -43,6 +60,7 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => {
     const body = response.data
+    const silent = response.config.silent === true
     // 契约约定：所有业务响应 HTTP 200，body 为 {code, message, data}
     if (body && typeof body === 'object' && 'code' in body) {
       if (body.code === 0) {
@@ -52,12 +70,15 @@ http.interceptors.response.use(
         handleUnauthorized()
         return Promise.reject(new ApiError(body.code, body.message || '未认证'))
       }
-      message.error(body.message || '请求失败')
+      if (!silent) {
+        message.error(body.message || '请求失败')
+      }
       return Promise.reject(new ApiError(body.code, body.message || '请求失败'))
     }
     return body
   },
   (error: AxiosError) => {
+    const silent = error.config?.silent === true
     const status = error.response?.status
     const body = error.response?.data as { code?: number; message?: string } | undefined
     if (status === 401 || body?.code === 10002) {
@@ -71,7 +92,9 @@ http.interceptors.response.use(
         : status
           ? `请求失败（HTTP ${status}）`
           : '网络连接失败，请检查网络或后端服务')
-    message.error(text)
+    if (!silent) {
+      message.error(text)
+    }
     return Promise.reject(new ApiError(body?.code ?? -1, text))
   },
 )

@@ -86,13 +86,17 @@ function onTabChange() {
 }
 
 async function setStatus(record: CommentAdmin, status: CommentStatus) {
-  await updateCommentStatus(record.id, status)
-  message.success(COMMENT_STATUS_MAP[status].text)
-  record.status = status
-  if (drawerRecord.value?.id === record.id) {
-    drawerRecord.value.status = status
+  try {
+    await updateCommentStatus(record.id, status)
+    message.success(COMMENT_STATUS_MAP[status].text)
+    record.status = status
+    if (drawerRecord.value?.id === record.id) {
+      drawerRecord.value.status = status
+    }
+    await load()
+  } catch {
+    // 接口层已 toast 具体原因；此处吞掉避免 fire-and-forget 产生未处理 rejection
   }
-  await load()
 }
 
 // ---------- 批量操作（契约 #72） ----------
