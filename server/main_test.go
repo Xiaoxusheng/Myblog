@@ -49,14 +49,21 @@ func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
 		DBPath:    fmt.Sprintf("file:memdb%d?mode=memory&cache=shared", time.Now().UnixNano()),
 		UploadDir: t.TempDir(),
 	}
-	// 可选：把整套测试跑在真实 MySQL 上（本地 SQLite 发现不了保留字之类的问题）。
+	// 可选：把测试跑在真实 MySQL 上（本地 SQLite 发现不了保留字、外键这类差异）。
 	//
 	// 用法：BLOG_TEST_MYSQL_DSN='root:pw@tcp(host:3306)/myblog_verify?charset=utf8mb4&parseTime=True&loc=Local' \
-	//         go test ./...
+	//         go test -run <用例名> ./...
 	//
 	// 原理：DSN 里的库名只作为「可连接的管理库」，每个用例会在同一 MySQL 实例上
-	// 建一个独立库 myblog_verify_<随机>，用完即删。这样各用例互不干扰，可并行。
-	// **绝不可**把 DSN 指向生产库 —— 虽然用例只操作自己新建的库，但误配代价太高。
+	// 建一个独立库 myblog_verify_<随机>，用完即删。**绝不可**把 DSN 指向生产库。
+	//
+	// 已知限制（实测结论，别指望开箱即用）：
+	//   1. 依赖外键的用例会失败 —— SQLite 默认不启用 PRAGMA foreign_keys，
+	//      而 MySQL 强制执行。典型：createPost 传 categoryId=0（模型注释的
+	//      「未分类」哨兵值）在 MySQL 上被 fk_posts_category 拒绝（Error 1452）。
+	//      这不是被改坏，是暴露了既有的跨驱动差异，属于需要单独决策的问题。
+	//   2. 建库/删库开销大，单个用例约 10s，全量跑很慢且给 MySQL 压力。
+	// 因此本模式适合「定向验证某几个用例」，不适合作为日常全量回归。
 	if dsn := strings.TrimSpace(os.Getenv("BLOG_TEST_MYSQL_DSN")); dsn != "" {
 		cfg.DBType = "mysql"
 		cfg.MySQLDSN = dsn
@@ -64,21 +71,29 @@ func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
 	if tune != nil {
 		tune(cfg)
 	}
+	var mysqlAdminDSN, mysqlDBName string
 	if cfg.DBType == "mysql" {
-		name, err := createMySQLTestDB(cfg.MySQLDSN)
+		mysqlAdminDSN = cfg.MySQLDSN
+		name, err := createMySQLTestDB(mysqlAdminDSN)
 		if err != nil {
 			t.Fatalf("创建 MySQL 用例库失败：%v", err)
 		}
-		cfg.MySQLDSN = replaceDSNDatabase(cfg.MySQLDSN, name)
-		t.Cleanup(func() { dropMySQLDatabase(cfg.MySQLDSN, name) })
+		mysqlDBName = name
+		cfg.MySQLDSN = replaceDSNDatabase(mysqlAdminDSN, name)
 	}
 	db, err := model.Open(cfg)
 	if err != nil {
 		t.Fatalf("打开数据库失败：%v", err)
 	}
+	// 清理顺序很关键：t.Cleanup 是 LIFO。必须在**同一个** cleanup 里
+	// 先关闭连接池、再 DROP DATABASE。若拆成两个 cleanup，删库会先于关池执行，
+	// 而池仍持有该库 → MySQL 元数据锁等待 → 用例永久挂起（实测卡死 380s）。
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {
 			_ = sqlDB.Close()
+		}
+		if mysqlDBName != "" {
+			dropMySQLDatabase(mysqlAdminDSN, mysqlDBName)
 		}
 	})
 	if err := model.AutoMigrate(db); err != nil {
