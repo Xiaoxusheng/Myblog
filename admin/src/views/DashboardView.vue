@@ -89,14 +89,18 @@ const cards = computed<StatItem[]>(() => {
       title: '草稿',
       value: s.draftCount,
       icon: EditOutlined,
-      hint: `文章共 ${s.postCount} 篇`,
+      // 草稿是文章总数的子集，"文章共 X 篇"与首卡重复；无增量信息时不显示 hint
     },
     {
       key: 'scheduledCount',
       title: '计划发布',
       value: s.scheduledCount,
       icon: ClockCircleOutlined,
-      hint: `共 ${s.commentCount} 条评论`,
+      // 展示最近一条计划时间（真实字段派生），比凑数的评论数更有信息量
+      hint:
+        (s.scheduledPosts?.length ?? 0) > 0
+          ? `最近 ${formatPlanTime(s.scheduledPosts[0].publishAt)}`
+          : undefined,
     },
     {
       key: 'pendingCommentCount',
@@ -118,7 +122,7 @@ const cards = computed<StatItem[]>(() => {
       title: '总点赞数',
       value: s.likeCount,
       icon: LikeOutlined,
-      hint: `浏览 ${s.viewCount}`,
+      // 原先凑数显示浏览量；无点赞趋势字段，不虚构 hint
     },
   ]
 })
@@ -398,18 +402,36 @@ function goEditPost(id: number) {
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
   cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color var(--admin-dur) var(--admin-ease),
+    background-color var(--admin-dur) var(--admin-ease),
+    transform var(--admin-dur) var(--admin-ease);
 }
 
 .quick-action:hover {
-  border-color: var(--admin-brand);
-  background: #fafcff;
+  border-color: color-mix(in srgb, var(--admin-brand) 35%, var(--admin-border));
+  background: var(--admin-brand-bg);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-action,
+  .quick-action:hover {
+    transition: none;
+    transform: none;
+  }
 }
 
 .quick-action__icon {
   flex: none;
   font-size: 18px;
   color: var(--admin-brand);
+  transition: transform var(--admin-dur) var(--admin-ease);
+}
+
+/* 悬停时图标轻微放大，给入口一点"活"的感觉 */
+.quick-action:hover .quick-action__icon {
+  transform: scale(1.12);
 }
 
 .quick-action__title {
@@ -455,7 +477,8 @@ function goEditPost(id: number) {
 }
 
 .recent-comment--pending:hover {
-  background: #fff4dd;
+  /* token 混色深化，替代写死的浅橙（暗色模式下不再是刺眼亮块） */
+  background: color-mix(in srgb, var(--admin-warning) 10%, var(--admin-warning-bg));
 }
 
 .recent-comment__avatar {

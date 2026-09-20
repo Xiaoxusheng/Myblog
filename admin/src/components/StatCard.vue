@@ -40,6 +40,25 @@ defineProps<{
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
   box-shadow: var(--admin-shadow-sm);
+  /* 悬停轻微浮起：纯 transform/阴影过渡，不引起重排 */
+  transition:
+    transform var(--admin-dur) var(--admin-ease),
+    box-shadow var(--admin-dur) var(--admin-ease),
+    border-color var(--admin-dur) var(--admin-ease);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--admin-brand) 28%, var(--admin-border));
+  box-shadow: var(--admin-shadow-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .stat-card:hover {
+    transition: none;
+    transform: none;
+  }
 }
 
 .stat-card__icon {
@@ -72,9 +91,10 @@ defineProps<{
 
 .stat-card__value {
   margin-top: 2px;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 30px;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: -0.3px;
   color: var(--admin-text);
 }
 

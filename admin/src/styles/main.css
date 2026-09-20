@@ -5,18 +5,18 @@
    ========================================================================== */
 
 :root {
-  /* 色彩：中性层 */
-  --admin-bg: #f5f6f8;            /* 页面底色 */
+  /* 色彩：中性层（微冷蓝灰底，与白卡拉开层次） */
+  --admin-bg: #f4f6fa;            /* 页面底色 */
   --admin-surface: #ffffff;       /* 卡片/面板 */
-  --admin-surface-2: #f8f9fb;     /* 次级表面（缩略图底、状态栏等内嵌区域） */
-  --admin-border: #e6e8eb;        /* 分隔线/卡片描边 */
-  --admin-text: rgba(0, 0, 0, 0.88);
-  --admin-muted: rgba(0, 0, 0, 0.45);
+  --admin-surface-2: #f8f9fc;     /* 次级表面（缩略图底、状态栏等内嵌区域） */
+  --admin-border: #e5e8ef;        /* 分隔线/卡片描边 */
+  --admin-text: rgba(15, 23, 42, 0.88);
+  --admin-muted: rgba(15, 23, 42, 0.45);
 
   /* 色彩：品牌（沿用 AntD 蓝体系） */
   --admin-brand: #1677ff;
   --admin-brand-hover: #4096ff;
-  --admin-brand-bg: #e6f4ff;
+  --admin-brand-bg: #e8f1ff;
 
   /* 色彩：语义 */
   --admin-warning: #fa8c16;
@@ -25,16 +25,20 @@
   --admin-danger: #ff4d4f;
   --admin-success: #52c41a;
 
-  /* 深色导航 */
-  --admin-sidebar: #001529;
+  /* 深色导航：深藏青（去 AntD 默认蓝黑感，更接近 Linear/Stripe 式侧栏） */
+  --admin-sidebar: #0d1626;
 
   /* 圆角 */
   --admin-radius-sm: 6px;
   --admin-radius-md: 8px;
 
-  /* 阴影：仅两档低强度 */
-  --admin-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --admin-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  /* 阴影：两档双层柔影（高级感来自阴影的"轻而柔"，不是重投影） */
+  --admin-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.05);
+  --admin-shadow-md: 0 2px 4px rgba(16, 24, 40, 0.04), 0 12px 28px rgba(16, 24, 40, 0.1);
+
+  /* 动效：统一缓动与时长（hover/进场均走这套，杜绝生硬 linear） */
+  --admin-ease: cubic-bezier(0.2, 0, 0, 1);
+  --admin-dur: 0.18s;
 }
 
 /* 暗色分支：布局层（背景/边框/文字灰阶）由 --admin-* 接管，控件层走 darkAlgorithm（docs/09 §8.1）
@@ -73,6 +77,45 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* --------------------------------------------------------------------------
+   全局细滚动条：亮/暗双主题适配（暗色下不再出现白色轨道刺眼块），
+   Firefox 走 scrollbar-width/color，WebKit 走伪元素
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.24) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.24);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+html.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 /* 数字型数据对齐 */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
@@ -92,11 +135,30 @@ body {
   font-weight: 600;
 }
 
-/* 标准页面容器 */
+/* 标准页面容器（进场动画：淡入 + 轻微上移，路由切换不再"硬切"） */
 .page {
   padding: 24px;
   max-width: 1440px;
   margin: 0 auto;
+  animation: admin-page-in 0.24s var(--admin-ease) both;
+}
+
+@keyframes admin-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 用户开启"减少动态效果"时去掉进场动画 */
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
 }
 
 /* 页面头部：标题 + 描述 + 动作 */
@@ -134,6 +196,11 @@ body {
 }
 
 /* 登录页 */
+.login-page,
+.login {
+  animation: admin-page-in 0.3s var(--admin-ease) both;
+}
+
 .login-page {
   min-height: 100%;
   display: flex;

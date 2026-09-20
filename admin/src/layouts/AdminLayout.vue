@@ -20,10 +20,10 @@ import {
   LogoutOutlined,
   MenuOutlined,
   BulbOutlined,
+  FundOutlined,
   PictureOutlined,
   ProfileOutlined,
   FileDoneOutlined,
-  HeartOutlined,
   ImportOutlined,
   RocketOutlined,
   SaveOutlined,
@@ -111,7 +111,7 @@ const menuGroups: MenuGroup[] = [
       { key: '/backups', title: '备份', icon: SaveOutlined },
       { key: '/import-export', title: '导入导出', icon: ImportOutlined },
       { key: '/audit-logs', title: '操作日志', icon: FileDoneOutlined },
-      { key: '/health', title: '系统状态', icon: HeartOutlined },
+      { key: '/health', title: '系统状态', icon: FundOutlined },
       { key: '/settings', title: '系统设置', icon: SettingOutlined },
     ],
   },
@@ -243,8 +243,10 @@ onBeforeUnmount(() => {
       class="admin-sider"
     >
       <div class="sider-logo">
-        <span v-if="!collapsed">MyBlog 管理后台</span>
-        <span v-else>MB</span>
+        <span class="sider-logo__mark" aria-hidden="true">M</span>
+        <span v-if="!collapsed" class="sider-logo__text">
+          MyBlog<span class="sider-logo__sub">管理后台</span>
+        </span>
       </div>
       <a-menu theme="dark" mode="inline" :selected-keys="[activeKey]">
         <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
@@ -267,7 +269,10 @@ onBeforeUnmount(() => {
       root-class-name="admin-drawer"
     >
       <div class="sider-logo drawer-logo">
-        <span>MyBlog 管理后台</span>
+        <span class="sider-logo__mark" aria-hidden="true">M</span>
+        <span class="sider-logo__text">
+          MyBlog<span class="sider-logo__sub">管理后台</span>
+        </span>
       </div>
       <a-menu
         theme="dark"
@@ -405,17 +410,48 @@ onBeforeUnmount(() => {
   background: var(--admin-bg);
 }
 
+/* 品牌区：渐变小方块是品牌视觉（唯一允许渐变的位置），文案双字重排版 */
 .sider-logo {
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 1px;
   white-space: nowrap;
   overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.sider-logo__mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--admin-brand), var(--admin-brand-hover));
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: 0;
+}
+
+.sider-logo__text {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.sider-logo__sub {
+  margin-left: 7px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .admin-header {
@@ -445,6 +481,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--admin-radius-sm);
+  transition: background-color var(--admin-dur) var(--admin-ease);
 }
 
 .admin-header__user:hover {
@@ -486,9 +523,19 @@ onBeforeUnmount(() => {
   background: var(--admin-sidebar);
 }
 
-/* 侧栏/抽屉背景单一来源 --admin-sidebar（light #001529 / dark 面板色），菜单透明继承（docs/09 §8.1） */
+/* 侧栏/抽屉背景单一来源 --admin-sidebar（light 深藏青 / dark 面板色），菜单透明继承（docs/09 §8.1） */
 .admin-sider.ant-layout-sider-dark {
   background: var(--admin-sidebar);
+}
+
+/* 折叠 trigger 与侧栏同色系，hover 轻提亮 */
+.admin-sider .ant-layout-sider-trigger {
+  background: rgba(255, 255, 255, 0.04);
+  transition: background-color var(--admin-dur) var(--admin-ease);
+}
+
+.admin-sider .ant-layout-sider-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .admin-sider .ant-menu,
@@ -496,17 +543,7 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
-.admin-drawer .drawer-logo {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  white-space: nowrap;
-}
+/* 抽屉 logo 复用 .sider-logo 品牌区结构，无需额外样式 */
 
 /* 菜单分组标题：小号灰字，组间不加大留白 */
 .admin-sider .ant-menu-item-group-title,
@@ -533,6 +570,9 @@ onBeforeUnmount(() => {
   width: 100%;
   border-radius: 0;
   color: rgba(255, 255, 255, 0.68);
+  transition:
+    color var(--admin-dur) var(--admin-ease),
+    background-color var(--admin-dur) var(--admin-ease);
 }
 
 .admin-sider .ant-menu-item:hover,

@@ -9,9 +9,9 @@
 export const antdTokens = {
   borderRadius: 6,
   colorPrimary: '#1677ff',
-  colorBgLayout: '#f5f6f8',
+  colorBgLayout: '#f4f6fa',
   colorBgContainer: '#ffffff',
-  colorBorder: '#e6e8eb',
+  colorBorder: '#e5e8ef',
   colorText: 'rgba(0, 0, 0, 0.88)',
   colorTextSecondary: 'rgba(0, 0, 0, 0.45)',
   fontSize: 14,
@@ -32,9 +32,9 @@ export const antdDarkTokens = {
 export const chartPalette = {
   primary: '#1677ff',
   secondary: '#a6adb8',
-  axisLine: '#e6e8eb',
+  axisLine: '#e5e8ef',
   axisLabel: 'rgba(0, 0, 0, 0.45)',
-  splitLine: '#f0f1f3',
+  splitLine: '#eef0f5',
   legendText: 'rgba(0, 0, 0, 0.65)'
 } as const
 
