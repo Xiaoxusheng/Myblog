@@ -83,6 +83,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&Comment{},
 		&Link{},
 		&Page{},
+		&PageRevision{},
 		&Setting{},
 		&Upload{},
 		&Redirect{},

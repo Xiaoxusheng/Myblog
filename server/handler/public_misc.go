@@ -61,15 +61,16 @@ func Archive(c *gin.Context) {
 	common.OK(c, list)
 }
 
-// GetPage GET /api/v1/pages/:slug —— 已发布自定义页面
+// GetPage GET /api/v1/pages/:slug —— 已发布自定义页面（仅 status=1 可见；
+// 草稿/隐藏/定时发布一律 10004，未发布页面的预览走管理端 #105）
 func GetPage(c *gin.Context) {
 	var page model.Page
-	err := model.DB.Where("slug = ? AND status = ?", c.Param("slug"), 1).First(&page).Error
+	err := model.DB.Where("slug = ? AND status = ?", c.Param("slug"), model.PostPublished).First(&page).Error
 	if err != nil {
 		common.Fail(c, common.CodeNotFound, "页面不存在")
 		return
 	}
-	common.OK(c, gin.H{"page": page})
+	common.OK(c, gin.H{"page": model.ToPageDTO(&page)})
 }
 
 // ListLinks GET /api/v1/links —— 仅 visible，按 sort 升序

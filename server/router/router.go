@@ -140,12 +140,19 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.PUT("/links/:id", handler.AdminUpdateLink)
 		admin.DELETE("/links/:id", handler.AdminDeleteLink)
 
-		// 页面
+		// 页面（契约 #38-44 / #101-105）
 		admin.GET("/pages", handler.AdminListPages)
 		admin.POST("/pages", handler.AdminCreatePage)
+		admin.POST("/pages/batch", handler.AdminBatchPages)
+		admin.GET("/pages/preview/:id", handler.AdminPreviewPage)
 		admin.GET("/pages/:id", handler.AdminGetPage)
 		admin.PUT("/pages/:id", handler.AdminUpdatePage)
+		admin.PUT("/pages/:id/status", handler.AdminUpdatePageStatus)
+		admin.POST("/pages/:id/copy", handler.AdminCopyPage)
 		admin.DELETE("/pages/:id", handler.AdminDeletePage)
+		admin.GET("/pages/:id/revisions", handler.AdminListPageRevisions)
+		admin.GET("/pages/:id/revisions/:version", handler.AdminGetPageRevision)
+		admin.POST("/pages/:id/revisions/:version/restore", handler.AdminRestorePageRevision)
 
 		// 设置
 		admin.GET("/settings", handler.AdminGetSettings)

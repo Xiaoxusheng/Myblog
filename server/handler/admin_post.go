@@ -273,7 +273,9 @@ func AdminCreatePost(c *gin.Context) {
 		post.PublishedAt = nowPtr()
 	}
 	if req.Status == model.PostScheduled {
-		post.PublishAt = req.PublishAt
+		// 归一为 UTC 后落库：与调度器的比较基准（time.Now().UTC()）保持同格式，
+		// 否则 SQLite 的字典序字符串比较会误判先后（详见 publishAtForStatus 注释）。
+		post.PublishAt = publishAtForStatus(req.Status, req.PublishAt)
 	}
 
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
@@ -546,10 +548,17 @@ func AdminDeletePost(c *gin.Context) {
 	common.OK(c, nil)
 }
 
-// publishAtForStatus publish_at 写库语义：status=3 写计划时间，其余状态置空（NULL）
+// publishAtForStatus publish_at 写库语义：status=3 写计划时间，其余状态置空（NULL）。
+//
+// 写入前统一归一为 UTC：glebarez/sqlite 把 time.Time 落库为带时区的 RFC3339 字符串，
+// 本地时间写成 "...+08:00"、UTC 写成 "...Z"；而调度器的 `publish_at <= ?` 是
+// **字典序字符串比较**。两种格式混用会误判先后（UTC 的 03:09Z 会被当成早于本地的
+// 11:09+08:00，实为同一时刻），导致「当天未来的计划被立即发布」。
+// 归一 UTC 后与调度器（time.Now().UTC()）格式一致，字典序才等价于时间先后。
 func publishAtForStatus(status int8, publishAt *time.Time) *time.Time {
-	if status == model.PostScheduled {
-		return publishAt
+	if status == model.PostScheduled && publishAt != nil {
+		utc := publishAt.UTC()
+		return &utc
 	}
 	return nil
 }

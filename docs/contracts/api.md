@@ -20,7 +20,7 @@
   - 约定：凡是用 `void fn()` fire-and-forget 触发的 async 函数，**必须**有 `catch`
     （或调用点 `.catch()`），否则会逃逸成 unhandledrejection。
     该规则由 `admin/scripts/check-void-async.mjs` 在 `npm run build` 前静态校验。
-- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；comment.status `0`待审核 `1`已通过 `2`已拒绝 `3`垃圾 `4`回收站（公开接口仅返回 `1`）
+- 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；page.status 与 post 同一枚举（`3` 同样由调度器到点置 `1`）；comment.status `0`待审核 `1`已通过 `2`已拒绝 `3`垃圾 `4`回收站（公开接口仅返回 `1`）
 
 ## 对象结构
 
@@ -48,7 +48,15 @@
 
 **Link**：`{id,name,url,logo,description,visible,sort,createdAt}`
 
-**Page**：`{id,title,slug,content,status,createdAt,updatedAt}`（status 0 草稿 1 已发布）
+**Page**：`{id,title,slug,content,status,pageType,publishedAt,publishAt,seoTitle,seoDescription,canonical,ogImage,createdAt,updatedAt}`；`status` 与 post 同一枚举 `0`草稿 `1`已发布 `2`隐藏 `3`定时发布；`pageType` = `default`|`about`|`links`|`contact`（当前仅 `default` 有 UI，其余为模板预留）；`publishAt` 仅 status=3 有值（RFC3339），其余为 `null`；`publishedAt` 首次发布/定时到点时写入，其余为 `null`；SEO 四字段均可空串（空=用默认规则）。公开接口只返回 `status=1` 的页面
+
+**PageItem**（管理端列表项）：`{id,title,slug,status,pageType,updatedAt,publishedAt,publishAt,createdAt}`（**不含 content**，避免列表接口传大字段）
+`GET /admin/pages/:id` 返回的 `page` 为完整 **Page**（含 content 与 SEO 四字段）
+
+**PageRevisionItem**（页面版本列表项，不含 content）：`{id,pageId,version,remark,createdAt}`；`remark` 语义同 PostRevisionItem
+**PageRevisionDetail**：PageRevisionItem + `{title,slug,content,status}`
+
+**PageConflictPayload**（10005 专用，见 #41）：`{currentUpdatedAt,currentTitle}`——仅用于提示「服务器上的较新版本」，不含正文
 
 **TimelineEvent**（技术时间线节点）：`{id,title,content,eventDate,image,postId,post:{id,title,slug}|null,projectName,projectUrl,visible,sort,createdAt,updatedAt}`；`eventDate` 为节点日期（RFC3339）；`postId`=0 或文章已删除时 post 为 null（公开侧仅关联已发布文章，管理侧关联任意状态并携带 status）；`content` 为 Markdown 原文，前台安全渲染；排序规则：`sort` 升序（默认 0，负值置顶）→ `eventDate` 倒序 → `id` 倒序（默认即时间倒序）
 
@@ -58,7 +66,7 @@
 
 **User**：`{id,username,nickname,email,avatar}`
 
-**Settings（结构化对象，不是 map）**：`{siteName,siteDescription,siteKeywords,siteUrl,logo,notice,icp,footerText,commentEnabled(bool),postPageSize(number),autoRedirectOnSlugChange(bool)}`
+**Settings（结构化对象，不是 map）**：`{siteName,siteDescription,siteKeywords,siteUrl,logo,notice,icp,footerText,commentEnabled(bool),postPageSize(number),autoRedirectOnSlugChange(bool)}`；`autoRedirectOnSlugChange` 同时作用于**文章与页面**的 slug 变更（缺省 true）
 
 ---
 
@@ -73,7 +81,7 @@
 | 5 | POST `/posts/:slug/comments` | body `{parentId?,nickname,email,website?,content}`；昵称/邮箱/内容必填；评论开关关闭→20002；限流→20003；命中黑名单或垃圾规则（重复内容/链接过多/高频）→ status=3（垃圾，前台不可见）；否则 status=0；返回 `{comment:{id,parentId,nickname,website,content,createdAt}}` |
 | 6 | POST `/posts/:slug/like` | likeCount +1，返回 `{likeCount}` |
 | 7 | GET `/archive` | `[{year:2026,items:[{id,title,slug,createdAt}]}]` 按年倒序 |
-| 8 | GET `/pages/:slug` | 已发布自定义页面 `{page:Page}` |
+| 8 | GET `/pages/:slug` | 已发布自定义页面 `{page:Page}`；仅 `status=1` 可见（草稿/隐藏/定时一律 10004） |
 | 9 | GET `/links` | `{list:[Link]}` 仅 visible |
 | 10 | GET `/rss`（根路径） | RSS 2.0 XML，最近 20 篇，链接用 settings.siteUrl |
 | 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
@@ -132,11 +140,18 @@
 | 35 | POST `/admin/links` | `{name,url,logo?,description?,visible,sort?}` |
 | 36 | PUT `/admin/links/:id` | 同上 |
 | 37 | DELETE `/admin/links/:id` | |
-| 38 | GET `/admin/pages?page=&pageSize=` | 分页 |
-| 39 | POST `/admin/pages` | `{title,slug,content,status}` slug 必填唯一 |
-| 40 | GET `/admin/pages/:id` | `{page:Page}` |
-| 41 | PUT `/admin/pages/:id` | 同 39 |
-| 42 | DELETE `/admin/pages/:id` | |
+| 38 | GET `/admin/pages?keyword=&status=&page=&pageSize=` | 分页 **PageItem**，`updatedAt` 倒序；`keyword` 模糊匹配 title/slug（转义 %_\）；`status` 可取 `0/1/2/3`（缺省=全部）；另返回 `meta:{totalCount,publishedCount,draftCount,scheduledCount}`（**按当前 keyword 的全量统计，不受分页影响**），供列表页顶部概览使用；`meta` 为全量聚合，前端无需额外请求 |
+| 39 | POST `/admin/pages` | `{title,slug?,content?,status?,pageType?,publishAt?,seoTitle?,seoDescription?,canonical?,ogImage?}` → `{page:Page}`；`slug` 可空（空则由 title 派生，冲突追加 `-id`），非空时重复 → 10001；`status` 缺省 0；`status=3` 时 `publishAt` 必填（RFC3339）且必须晚于当前时间 → 10001；`pageType` 缺省 `default`，非法值 → 10001；SEO 长度校验同文章（seoTitle ≤200 / seoDescription ≤300 / canonical,ogImage ≤512）；创建成功即写入 v1 版本（remark=首次保存）；写审计 `page.create` |
+| 40 | GET `/admin/pages/:id` | `{page:Page}`；不存在 → 10004 |
+| 41 | PUT `/admin/pages/:id` | 同 39 全量更新 → `{page:Page}`；**并发编辑保护**：可选 `baseUpdatedAt`（RFC3339，编辑器读取时的 `updatedAt`），提供且与服务器当前 `updated_at` 不一致（统一截断到毫秒比较）→ `10005` 且内容不被覆盖，响应 `data` 为 PageConflictPayload；缺省则跳过该检查（向后兼容）；版本生成规则同文章（title/slug/content/status 有变化才生成，remark 描述变更字段；`auto=true` 且距最新版本 <120s 不生成）；**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动 upsert `/page/旧slug → /page/新slug` 301 重定向**（复用 redirects 表，含环检测）；响应中的 `page.updatedAt` 即新的并发基线；写审计 `page.update`（slug 变更时额外 `page.slug_change`） |
+| 42 | DELETE `/admin/pages/:id` | data:null；同时删除其版本历史（page_revisions）；写审计 `page.delete`。**物理删除，无回收站**——前端必须二次确认并明确文案 |
+| 43 | PUT `/admin/pages/:id/status` | `{status,publishAt?}` → `{page:Page}`；快速编辑用（列表页状态切换 / 复制后的状态调整）；`status=3` 需 `publishAt`；状态实际变化时生成版本（remark=修改状态）；仅调整计划时间不生成版本；状态转 1 时若 `publishedAt` 为空则写入当前时间；写审计 `page.status` |
+| 44 | POST `/admin/pages/:id/copy` | 复制页面 → `{page:Page}`；新页面 `title = 原标题 + （副本）`、`slug = {原slug}-copy`（冲突则依次 `-copy2`/`-copy3`/… /最终 `{原slug}-copy-{hex4}`），**`status` 强制为 0（草稿）**、`publishAt` 清空、`publishedAt` 清空、内容与 SEO/`pageType` 原样复制；同时写入 v1 版本（remark=首次保存）；写审计 `page.copy`；源页面不存在 → 10004 |
+| 101 | GET `/admin/pages/:id/revisions?page=&pageSize=` | 分页 PageRevisionItem，version 倒序；页面不存在 → 10004 |
+| 102 | GET `/admin/pages/:id/revisions/:version` | `{revision:PageRevisionDetail}`；版本不存在 → 10004 |
+| 103 | POST `/admin/pages/:id/revisions/:version/restore` | 恢复版本：事务内先将当前内容快照为新版本（remark=恢复前快照，与最新版本相同则跳过），再应用目标版本并生成新版本（remark=恢复自 vN）→ `{page:Page}`；恢复仅应用内容字段（title/slug/content），**不改变当前发布状态与 publishAt**；目标 slug 已被其他页面占用 → 10001 并回滚；写审计 `page.restore` |
+| 104 | POST `/admin/pages/batch` | `{action:"publish"\|"hide"\|"delete",ids:[number]}`（ids 非空且 ≤100）→ `{updated:int64}`；publish→status=1（publishedAt 为空则写入当前时间）、hide→status=2、delete→物理删除（连同版本历史）；id 不存在则跳过不报错；写审计 `page.batch`（description 含 action 与影响条数） |
+| 105 | GET `/admin/pages/preview/:id` | 后台预览用：返回任意状态的完整页面 `{page:Page}`（含 content），仅管理端 Bearer 可取。**未发布页面的前台预览必须走此接口**（公开 `#8` 只认 status=1），前端在预览态渲染时用此数据而非公开接口 |
 
 ### 设置 / 媒体
 | 43 | GET `/admin/settings` | `{settings:Settings}`（key 缺省给默认值） |
@@ -206,3 +221,11 @@
 13. 时间线：创建节点（含关联文章、sort=-1 置顶）→ `GET /api/v1/timeline` 首位可见且带 post 标题；PUT visible=false → 前台消失；DELETE → 消失；postId 不存在 → 10001
 14. 版本记录：创建 v1.0.0（status=0）→ `GET /api/v1/changelog` 不可见；PUT status=1 → 可见；再创建 v1.10.0（releasedAt 更晚）→ 排在 v1.0.0 之前；DELETE 已发布记录不带 force → 10001，带 force=true → 删除成功；version 重复/非法 → 10001
 15. 草稿工作区与并发保护：`GET /admin/posts?tagId={标签id}&sort=updatedAt` → 仅返回带该标签的文章且按最后编辑倒序；PUT 更新文章带服务器返回的 `updatedAt` 作 `baseUpdatedAt` → 成功并返回新的 `updatedAt`；再用**旧** `baseUpdatedAt` 重发 → `10005` 且内容未被覆盖；不带 `baseUpdatedAt` 重发 → 成功（向后兼容）；`PUT /admin/posts/:id/status` 等状态变更后 `updatedAt` 应同步刷新
+16. 页面列表与概览：`GET /admin/pages` → `meta.totalCount/publishedCount/draftCount/scheduledCount` 与 list 实际状态分布一致；`keyword=about` 只返回匹配项且 `meta` 随之收敛；`status=1` 只返回已发布；分页 `pageSize=1` 时 list 1 条而 `meta.totalCount` 仍为全量
+17. 页面版本：新建页面 → `GET /admin/pages/:id/revisions` 得 v1（remark=首次保存）→ 改标题保存 → v2（remark 含 标题）→ 内容无变化再保存 → 不产生新版本 → `GET .../revisions/1` 返回该版本完整内容 → `POST .../revisions/1/restore` → 内容还原、产生 `恢复自 v1` 新版本、**status 与 publishAt 不变**
+18. 页面 slug → 301：创建页面 slug=`about-me` → `PUT` 改 slug=`about-us` → `GET /api/v1/redirects/resolve?path=/page/about-me` 返回 target=`/page/about-us` type=301；关闭 `autoRedirectOnSlugChange` 后再改 slug → 不产生新重定向
+19. 页面定时发布：`POST /admin/pages` `status=3` 且缺 `publishAt` → 10001；`publishAt` 为过去时间 → 10001；未来时间 → 创建成功，`GET /api/v1/pages/:slug` → 10004（不可见），列表 `meta.scheduledCount` +1；把 `publish_at` 改到过去后调用调度器 → 自动转 status=1、`published_at` = 计划时间、`publish_at` 清空，公开接口可见；重复调用调度器幂等返回 0
+20. 页面复制：`POST /admin/pages/:id/copy` → 新页面 `title` 带「（副本）」、`slug` 为 `{原slug}-copy`、**status=0 且 publishAt/publishedAt 为空**、内容一致；对已发布页面复制后立即 `GET /api/v1/pages/{新slug}` → 10004（副本绝不能直接公开）
+21. 页面批量：`POST /admin/pages/batch` `{action:"publish",ids:[...]}` → `updated` 与 ids 数量一致且公开接口可访问；`{action:"hide"}` → 公开接口 10004；`{action:"delete"}` → 页面与版本历史均消失；`ids:[]` → 10001
+22. 页面并发与审计：`PUT /admin/pages/:id` 带服务器返回的 `updatedAt` 作 `baseUpdatedAt` → 成功；用旧基线重发 → 10005 且内容未覆盖；`GET /admin/audit-logs?action=page.` → 可见 create/update/status/copy/delete/restore/batch 记录，且 description 不含正文内容
+23. 页面预览接口：`GET /admin/pages/preview/:id` 对草稿页面返回完整 content；无 token → 401；页面不存在 → 10004

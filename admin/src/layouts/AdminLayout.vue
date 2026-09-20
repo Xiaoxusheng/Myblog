@@ -238,7 +238,7 @@ onBeforeUnmount(() => {
       v-model:collapsed="collapsed"
       collapsible
       breakpoint="lg"
-      :width="208"
+      :width="200"
       theme="dark"
       class="admin-sider"
     >
@@ -520,6 +520,47 @@ onBeforeUnmount(() => {
 
 /* 折叠态隐藏分组标题，仅保留图标项 */
 .admin-sider .ant-menu-inline-collapsed .ant-menu-item-group-title {
+  display: none;
+}
+
+/* 菜单项：38~40px 行高；选中态 = 浅色底 + 左侧 2px 指示线，避免大面积厚重蓝色块 */
+.admin-sider .ant-menu-item,
+.admin-drawer .ant-menu-item {
+  height: 40px;
+  line-height: 40px;
+  margin-inline: 0;
+  margin-block: 1px;
+  width: 100%;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.admin-sider .ant-menu-item:hover,
+.admin-drawer .ant-menu-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-sider .ant-menu-item-selected,
+.admin-drawer .ant-menu-item-selected {
+  position: relative;
+  color: #fff;
+  background: rgba(22, 119, 255, 0.18);
+}
+
+.admin-sider .ant-menu-item-selected::before,
+.admin-drawer .ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0;
+  width: 2px;
+  background: var(--admin-brand);
+}
+
+/* 选中项右侧不再叠加 AntD 默认指示条 */
+.admin-sider .ant-menu-item-selected::after,
+.admin-drawer .ant-menu-item-selected::after {
   display: none;
 }
 

@@ -244,11 +244,18 @@ func seedPage(db *gorm.DB) {
 	if err := db.Model(&Page{}).Where("slug = ?", "about").Count(&count).Error; err != nil || count > 0 {
 		return
 	}
+	now := time.Now()
 	page := Page{
-		Title: "关于", Slug: "about", Status: 1,
-		Content: "## 关于本站\n\n这里是我的个人博客，主要记录 Go 后端开发、前端工程化与日常随笔。\n\n本站使用 Go + Gin + GORM 构建后端，前台与管理端基于 Vue 3 + TypeScript，支持暗色模式、Markdown 渲染、代码高亮与 RSS 订阅。\n\n欢迎通过评论区交流，也可以通过友链页面找到我的常用站点。",
+		Title: "关于", Slug: "about", Status: PostPublished, PageType: PageTypeAbout,
+		PublishedAt: ptrTime(now),
+		Content:     "## 关于本站\n\n这里是我的个人博客，主要记录 Go 后端开发、前端工程化与日常随笔。\n\n本站使用 Go + Gin + GORM 构建后端，前台与管理端基于 Vue 3 + TypeScript，支持暗色模式、Markdown 渲染、代码高亮与 RSS 订阅。\n\n欢迎通过评论区交流，也可以通过友链页面找到我的常用站点。",
 	}
-	mustLog("seedPage", db.Create(&page).Error)
+	if err := db.Create(&page).Error; err != nil {
+		mustLog("seedPage", err)
+		return
+	}
+	// 首个版本（与 AdminCreatePage 行为一致：创建即写 v1）
+	mustLog("seedPageRevision", CreatePageRevision(db, &page, "首次保存"))
 }
 
 func logSeed(msg string) {

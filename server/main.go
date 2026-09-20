@@ -44,18 +44,26 @@ func main() {
 	}
 
 	// 定时发布调度：启动时先补跑一次（接管停机期间到期的计划），再按间隔轮询。
-	// 计划存在数据库中，重启不丢；到点文章 status 3→1（详见 model.PublishDueScheduledPosts）。
+	// 计划存在数据库中，重启不丢；到点文章/页面 status 3→1（详见 model.PublishDueScheduledPosts）。
 	publishDue := func(when string) {
 		n, err := model.PublishDueScheduledPosts(db)
 		if err != nil {
 			log.Printf("scheduler: %s扫描到期定时文章失败：%v", when, err)
-			return
-		}
-		if n > 0 {
+		} else if n > 0 {
 			log.Printf("scheduler: %s已发布 %d 篇到期定时文章", when, n)
 			// 通知中心：定时文章已上线（契约 #73 type=post_published）
 			_ = model.CreateNotification(db, "post_published", "定时发布完成",
 				fmt.Sprintf("%d 篇到期的定时文章已自动发布", n), "/posts?status=1")
+		}
+
+		// 页面与文章共用同一调度周期与状态语义
+		pn, perr := model.PublishDueScheduledPages(db)
+		if perr != nil {
+			log.Printf("scheduler: %s扫描到期定时页面失败：%v", when, perr)
+		} else if pn > 0 {
+			log.Printf("scheduler: %s已发布 %d 个到期定时页面", when, pn)
+			_ = model.CreateNotification(db, "post_published", "定时发布完成",
+				fmt.Sprintf("%d 个到期的定时页面已自动发布", pn), "/pages?status=1")
 		}
 	}
 	publishDue("启动补跑：")

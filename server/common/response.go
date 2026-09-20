@@ -25,6 +25,11 @@ func Fail(c *gin.Context, code int, message string) {
 	c.JSON(http.StatusOK, Response{Code: code, Message: message, Data: nil})
 }
 
+// FailWithData 业务失败但需携带上下文（如 10005 的当前版本信息）；data 不得包含敏感内容
+func FailWithData(c *gin.Context, code int, message string, data any) {
+	c.JSON(http.StatusOK, Response{Code: code, Message: message, Data: data})
+}
+
 // Unauthorized 鉴权失败：HTTP 401（前端统一跳登录）
 func Unauthorized(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusUnauthorized,

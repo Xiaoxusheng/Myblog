@@ -15,8 +15,8 @@ export interface PageResult<T> {
 export type PostStatus = 0 | 1 | 2 | 3
 /** comment.status：0 待审核 1 已通过 2 已拒绝 3 垃圾 4 回收站 */
 export type CommentStatus = 0 | 1 | 2 | 3 | 4
-/** page.status：0 草稿 1 已发布 */
-export type PageStatus = 0 | 1
+/** page.status：与 post 同一枚举 0 草稿 1 已发布 2 隐藏 3 定时发布 */
+export type PageStatus = 0 | 1 | 2 | 3
 
 export interface Category {
   id: number
@@ -236,15 +236,52 @@ export interface Link {
   createdAt: string
 }
 
-/** 自定义页面 */
+/** 页面类型：当前仅 default 有对应 UI，其余为后续模板预留 */
+export type PageType = 'default' | 'about' | 'links' | 'contact'
+
+/** 自定义页面（完整对象，管理端详情/创建/更新/恢复返回） */
 export interface PageItem {
   id: number
   title: string
   slug: string
   content: string
   status: PageStatus
+  pageType: PageType
+  /** 首次发布 / 定时到点时写入 */
+  publishedAt: string | null
+  /** 仅 status=3（定时发布）有值 */
+  publishAt: string | null
+  seoTitle: string
+  seoDescription: string
+  canonical: string
+  ogImage: string
   createdAt: string
   updatedAt: string
+}
+
+/** 管理端页面列表项（契约 PageItem，不含 content） */
+export interface PageListItem {
+  id: number
+  title: string
+  slug: string
+  status: PageStatus
+  pageType: PageType
+  updatedAt: string
+  publishedAt: string | null
+  publishAt: string | null
+  createdAt: string
+}
+
+/** 列表页概览（按当前 keyword 的全量统计，不受分页影响） */
+export interface PageListMeta {
+  totalCount: number
+  publishedCount: number
+  draftCount: number
+  scheduledCount: number
+}
+
+export interface PageListResult extends PageResult<PageListItem> {
+  meta: PageListMeta
 }
 
 export interface PagePayload {
@@ -252,7 +289,43 @@ export interface PagePayload {
   slug: string
   content: string
   status: PageStatus
+  pageType?: PageType
+  /** status=3 时必填（RFC3339） */
+  publishAt?: string | null
+  /** 自动保存标记：距最新版本 <120s 时不生成版本 */
+  auto?: boolean
+  /** 并发编辑基线（编辑器读取时的 updatedAt） */
+  baseUpdatedAt?: string | null
+  seoTitle?: string
+  seoDescription?: string
+  canonical?: string
+  ogImage?: string
 }
+
+/** 页面版本列表项（不含 content） */
+export interface PageRevisionItem {
+  id: number
+  pageId: number
+  version: number
+  remark: string
+  createdAt: string
+}
+
+export interface PageRevisionDetail extends PageRevisionItem {
+  title: string
+  slug: string
+  content: string
+  status: PageStatus
+}
+
+/** 页面状态快速修改（列表页状态切换 / 复制后调整） */
+export interface PageStatusPayload {
+  status: PageStatus
+  publishAt?: string | null
+}
+
+/** 页面批量操作 */
+export type PageBatchAction = 'publish' | 'hide' | 'delete'
 
 /** 上传对象，url 形如 /uploads/202609/xxx.png */
 export interface UploadItem {

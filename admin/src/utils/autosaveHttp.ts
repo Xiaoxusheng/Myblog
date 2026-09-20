@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { TOKEN_KEY } from '@/constants/status'
-import type { AdminPostItem, PagePayload, PostPayload } from '@/types/api'
+import type { AdminPostItem, PageItem, PagePayload, PostPayload } from '@/types/api'
 
 /**
  * 静默请求失败时抛出的结构化错误。
@@ -60,9 +60,13 @@ export function silentUpdatePost(id: number, payload: PostPayload): Promise<Admi
     .then((response) => unwrap<{ post: AdminPostItem }>(response.data).post)
 }
 
-/** 静默更新自定义页面（自动保存）：语义同 silentUpdatePost */
-export function silentUpdatePage(id: number, payload: PagePayload): Promise<void> {
-  return instance.put(`/admin/pages/${id}`, payload).then((response) => {
-    unwrap<unknown>(response.data)
-  })
+/**
+ * 静默更新自定义页面（自动保存）：语义同 silentUpdatePost ——
+ * 成功 resolve 服务器定稿后的页面（含新的 updatedAt，供并发基线回填）；
+ * 失败 reject SilentRequestError（不弹任何全局提示，由调用方决定 UI 反馈）。
+ */
+export function silentUpdatePage(id: number, payload: PagePayload): Promise<PageItem> {
+  return instance
+    .put(`/admin/pages/${id}`, payload)
+    .then((response) => unwrap<{ page: PageItem }>(response.data).page)
 }
