@@ -6,6 +6,10 @@ dist/
 # 运行时自动生成的密钥文件（JWT 签名密钥 / 敏感字段加密密钥），严禁入库
 server/blog.jwt.secret
 server/blog.crypto.key
+# 凡是以这些名字出现的密钥文件，无论在哪个目录（后端/前端/管理端工作目录）
+# 都不允许入库 —— 仅列具体路径会漏掉在别的目录启动时生成的那份
+blog.jwt.secret
+blog.crypto.key
 server/uploads/*
 !server/uploads/.gitkeep
 .idea/

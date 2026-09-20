@@ -28,7 +28,9 @@ type Page struct {
 
 // Setting 站点设置（key-value，key 为主键；bool/number 转字符串存取）
 type Setting struct {
-	Key       string    `gorm:"type:varchar(64);primaryKey" json:"key"`
+	// 列名显式声明：key 是 MySQL 8 保留字，不显式声明时 GORM 生成的部分语句
+	// 会裸写 `key` 触发 Error 1064（SQLite 不保留 key，本地测试发现不了）
+	Key       string    `gorm:"column:key;type:varchar(64);primaryKey" json:"key"`
 	Value     string    `gorm:"type:text" json:"value"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

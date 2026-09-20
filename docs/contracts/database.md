@@ -75,7 +75,7 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | type | int | 301 永久 / 302 临时 |
 | enabled | bool | 默认 true |
 
-写入时做环检测（沿 target 链回溯回到自身或超 10 层 → 拒绝）；文章 slug 变更且 `autoRedirectOnSlugChange` 开启时自动 upsert 旧→新 301。
+写入时做环检测（沿 target 链回溯回到自身或超 10 层 → 拒绝）；文章 slug 变更且 `autoRedirectOnSlugChange` 开启时自动 upsert `/post/旧slug → /post/新slug` 301；页面 slug 变更同理，upsert `/page/旧slug → /page/新slug` 301（复用同一张表与开关，不新增第二套重定向系统）。
 
 ## categories
 id, name(uniqueIndex size:64), slug(size:64), description(size:500)
@@ -103,11 +103,43 @@ post_id uint, tag_id uint，复合主键 (post_id, tag_id)，双向 index
 ## links
 id, name(size:100), url(size:500), logo(size:512), description(size:500), visible bool, sort int
 
-## pages
-id, title(size:200), slug(uniqueIndex size:200), content text, status tinyint (0/1)
+## pages（自定义页面；契约 #38-42 / #101-109）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| title | string size:200 | 必填 |
+| slug | string uniqueIndex size:200 | 必填，后端保证唯一 |
+| content | text | Markdown 原文 |
+| status | tinyint index | 0草稿 1已发布 2隐藏 3定时发布（与 posts.status 同一枚举；3 到点由调度器自动置 1） |
+| page_type | string size:32 | 页面类型 default/about/links/contact；当前仅 default 有 UI，其余为后续模板预留，不为其新增字段 |
+| published_at | *time.Time | 首次置为已发布时写入；定时发布到点时写入计划时间 |
+| publish_at | *time.Time index | 仅 status=3 有值：计划发布时间；调度器按 `status=3 AND publish_at<=now` 扫描 |
+| seo_title | string size:200 | SEO 标题（空=用页面标题） |
+| seo_description | string size:300 | SEO 描述（空=用正文摘要） |
+| canonical | string size:512 | Canonical URL（空=默认规则） |
+| og_image | string size:512 | OG 图（空=无） |
+
+## page_revisions（页面版本历史，随页面删除级联删除；契约 #101-103）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| page_id | uint index | |
+| version | int | 页面内自 1 递增；唯一约束 (page_id, version) |
+| title | string size:200 | 该版本保存时的标题 |
+| slug | string size:200 | |
+| content | text | Markdown 原文快照 |
+| status | tinyint | 保存时的页面状态 |
+| remark | string size:200 | 变更说明（首次保存 / 修改标题、正文 / 恢复前快照 / 恢复自 vN） |
+
+生成规则与 post_revisions 一致：仅当快照字段（title/slug/content/status）与最新版本不同才插入；`auto` 保存距最新版本 <120s 不插入（防抖）；无变化不插入。
+说明：`post_revisions` 与 `page_revisions` 为两张独立表（分别由 `post_id`/`page_id` 关联），不合并为多态表——保持与既有 `PostRevision` 一致的实现范式，便于各自独立演进与索引。
 
 ## settings
 key string PK(size:64), value text。存储 Settings 结构化对象的各字段（bool/number 转字符串存取）
+
+**`key` 是 MySQL 8 保留字**：模型必须写 `gorm:"column:key"`，手写 SQL 必须用 `` `key` `` 包裹。
+错误被读取方（`autoRedirectOnSlugChangeEnabled`）吞掉回退默认值 → 表现为「设置改了不生效」且日志无痕，
+属最隐蔽的一类；SQLite 不保留该词，本地测不出来。
 
 ## uploads
 id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100)
@@ -136,7 +168,7 @@ id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100
 | title | string size:200 | |
 | content | string size:500 | |
 | link | string size:500 | 管理端跳转路径（如 /comments?status=0） |
-| read | bool index | 默认 false |
+| read | bool index | 默认 false。**列名是 MySQL 8 保留字**：模型必须写 `gorm:"column:read"`，手写 SQL 必须用 `` `read` `` 包裹，否则 MySQL 报 Error 1064（SQLite 不保留该词，本地测不出来） |
 
 ## audit_logs（操作日志；禁止记录密码/JWT/完整请求体）
 | 列 | 类型 | 说明 |
@@ -212,5 +244,14 @@ id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100
 - 分类：`未分类`；标签：`Go`、`Gin`、`Vue3`、`随笔`
 - 文章：3 篇已发布示例（Markdown 含二级标题与 Go/JS 代码块，便于验证高亮/TOC）、1 篇草稿
 - 评论：2 条已通过（1 条管理员回复）
-- 友链：3 条；页面：`关于`（slug=about，已发布）
-- Settings 默认值：siteName=My Blog、commentEnabled=true、postPageSize=10、其余空
+- 友链：3 条；页面：`关于`（slug=about，已发布，page_type=about）
+- Settings 默认值：siteName=My Blog、commentEnabled=true、postPageSize=10、autoRedirectOnSlugChange=true、其余空
+
+## 迁移与回滚（页面模块升级，2026-09-20）
+
+增量变更（AutoMigrate 自动完成，均向后兼容）：
+- `pages` 新增列：`page_type`、`published_at`、`publish_at`(+index)、`seo_title`、`seo_description`、`canonical`、`og_image`；`status` 由 0/1 扩为 0/1/2/3（列类型不变）
+- 新增表 `page_revisions`
+- 既有 `pages.status=1` 行语义不变（1 仍为已发布）
+
+回滚：`DROP TABLE page_revisions;` 并删除 `pages` 的新增列即可（`pages` 原有 6 列未改动，数据可直接沿用）。

@@ -11,6 +11,8 @@ import (
 )
 
 // settings 默认值（契约：key 缺省给默认值；seed 亦使用）
+// 新增设置项时：此处加默认值 + getSettingsDTO 加读取分支 + AdminUpdateSettings 加写入分支，
+// 三处必须同步，否则读写会不同步。
 var settingsDefaults = model.SettingsDTO{
 	SiteName:                 "My Blog",
 	CommentEnabled:           true,
@@ -70,7 +72,9 @@ func getSettingsDTO(db *gorm.DB) model.SettingsDTO {
 // autoRedirectOnSlugChangeEnabled 读取 slug 变更自动 301 开关（缺省开启）
 func autoRedirectOnSlugChangeEnabled(db *gorm.DB) bool {
 	var setting model.Setting
-	if err := db.Where("key = ?", "autoRedirectOnSlugChange").First(&setting).Error; err != nil {
+	// 反引号包住 key：MySQL 8 保留字，裸写会触发 Error 1064，
+	// 而这里错误被吞掉会静默回退默认值 —— 属于「不报错但行为错」的隐蔽 bug
+	if err := db.Where("`key` = ?", "autoRedirectOnSlugChange").First(&setting).Error; err != nil {
 		return settingsDefaults.AutoRedirectOnSlugChange
 	}
 	return setting.Value == "true"

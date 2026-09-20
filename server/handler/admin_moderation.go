@@ -178,7 +178,8 @@ func AdminListNotifications(c *gin.Context) {
 		return
 	}
 	var unread int64
-	if err := model.DB.Model(&model.Notification{}).Where("read = ?", false).Count(&unread).Error; err != nil {
+	// 反引号包住 read：MySQL 8 保留字，裸写会触发 Error 1064
+	if err := model.DB.Model(&model.Notification{}).Where("`read` = ?", false).Count(&unread).Error; err != nil {
 		common.ServerError(c, err)
 		return
 	}
@@ -187,7 +188,7 @@ func AdminListNotifications(c *gin.Context) {
 
 // AdminMarkAllNotificationsRead PUT /api/v1/admin/notifications/read-all
 func AdminMarkAllNotificationsRead(c *gin.Context) {
-	if err := model.DB.Model(&model.Notification{}).Where("read = ?", false).
+	if err := model.DB.Model(&model.Notification{}).Where("`read` = ?", false).
 		Update("read", true).Error; err != nil {
 		common.ServerError(c, err)
 		return

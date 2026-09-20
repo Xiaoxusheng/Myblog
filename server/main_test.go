@@ -2,10 +2,14 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +20,7 @@ import (
 	"myblog/server/router"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const testJWTSecret = "test-secret-key"
@@ -44,12 +49,32 @@ func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
 		DBPath:    fmt.Sprintf("file:memdb%d?mode=memory&cache=shared", time.Now().UnixNano()),
 		UploadDir: t.TempDir(),
 	}
+	// 可选：把整套测试跑在真实 MySQL 上（本地 SQLite 发现不了保留字之类的问题）。
+	//
+	// 用法：BLOG_TEST_MYSQL_DSN='root:pw@tcp(host:3306)/myblog_verify?charset=utf8mb4&parseTime=True&loc=Local' \
+	//         go test ./...
+	//
+	// 原理：DSN 里的库名只作为「可连接的管理库」，每个用例会在同一 MySQL 实例上
+	// 建一个独立库 myblog_verify_<随机>，用完即删。这样各用例互不干扰，可并行。
+	// **绝不可**把 DSN 指向生产库 —— 虽然用例只操作自己新建的库，但误配代价太高。
+	if dsn := strings.TrimSpace(os.Getenv("BLOG_TEST_MYSQL_DSN")); dsn != "" {
+		cfg.DBType = "mysql"
+		cfg.MySQLDSN = dsn
+	}
 	if tune != nil {
 		tune(cfg)
 	}
+	if cfg.DBType == "mysql" {
+		name, err := createMySQLTestDB(cfg.MySQLDSN)
+		if err != nil {
+			t.Fatalf("创建 MySQL 用例库失败：%v", err)
+		}
+		cfg.MySQLDSN = replaceDSNDatabase(cfg.MySQLDSN, name)
+		t.Cleanup(func() { dropMySQLDatabase(cfg.MySQLDSN, name) })
+	}
 	db, err := model.Open(cfg)
 	if err != nil {
-		t.Fatalf("打开内存库失败：%v", err)
+		t.Fatalf("打开数据库失败：%v", err)
 	}
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {
@@ -65,7 +90,48 @@ func newTestAppCfg(t *testing.T, tune func(*config.Config)) *gin.Engine {
 	return router.Setup(cfg)
 }
 
-// ---------- 请求/解码助手 ----------
+// ---------- MySQL 用例库管理（仅 BLOG_TEST_MYSQL_DSN 模式使用）----------
+
+var mysqlTestDBSeq atomic.Int64
+
+// createMySQLTestDB 在同一实例上建一个独立库并返回库名。
+// 用「连到管理库 → CREATE DATABASE」的方式，避免依赖固定库名。
+func createMySQLTestDB(adminDSN string) (string, error) {
+	name := fmt.Sprintf("myblog_verify_%d_%d", time.Now().UnixNano()%1e9, mysqlTestDBSeq.Add(1))
+	sqlDB, err := sql.Open("mysql", adminDSN)
+	if err != nil {
+		return "", err
+	}
+	defer sqlDB.Close()
+	if _, err := sqlDB.Exec("CREATE DATABASE `" + name + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+// dropMySQLDatabase 删除用例库；失败只记日志，不影响用例结果。
+func dropMySQLDatabase(adminDSN, name string) {
+	sqlDB, err := sql.Open("mysql", adminDSN)
+	if err != nil {
+		return
+	}
+	defer sqlDB.Close()
+	_, _ = sqlDB.Exec("DROP DATABASE IF EXISTS `" + name + "`")
+}
+
+// replaceDSNDatabase 把 DSN 中的库名替换为新库名。
+// go-sql-driver 的 DSN 形如 user:pass@tcp(host:port)/dbname?params
+func replaceDSNDatabase(dsn, dbName string) string {
+	slash := strings.LastIndex(dsn, "/")
+	if slash < 0 {
+		return dsn
+	}
+	rest := dsn[slash+1:]
+	if q := strings.Index(rest, "?"); q >= 0 {
+		return dsn[:slash+1] + dbName + rest[q:]
+	}
+	return dsn[:slash+1] + dbName
+}
 
 type envelope struct {
 	Code    int             `json:"code"`

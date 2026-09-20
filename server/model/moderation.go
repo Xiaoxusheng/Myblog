@@ -18,12 +18,14 @@ type CommentBlacklist struct {
 
 // Notification 后台通知（铃铛轮询，无 WebSocket）
 type Notification struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Type      string    `gorm:"type:varchar(32)" json:"type"` // comment_pending/comment_spam/post_published/backup
-	Title     string    `gorm:"type:varchar(200)" json:"title"`
-	Content   string    `gorm:"type:varchar(500)" json:"content"`
-	Link      string    `gorm:"type:varchar(500)" json:"link"` // 管理端跳转路径
-	Read      bool      `gorm:"index" json:"read"`
+	ID      uint   `gorm:"primaryKey" json:"id"`
+	Type    string `gorm:"type:varchar(32)" json:"type"` // comment_pending/comment_spam/post_published/backup
+	Title   string `gorm:"type:varchar(200)" json:"title"`
+	Content string `gorm:"type:varchar(500)" json:"content"`
+	Link    string `gorm:"type:varchar(500)" json:"link"` // 管理端跳转路径
+	// 列名显式声明：read 是 MySQL 8 保留字，不加反引号会生成
+	// `UPDATE ... SET read = ?` → Error 1064 语法错误（SQLite 不保留 read，故本地测试发现不了）
+	Read      bool      `gorm:"column:read;index" json:"read"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
