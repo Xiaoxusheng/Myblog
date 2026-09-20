@@ -38,8 +38,12 @@ func Login(c *gin.Context) {
 		return
 	}
 	// 验证码先于密码校验；错误不消耗登录失败次数（防爆破计数只针对密码尝试）
-	if !verifyCaptcha(req.CaptchaID, req.CaptchaCode) {
-		common.Fail(c, common.CodeParamError, "验证码不正确或已过期，请刷新后重试")
+	switch verifyCaptcha(req.CaptchaID, req.CaptchaCode) {
+	case captchaNotFound:
+		common.Fail(c, common.CodeParamError, "验证码已过期，请点击图片刷新后重试")
+		return
+	case captchaMismatch:
+		common.Fail(c, common.CodeParamError, "验证码不正确，请重新输入或点击图片刷新")
 		return
 	}
 

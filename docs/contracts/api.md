@@ -71,7 +71,7 @@
 | 48 | GET `/sitemap.xml`（根路径） | sitemap 0.9 XML：首页+已发布文章+已发布页面+全部分类/标签；siteUrl 为空回退请求 Host |
 | 49 | GET `/robots.txt`（根路径） | 纯文本：Allow 全站、Disallow /api/ 与 /admin、声明 Sitemap 地址 |
 | 83 | GET `/llms.txt`（根路径） | AEO：站点简介、核心页面、分类/专题（仅可见）、已发布文章索引（title+URL+摘要，≤200 篇），纯文本 |
-| 86 | GET `/admin/auth/captcha` | 图形验证码（无需登录）：`{captchaId,image}`，image 为 SVG 字符串；单次有效，5 分钟过期 |
+| 86 | GET `/admin/auth/captcha` | 图形验证码（无需登录）：`{captchaId,image}`，image 为 SVG 字符串；单次有效，5 分钟过期。响应带 `Cache-Control: no-store`，禁止任何层缓存（否则客户端会拿到已消费的旧 id） |
 | 85 | GET `/admin/analytics/searches?range=7d\|30d\|90d` | 站内搜索统计（默认 30d）：`{list:[{keyword,count,noResultCount}](≤20，count 降序)}`；来自公开搜索接口的关键词记录 |
 | 84 | GET `/admin/health` | `{version,goVersion,dbType,dbStatus,postCount,commentCount,mediaCount,uploadSize,latestBackupAt}`；克制采集，不含磁盘空间等平台敏感信息 |
 | 53 | GET `/series` | `{list:[Series]}` 仅 visible，sort 升序，postCount=已发布文章数 |
@@ -84,7 +84,7 @@
 ## 管理接口（Bearer）
 
 ### 认证
-| 11 | POST `/admin/auth/login` | `{username,password,remember?,captchaId,captchaCode}` → `{token,user:User}`；验证码先校验（单次有效，错误→10001，不消耗失败计数）；remember=true 签发 7 天，否则 24h；同 IP 连续失败 5 次锁定 15 分钟→20003 |
+| 11 | POST `/admin/auth/login` | `{username,password,remember?,captchaId,captchaCode}` → `{token,user:User}`；验证码先校验（单次有效，错误→10001，不消耗失败计数）；**验证码失败时 message 区分两种情况**：题目不存在/已过期 → `验证码已过期，请点击图片刷新后重试`；答案不匹配 → `验证码不正确，请重新输入或点击图片刷新`（两种情况均返回 10001，且该题一律销毁）；remember=true 签发 7 天，否则 24h；同 IP 连续失败 5 次锁定 15 分钟→20003 |
 | 12 | GET `/admin/auth/me` | `{user:User}` |
 | 13 | PUT `/admin/auth/password` | `{oldPassword,newPassword}`(≥6位) → data:null |
 | 14 | PUT `/admin/auth/profile` | `{nickname,email,avatar}` → `{user:User}` |

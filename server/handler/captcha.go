@@ -111,19 +111,36 @@ func newCaptcha() (id, code, svg string) {
 	return id, code, svg
 }
 
+// captchaVerifyResult 校验结果：区分「题目不存在/已过期」与「答案不匹配」。
+// 两者对外同为 10001，但提示文案不同——否则用户分不清是「手滑填错」还是
+// 「题目真的作废了」，只会反复看到同一句「已过期」而误判为一直刷新一直过期。
+type captchaVerifyResult int
+
+const (
+	captchaOK       captchaVerifyResult = iota
+	captchaNotFound                     // 从未签发 / 已被消费 / 已过期
+	captchaMismatch                     // 题目有效但答案不符
+)
+
 // verifyCaptcha 校验并销毁（无论对错都单次有效）
-func verifyCaptcha(id, input string) bool {
+func verifyCaptcha(id, input string) captchaVerifyResult {
 	if id == "" || input == "" {
-		return false
+		return captchaNotFound
 	}
 	captchaMu.Lock()
 	defer captchaMu.Unlock()
 	e, ok := captchaStore[id]
 	if !ok {
-		return false
+		return captchaNotFound
 	}
 	delete(captchaStore, id)
-	return time.Now().Before(e.expireAt) && e.code == input
+	if time.Now().After(e.expireAt) {
+		return captchaNotFound
+	}
+	if !strings.EqualFold(strings.TrimSpace(e.code), strings.TrimSpace(input)) {
+		return captchaMismatch
+	}
+	return captchaOK
 }
 
 // GetCaptchaAnswer 读取指定验证码答案——仅供同进程测试使用（无 HTTP 暴露）。
@@ -136,6 +153,11 @@ func GetCaptchaAnswer(id string) string {
 
 // AdminGetCaptcha GET /api/v1/admin/auth/captcha —— 无需登录（登录前置）
 func AdminGetCaptcha(c *gin.Context) {
+	// 验证码是「一次性票据」：一旦被任何中间层缓存，客户端就会拿到
+	// 已被消费/过期的 captchaId，表现为「一直刷新一直过期」。
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
 	id, _, svg := newCaptcha()
 	common.OK(c, gin.H{"captchaId": id, "image": svg})
 }

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance } from 'ant-design-vue'
 import { LockOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { getCaptcha } from '@/api/auth'
+import { ApiError } from '@/api/http'
 import { fetchPublicSite } from '@/api/site'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedback } from '@/composables/useFeedback'
@@ -41,15 +42,29 @@ const brandInitial = computed(() => (siteName.value.trim()[0] || 'M').toUpperCas
 
 const year = new Date().getFullYear()
 
-/** 拉取图形验证码（进入页面 / 点击图片 / 登录失败后刷新） */
+/**
+ * 拉取图形验证码（进入页面 / 点击图片 / 登录失败后刷新）。
+ *
+ * 用递增序号丢弃过期响应：连点刷新或「挂载取题」与「失败后重取」并发时，
+ * 先发出的请求可能后返回，若不丢弃就会用旧 captchaId 覆盖新图片，
+ * 造成「图上字符」与「提交的 id」错配，服务端一律判为验证码错误/过期。
+ */
+let captchaSeq = 0
 async function refreshCaptcha() {
+  const seq = ++captchaSeq
   captchaLoading.value = true
   try {
     const data = await getCaptcha()
+    if (seq !== captchaSeq) return // 已有更新的请求在途/已完成，丢弃本次结果
     captchaId.value = data.captchaId
     captchaImage.value = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data.image)}`
+  } catch {
+    if (seq !== captchaSeq) return
+    // 取题失败：清掉旧图，避免用户对着过期图片输答案（拦截器已 toast）
+    captchaId.value = ''
+    captchaImage.value = ''
   } finally {
-    captchaLoading.value = false
+    if (seq === captchaSeq) captchaLoading.value = false
   }
 }
 
@@ -84,9 +99,16 @@ async function handleSubmit() {
   } catch (e) {
     // 行内错误区提供持续可见的错误态（全局 toast 会消失）
     loginError.value = e instanceof Error && e.message ? e.message : '登录失败，请稍后重试'
-    // 验证码单次有效：任何失败后都换新题
-    formState.captcha = ''
-    void refreshCaptcha()
+
+    // 验证码单次有效：服务端无论对错都会销毁该题，因此只要这次提交消费掉了题目
+    // （即错误码为 10001 = 验证码已过期/不正确），就必须换新题并清空输入。
+    // 密码错误（20001）、限流（20003）等情况验证码已经校验通过，不该被牵连刷新——
+    // 否则用户每次改密码都要重看验证码，容易被误解成「验证码一直过期」。
+    const code = e instanceof ApiError ? e.code : undefined
+    if (code === 10001 || captchaId.value === '') {
+      formState.captcha = ''
+      void refreshCaptcha()
+    }
   } finally {
     submitting.value = false
   }
