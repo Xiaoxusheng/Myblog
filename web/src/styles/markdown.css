@@ -260,6 +260,52 @@ html.dark .markdown-body blockquote {
   pointer-events: none;
 }
 
+/* 代码块文件名标题（```go title=main.go）：占据头部条左位，语言标签让位到复制按钮左侧 */
+.markdown-body .code-title {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  max-width: calc(100% - 150px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  user-select: none;
+  pointer-events: none;
+}
+
+.markdown-body .code-block.has-title .code-lang {
+  left: auto;
+  right: 62px;
+}
+
+/* 行号：CSS 计数器生成，不进 DOM 文本，复制内容不受影响 */
+.markdown-body .code-block pre code {
+  counter-reset: code-line;
+}
+
+.markdown-body .code-block .code-line::before {
+  counter-increment: code-line;
+  content: counter(code-line);
+  display: inline-block;
+  width: 2em;
+  margin-right: 14px;
+  text-align: right;
+  color: var(--text-3);
+  opacity: 0.55;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .markdown-body .code-block .code-line::before {
+    width: 1.6em;
+    margin-right: 10px;
+  }
+}
+
 .markdown-body .code-copy {
   position: absolute;
   top: 6px;

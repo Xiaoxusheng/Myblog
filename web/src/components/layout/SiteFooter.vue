@@ -13,6 +13,8 @@
           <RouterLink to="/categories">分类</RouterLink>
           <RouterLink to="/tags">标签</RouterLink>
           <RouterLink to="/series">专题</RouterLink>
+          <RouterLink to="/timeline">时间线</RouterLink>
+          <RouterLink to="/changelog">更新日志</RouterLink>
           <RouterLink to="/links">友链</RouterLink>
         </nav>
         <div class="footer-col">

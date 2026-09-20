@@ -124,6 +124,7 @@ const navItems = computed(() => {
     },
     { label: '标签', to: '/tags', active: path.startsWith('/tags') || path.startsWith('/tag/') },
     { label: '专题', to: '/series', active: path.startsWith('/series') },
+    { label: '时间线', to: '/timeline', active: path.startsWith('/timeline') },
     { label: '友链', to: '/links', active: path.startsWith('/links') }
   ]
 })

@@ -52,6 +52,8 @@ func Setup(cfg *config.Config) *gin.Engine {
 		api.GET("/archive", handler.Archive)
 		api.GET("/pages/:slug", handler.GetPage)
 		api.GET("/links", handler.ListLinks)
+		api.GET("/timeline", handler.ListTimeline)
+		api.GET("/changelog", handler.ListChangelogs)
 	}
 
 	// 登录不走 JWT，挂防爆破限流
@@ -168,6 +170,16 @@ func Setup(cfg *config.Config) *gin.Engine {
 		admin.POST("/security/bans", handler.AdminCreateBan)
 		admin.DELETE("/security/bans/:ip", handler.AdminDeleteBan)
 		admin.GET("/security/events", handler.AdminDefenseEvents)
+
+		// 时间线 / 版本记录
+		admin.GET("/timeline", handler.AdminListTimeline)
+		admin.POST("/timeline", handler.AdminCreateTimeline)
+		admin.PUT("/timeline/:id", handler.AdminUpdateTimeline)
+		admin.DELETE("/timeline/:id", handler.AdminDeleteTimeline)
+		admin.GET("/changelogs", handler.AdminListChangelogs)
+		admin.POST("/changelogs", handler.AdminCreateChangelog)
+		admin.PUT("/changelogs/:id", handler.AdminUpdateChangelog)
+		admin.DELETE("/changelogs/:id", handler.AdminDeleteChangelog)
 	}
 
 	return r

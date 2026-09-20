@@ -88,6 +88,18 @@ const router = createRouter({
           meta: { title: '专题管理' },
         },
         {
+          path: 'timeline',
+          name: 'timeline',
+          component: () => import('@/views/TimelineView.vue'),
+          meta: { title: '时间线管理' },
+        },
+        {
+          path: 'changelogs',
+          name: 'changelogs',
+          component: () => import('@/views/ChangelogView.vue'),
+          meta: { title: '版本记录' },
+        },
+        {
           path: 'redirects',
           name: 'redirects',
           component: () => import('@/views/RedirectView.vue'),

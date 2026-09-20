@@ -447,3 +447,41 @@ export interface PostAnalyticsData {
   sources: AnalyticsSourceItem[]
   devices: AnalyticsDeviceItem[]
 }
+
+/** 时间线节点关联文章（管理侧任意状态，status 仅管理侧返回） */
+export interface TimelinePostRef {
+  id: number
+  title: string
+  slug: string
+  status?: number
+}
+
+/** 时间线节点（GET /admin/timeline 等，契约 #91-94/#99） */
+export interface TimelineEventAdmin {
+  id: number
+  title: string
+  content: string
+  eventDate: string
+  image: string
+  postId: number
+  post: TimelinePostRef | null
+  projectName: string
+  projectUrl: string
+  visible: boolean
+  sort: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** 版本发布记录（契约 #95-98/#100） */
+export interface ChangelogItem {
+  id: number
+  version: string
+  title: string
+  content: string
+  releasedAt: string
+  status: number
+  sort: number
+  createdAt: string
+  updatedAt: string
+}

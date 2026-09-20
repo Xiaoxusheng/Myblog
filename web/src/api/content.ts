@@ -1,5 +1,5 @@
 import { api } from './http'
-import type { ArchiveYear, CustomPage, LinkItem } from '@/types'
+import type { ArchiveYear, ChangelogItem, CustomPage, LinkItem, TimelineEventItem } from '@/types'
 
 /** GET /archive:按年倒序的归档 */
 export function fetchArchive(signal?: AbortSignal): Promise<ArchiveYear[]> {
@@ -17,5 +17,19 @@ export function fetchPage(slug: string, signal?: AbortSignal): Promise<CustomPag
 export function fetchLinks(signal?: AbortSignal): Promise<LinkItem[]> {
   return api
     .get<{ list: LinkItem[] }>('/links', { signal })
+    .then((d) => d?.list ?? [])
+}
+
+/** GET /timeline:可见时间线节点（默认时间倒序） */
+export function fetchTimeline(signal?: AbortSignal): Promise<TimelineEventItem[]> {
+  return api
+    .get<{ list: TimelineEventItem[] }>('/timeline', { signal })
+    .then((d) => d?.list ?? [])
+}
+
+/** GET /changelog:已发布版本记录（默认版本倒序） */
+export function fetchChangelog(signal?: AbortSignal): Promise<ChangelogItem[]> {
+  return api
+    .get<{ list: ChangelogItem[] }>('/changelog', { signal })
     .then((d) => d?.list ?? [])
 }

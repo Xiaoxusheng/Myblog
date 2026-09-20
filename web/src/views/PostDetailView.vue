@@ -1,6 +1,6 @@
 <template>
   <div class="container post-detail" :class="{ 'with-toc': toc.length > 0 }">
-    <ReadingProgress />
+    <ReadingProgress :slug="readingSlug" />
     <article class="post-main">
       <!-- 加载骨架 -->
       <div v-if="loading" class="post-skeleton" aria-hidden="true">
@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPostDetail, likePost } from '@/api/post'
 import { sendTrack } from '@/api/track'
@@ -205,7 +205,7 @@ import { ApiError } from '@/api/http'
 import { useSiteStore } from '@/stores/site'
 import { renderMarkdown, type TocItem } from '@/utils/markdown'
 import { formatDate, formatNumber } from '@/utils/format'
-import { isPostLiked, markPostLiked } from '@/utils/storage'
+import { getReadingPosition, isPostLiked, markPostLiked } from '@/utils/storage'
 import { applyDocumentTitle } from '@/utils/title'
 import { extractFaqFromMarkdown, setSeo } from '@/utils/seo'
 import { readPxVar } from '@/utils/metrics'
@@ -225,6 +225,9 @@ const toast = useToast()
 const { preview, onContentClick, closePreview } = useMarkdownActions()
 
 const slug = computed(() => String(route.params.slug))
+
+/** 仅在文章加载完成后才记录阅读位置，避免骨架/错误页的滚动污染存档 */
+const readingSlug = computed(() => (post.value && !loading.value ? slug.value : ''))
 
 const post = ref<PostDetail | null>(null)
 const prev = ref<PostNav | null>(null)
@@ -304,6 +307,7 @@ async function load(): Promise<void> {
       },
       faq: extractFaqFromMarkdown(data.post.content ?? ''),
     })
+    void restoreReadingPosition()
   } catch (e) {
     if (e instanceof ApiError && e.code === 10004) {
       notFound.value = true
@@ -315,6 +319,24 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 恢复上次阅读位置：未读完且比例处于有效区间时按整页比例回跳。
+ * 用比例而非像素偏移，可容忍图片加载/内容更新导致的页面高度变化；
+ * 显式锚点跳转（location.hash）时让位给锚点。
+ */
+async function restoreReadingPosition(): Promise<void> {
+  if (!post.value || window.location.hash) return
+  const saved = getReadingPosition(slug.value)
+  if (!saved || saved.d || saved.p < 0.03 || saved.p > 0.9) return
+  await nextTick()
+  window.requestAnimationFrame(() => {
+    const scrollable = document.documentElement.scrollHeight - window.innerHeight
+    if (scrollable <= 0) return
+    window.scrollTo({ top: saved.p * scrollable })
+    toast.info('已恢复上次阅读位置')
+  })
 }
 
 async function onLike(): Promise<void> {

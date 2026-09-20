@@ -42,6 +42,10 @@
 
 **Page**：`{id,title,slug,content,status,createdAt,updatedAt}`（status 0 草稿 1 已发布）
 
+**TimelineEvent**（技术时间线节点）：`{id,title,content,eventDate,image,postId,post:{id,title,slug}|null,projectName,projectUrl,visible,sort,createdAt,updatedAt}`；`eventDate` 为节点日期（RFC3339）；`postId`=0 或文章已删除时 post 为 null（公开侧仅关联已发布文章，管理侧关联任意状态并携带 status）；`content` 为 Markdown 原文，前台安全渲染；排序规则：`sort` 升序（默认 0，负值置顶）→ `eventDate` 倒序 → `id` 倒序（默认即时间倒序）
+
+**Changelog**（版本发布记录）：`{id,version,title,content,releasedAt,status,sort,createdAt,updatedAt}`；`version` 兼容 SemVer（`1.2.0`/`v1.2.0-beta.1`，校验去 v 前缀后三段数字，存储统一去 v 前缀且唯一）；status 0 草稿 1 已发布；`content` 为 Markdown 原文，前台安全渲染；排序规则：`sort` 升序 → `releasedAt` 倒序 → `id` 倒序（默认即版本倒序）
+
 **Upload**：`{id,url,filename,size,mime,createdAt}`，url 形如 `/uploads/202609/xxx.png`
 
 **User**：`{id,username,nickname,email,avatar}`
@@ -74,6 +78,8 @@
 | 54 | GET `/series/:slug` | `{series:Series,posts:[PostSummary]}` 仅已发布文章，按专题内序号排列；404 → 10004 |
 | 55 | GET `/redirects/resolve?path=/post/old` | `{redirect:{source,target,type}\|null}` 仅 enabled；无匹配返回 `{redirect:null}`（code 0）；供前台 404 兜底路由使用 |
 | 66 | POST `/track` | 无鉴权埋点：body `{path, postId?, referer?}`（前台路由切换时上报，`navigator.sendBeacon` 或 fetch keepalive）。写 page_views：UA 解析 device/browser/os、referer 归类 `direct/search/github/social/other`、IP 仅存 SHA-256 哈希（不存明文）。同 IP 每分钟 ≤60 条，超限与非法输入返回 `{ok:false}`（HTTP 200，不打错误码） |
+| 99 | GET `/timeline` | `{list:[TimelineEvent]}` 仅 visible，按 TimelineEvent 排序规则（默认时间倒序）；`post` 仅携带已发布文章 |
+| 100 | GET `/changelog` | `{list:[Changelog]}` 仅 status=1，≤200 条，按 Changelog 排序规则（默认版本倒序） |
 
 ## 管理接口（Bearer）
 
@@ -165,6 +171,16 @@
 | 89 | DELETE `/admin/security/bans/:ip` | 解除封禁 → `{list}`；未封禁 → 10004；写审计日志 `security.unban` |
 | 90 | GET `/admin/security/events?limit=` | 最近防护事件（默认 100，≤300，仅进程内存、重启清零）：`{list:[{time,ip,kind,detail}]}`，kind：`waf`/`rate_limit`/`login_block`/`auto_ban`/`manual_ban`/`unban`，新→旧 |
 
+### 时间线 / 版本记录
+| 91 | GET `/admin/timeline?page=&pageSize=` | 分页 TimelineEvent（含隐藏节点），排序同公开规则 |
+| 92 | POST `/admin/timeline` | `{title,content?,eventDate,image?,postId?,projectName?,projectUrl?,visible,sort?}` → `{item:TimelineEvent}`；title 必填 ≤100 字；content ≤5000 字；eventDate 必填（RFC3339）；image/projectUrl ≤512；projectName ≤100；postId>0 时文章须存在 → 10001 |
+| 93 | PUT `/admin/timeline/:id` | 同 92 全量更新 |
+| 94 | DELETE `/admin/timeline/:id` | data:null |
+| 95 | GET `/admin/changelogs?page=&pageSize=&status=` | 分页 Changelog（status 缺省=全部，含草稿） |
+| 96 | POST `/admin/changelogs` | `{version,title?,content?,releasedAt,status,sort?}` → `{item:Changelog}`；version 必填且 SemVer 兼容（非法 → 10001）、重复 → 10001；title ≤100；content ≤20000；releasedAt 必填（RFC3339）；status 0\|1 |
+| 97 | PUT `/admin/changelogs/:id` | 同 96（version 唯一性排除自身） |
+| 98 | DELETE `/admin/changelogs/:id?force=` | data:null；status=1（已发布）且未带 `force=true` → 10001 删除保护（前端二次确认后携带 force） |
+
 ## 联调冒烟清单（QA 用）
 
 1. `go run .` 启动后 `curl :8080/api/v1/site` → code 0
@@ -179,3 +195,5 @@
 10. 修改文章 slug → 自动出现旧 slug→新 slug 的 301 重定向
 11. 前台页面多次访问（/track 上报）→ `/admin/analytics` PV/UV/热门文章/来源/设备 与实际一致
 12. 防护：`curl -A sqlmap :8080/api/v1/site` → 403；快速请求超过 `BLOG_RATE_LIMIT_PER_MIN` → 429 且计点达阈值自动封禁 → 后续 403；登录拿 token → `POST /admin/security/bans` 手动封禁某 IP → 该 IP 请求 403 → `DELETE` 解封恢复；`GET /admin/security/events` 可见 waf/rate_limit/auto_ban 事件
+13. 时间线：创建节点（含关联文章、sort=-1 置顶）→ `GET /api/v1/timeline` 首位可见且带 post 标题；PUT visible=false → 前台消失；DELETE → 消失；postId 不存在 → 10001
+14. 版本记录：创建 v1.0.0（status=0）→ `GET /api/v1/changelog` 不可见；PUT status=1 → 可见；再创建 v1.10.0（releasedAt 更晚）→ 排在 v1.0.0 之前；DELETE 已发布记录不带 force → 10001，带 force=true → 删除成功；version 重复/非法 → 10001

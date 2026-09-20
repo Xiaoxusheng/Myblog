@@ -209,3 +209,33 @@ export interface LinkItem {
   sort: number
   createdAt: string
 }
+
+/** 技术时间线节点（公开侧仅携带已发布关联文章） */
+export interface TimelineEventItem {
+  id: number
+  title: string
+  content: string
+  eventDate: string
+  image: string
+  postId: number
+  post: { id: number; title: string; slug: string } | null
+  projectName: string
+  projectUrl: string
+  visible: boolean
+  sort: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** 版本发布记录 */
+export interface ChangelogItem {
+  id: number
+  version: string
+  title: string
+  content: string
+  releasedAt: string
+  status: number
+  sort: number
+  createdAt: string
+  updatedAt: string
+}

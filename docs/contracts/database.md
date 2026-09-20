@@ -177,6 +177,35 @@ id, filename(size:255), path(size:512), url(size:512), size int64, mime(size:100
 | created_at | time | |
 | expires_at | time *nullable* | nil = 永久；过期的行在防护加载时顺手清理 |
 
+## timeline_events（技术时间线；契约 #91-94 / #99）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| title | varchar(100) | 节点标题（必填） |
+| content | text | 节点描述（Markdown 原文，前台安全渲染） |
+| event_date | time | 节点日期（必填；默认排序依据之一） |
+| image | varchar(512) | 配图 URL（可空） |
+| post_id | uint index | 关联文章 id（0=无；弱关联不设外键，文章删除后 post 字段自然为 null） |
+| project_name | varchar(100) | 关联项目名称（可空） |
+| project_url | varchar(512) | 关联项目链接（可空） |
+| visible | bool | 显隐（无 default 标签，规避 GORM 零值坑） |
+| sort | int | 排序值（升序在前，默认 0，负值置顶；同 sort 按 event_date 倒序） |
+| created_at / updated_at | time | |
+
+## changelogs（版本发布记录；契约 #95-98 / #100）
+| 列 | 类型 | 说明 |
+|---|---|---|
+| id | uint PK | |
+| version | varchar(32) uniqueIndex | 版本号（SemVer 兼容，存储统一去 v 前缀） |
+| title | varchar(100) | 发布标题（可空） |
+| content | text | 更新说明（Markdown 原文） |
+| released_at | time | 发布日期 |
+| status | int8 | 0 草稿 1 已发布 |
+| sort | int | 排序值（升序在前，默认 0；同 sort 按 released_at 倒序，即默认版本倒序） |
+| created_at / updated_at | time | |
+
+回滚说明：两表均为全新表、不影响现有表结构；回滚执行 `DROP TABLE timeline_events; DROP TABLE changelogs;` 即可（先确认无业务数据）。
+
 ## Seed（首次启动写入，幂等）
 
 - 用户：`admin / admin123`（bcrypt）

@@ -105,7 +105,7 @@ md.renderer.rules.heading_close = (tokens, idx) => {
   return md.renderer.renderToken(tokens, idx, md.options)
 }
 
-// fence 覆写：代码块包一层带语言标签的 .code-block（语言名取自 info 串，未知语言原样显示）
+// fence 覆写：代码块包一层带语言标签/可选文件名标题/行号的 .code-block
 const LANG_LABEL: Record<string, string> = {
   go: 'Go',
   js: 'JavaScript',
@@ -136,28 +136,84 @@ const LANG_LABEL: Record<string, string> = {
   markdown: 'Markdown'
 }
 
-md.renderer.rules.fence = (tokens, idx) => {
-  const token = tokens[idx]
-  const info = (token.info || '').trim().split(/\s+/)[0].toLowerCase()
-  const label = LANG_LABEL[info] ?? (info || '')
-  const langLabel = label ? `<span class="code-lang">${md.utils.escapeHtml(label)}</span>` : ''
-  // highlight 选项已在 md.options.highlight 中处理高亮
-  const highlighted = md.options.highlight?.(token.content, token.info, '') ?? ''
-  const cls = info ? ` class="language-${md.utils.escapeHtml(info)}"` : ''
-  return `<div class="code-block">${langLabel}<button class="code-copy" type="button">复制</button><pre><code${cls}>${highlighted}</code></pre></div>
-`
+/** 高亮语言别名归一：不依赖 highlight.js 内建别名表是否随 core 注册 */
+const LANG_ALIAS: Record<string, string> = {
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  ts: 'typescript',
+  sh: 'bash',
+  shell: 'bash',
+  py: 'python',
+  yml: 'yaml',
+  golang: 'go',
+  md: 'markdown',
+  html: 'xml'
 }
 
-// 代码高亮：命中已注册语言时返回标记片段，由 fence 规则包裹 <pre><code class="language-xx">
-md.options.highlight = (code, lang) => {
-  if (lang && hljs.getLanguage(lang)) {
+/** 解析 fence info 串：首 token 为语言，其后支持 title=main.go（引号可选）标注文件名 */
+function parseFenceInfo(raw: string): { lang: string; title: string } {
+  const info = (raw || '').trim()
+  if (!info) return { lang: '', title: '' }
+  const lang = info.split(/\s+/)[0].toLowerCase()
+  const m = info.match(/(?:^|\s)title=(?:"([^"]*)"|'([^']*)'|(\S+))/i)
+  const title = m ? (m[1] ?? m[2] ?? m[3] ?? '') : ''
+  return { lang, title }
+}
+
+/** 高亮返回空（未注册语言/无语言）时回退转义原文，保证代码块始终可见而非空块 */
+function highlightFence(code: string, rawInfo: string): string {
+  const first = (rawInfo || '').trim().split(/\s+/)[0].toLowerCase()
+  const name = LANG_ALIAS[first] ?? first
+  if (name && hljs.getLanguage(name)) {
     try {
-      return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
+      return hljs.highlight(code, { language: name, ignoreIllegals: true }).value
     } catch {
       /* 高亮失败回退到默认转义输出 */
     }
   }
   return ''
+}
+
+/**
+ * 将高亮后的 HTML 按行拆分并逐行包上 .code-line（供 CSS 计数器生成行号）。
+ * hljs 的 span 可能跨行，拆分时在行尾补闭合、行首重开，保证每行标签自洽；
+ * 行间保留真实换行符，使 pre.textContent 与原始代码一致（复制不带行号、不丢换行）。
+ */
+function splitHighlightedLines(html: string): string[] {
+  const parts = html.split('\n')
+  if (parts.length > 1 && parts[parts.length - 1] === '') parts.pop()
+  const openStack: string[] = []
+  const out: string[] = []
+  for (const part of parts) {
+    const prefix = openStack.join('')
+    const tagRe = /<span\b[^>]*>|<\/span>/g
+    let m: RegExpExecArray | null
+    while ((m = tagRe.exec(part)) !== null) {
+      if (m[0][1] === '/') openStack.pop()
+      else openStack.push(m[0])
+    }
+    out.push(prefix + part + '</span>'.repeat(openStack.length))
+  }
+  return out
+}
+
+md.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx]
+  const { lang, title } = parseFenceInfo(token.info)
+  const label = LANG_LABEL[lang] ?? lang
+  const titleHtml = title
+    ? `<span class="code-title">${md.utils.escapeHtml(title)}</span>`
+    : ''
+  const langLabel = label ? `<span class="code-lang">${md.utils.escapeHtml(label)}</span>` : ''
+  const highlighted = highlightFence(token.content, token.info)
+  const codeHtml = highlighted || md.utils.escapeHtml(token.content)
+  const cls = lang ? ` class="language-${md.utils.escapeHtml(lang)}"` : ''
+  const body = splitHighlightedLines(codeHtml.replace(/\n$/, ''))
+    .map((line) => `<span class="code-line">${line}</span>`)
+    .join('\n')
+  return `<div class="code-block${title ? ' has-title' : ''}">${titleHtml}${langLabel}<button class="code-copy" type="button">复制</button><pre><code${cls}>${body}</code></pre></div>
+`
 }
 
 export interface RenderedMarkdown {

@@ -77,6 +77,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '友情链接' }
   },
   {
+    path: '/timeline',
+    name: 'timeline',
+    component: () => import('@/views/TimelineView.vue'),
+    meta: { title: '时间线' }
+  },
+  {
+    path: '/changelog',
+    name: 'changelog',
+    component: () => import('@/views/ChangelogView.vue'),
+    meta: { title: '更新日志' }
+  },
+  {
     path: '/page/:slug',
     name: 'custom-page',
     component: () => import('@/views/PageView.vue'),

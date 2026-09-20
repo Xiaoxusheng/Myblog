@@ -92,6 +92,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&AuditLog{},
 		&SearchLog{},
 		&BannedIP{},
+		&TimelineEvent{},
+		&Changelog{},
 	)
 }
 
