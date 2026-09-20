@@ -98,6 +98,35 @@ func AdminListBackups(c *gin.Context) {
 	common.OK(c, gin.H{"list": list})
 }
 
+// sqliteSnapshot 用 VACUUM INTO 生成 SQLite 一致性快照到 dest（目标文件须不存在）。
+// 运行中的库直接 copyFile 可能得到页级不一致的副本；VACUUM INTO 在单事务内产出完整快照。
+func sqliteSnapshot(dest string) error {
+	_ = os.Remove(dest) // 防残留：VACUUM INTO 要求目标文件不存在
+	return model.DB.Exec("VACUUM INTO ?", dest).Error
+}
+
+// addUploadsToZip 递归打包 uploads 全部常规文件（含 YYYYMM/ 子目录），zip 内保留相对路径。
+// 跳过目录与符号链接等非常规文件：目录符号链接不跟随，防止把 uploads 之外的文件打进包。
+func addUploadsToZip(zw *zip.Writer) error {
+	root := appCfg.UploadDir
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			if path == root {
+				return nil // uploads 不存在视为空目录（与旧行为一致）
+			}
+			return err
+		}
+		if d.IsDir() || !d.Type().IsRegular() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		return addFileToZip(zw, path, "media/"+filepath.ToSlash(rel))
+	})
+}
+
 // AdminCreateBackup POST /api/v1/admin/backups —— {type:"database"|"full"}
 func AdminCreateBackup(c *gin.Context) {
 	var req struct {
@@ -121,7 +150,7 @@ func AdminCreateBackup(c *gin.Context) {
 			return
 		}
 		name = backupFileName("database")
-		if err := copyFile(appCfg.DBPath, filepath.Join(backupDir(), name)); err != nil {
+		if err := sqliteSnapshot(filepath.Join(backupDir(), name)); err != nil {
 			notifyBackup(false, err.Error())
 			common.ServerError(c, err)
 			return
@@ -167,23 +196,21 @@ func createFullBackup(dest string) error {
 	defer f.Close()
 	zw := zip.NewWriter(f)
 
-	// 数据库（仅 SQLite 直接拷文件；MySQL 模式导出 JSON 结构由导出接口承担）
+	// 数据库（仅 SQLite：VACUUM INTO 一致性快照；MySQL 模式导出 JSON 结构由导出接口承担）
 	if appCfg.DBType == "sqlite" {
-		if err := addFileToZip(zw, appCfg.DBPath, "database/blog.db"); err != nil {
+		tmpDB := filepath.Join(backupDir(), fmt.Sprintf(".vacuum-%d.tmp", time.Now().UnixNano()))
+		if err := sqliteSnapshot(tmpDB); err != nil {
 			return err
 		}
-	}
-	// uploads 目录
-	entries, err := os.ReadDir(appCfg.UploadDir)
-	if err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			if err := addFileToZip(zw, filepath.Join(appCfg.UploadDir, e.Name()), "media/"+e.Name()); err != nil {
-				return err
-			}
+		if err := addFileToZip(zw, tmpDB, "database/blog.db"); err != nil {
+			_ = os.Remove(tmpDB)
+			return err
 		}
+		_ = os.Remove(tmpDB)
+	}
+	// uploads 目录（递归含 YYYYMM/ 子目录）
+	if err := addUploadsToZip(zw); err != nil {
+		return err
 	}
 	return zw.Close()
 }
@@ -239,18 +266,3 @@ func AdminDeleteBackup(c *gin.Context) {
 	common.OK(c, nil)
 }
 
-// copyFile 简单文件复制
-func copyFile(src, dest string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
-}

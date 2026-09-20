@@ -1,7 +1,7 @@
 package handler
 
 // 全站导出/导入（契约 #81/#82）。
-// 安全：zip 炸弹防护（条目数/解压总量上限）、媒体文件名只用 base、导入不覆盖默认策略。
+// 安全：zip 炸弹防护（条目数/解压总量上限）、媒体按包内相对路径落盘且拒绝穿越、导入不覆盖默认策略。
 
 import (
 	"archive/zip"
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -61,23 +62,10 @@ func AdminExport(c *gin.Context) {
 			return
 		}
 	}
-	// media/：uploads 原样打包
-	if entries, err := os.ReadDir(appCfg.UploadDir); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			src := filepath.Join(appCfg.UploadDir, entry.Name())
-			w, err := zw.Create("media/" + entry.Name())
-			if err != nil {
-				abortExport(zw, c, err)
-				return
-			}
-			if err := copyInto(w, src); err != nil {
-				abortExport(zw, c, err)
-				return
-			}
-		}
+	// media/：uploads 递归打包（含 YYYYMM/ 子目录，保留相对路径）
+	if err := addUploadsToZip(zw); err != nil {
+		abortExport(zw, c, err)
+		return
 	}
 	if err := zw.Close(); err != nil {
 		abortExport(zw, c, err)
@@ -233,7 +221,6 @@ func AdminImport(c *gin.Context) {
 	conflicts := make([]gin.H, 0)
 
 	for _, zf := range zr.File {
-		base := filepath.Base(strings.ReplaceAll(zf.Name, "\\", "/"))
 		switch {
 		case strings.HasSuffix(zf.Name, ".json") && !strings.Contains(zf.Name, "media/"):
 			var target any
@@ -265,17 +252,25 @@ func AdminImport(c *gin.Context) {
 				return
 			}
 		case strings.HasPrefix(zf.Name, "media/"):
-			// 媒体落 uploads；同名跳过
+			// 媒体按包内相对路径落 uploads（含子目录，兼容旧包根下文件）；目录条目与穿越路径跳过
+			if strings.HasSuffix(zf.Name, "/") {
+				continue
+			}
+			rel, ok := importMediaRelPath(zf.Name)
+			if !ok {
+				continue
+			}
 			if dryRun {
 				summary["media"]++
 				continue
 			}
-			dest := filepath.Join(appCfg.UploadDir, base)
-			if base == "" || base == "." {
-				continue
-			}
+			dest := filepath.Join(appCfg.UploadDir, filepath.FromSlash(rel))
 			if _, err := os.Stat(dest); err == nil {
 				continue // 同名媒体跳过
+			}
+			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+				common.ServerError(c, err)
+				return
 			}
 			if err := extractFile(zf, dest); err != nil {
 				common.ServerError(c, err)
@@ -436,7 +431,22 @@ func resolveCategoryID(tx *gorm.DB, name string) uint {
 	return cat.ID
 }
 
-// extractFile 解压单个 zip 条目（文件名只取 base，防穿越）
+// importMediaRelPath 解析 zip 内媒体条目的安全相对路径（去掉 media/ 前缀）。
+// 返回 false 表示非法条目：空、穿越（含 .. 段）、绝对路径或盘符前缀，一律拒绝落盘。
+func importMediaRelPath(name string) (string, bool) {
+	norm := strings.ReplaceAll(name, "\\", "/")
+	if path.IsAbs(norm) || strings.Contains(norm, "..") || strings.Contains(norm, ":") {
+		return "", false
+	}
+	rel := path.Clean(strings.TrimPrefix(norm, "media/"))
+	if rel == "" || rel == "." || rel == ".." ||
+		strings.HasPrefix(rel, "../") || path.IsAbs(rel) {
+		return "", false
+	}
+	return rel, true
+}
+
+// extractFile 解压单个 zip 条目（调用方已校验目标路径，防穿越）
 func extractFile(zf *zip.File, dest string) error {
 	rc, err := zf.Open()
 	if err != nil {

@@ -70,7 +70,7 @@ func Login(c *gin.Context) {
 	if req.Remember {
 		ttl = 7 * 24 * time.Hour
 	}
-	token, err := middleware.GenerateToken(user.ID, user.Username, jwtSecret, ttl)
+	token, err := middleware.GenerateToken(user.ID, user.Username, jwtSecret, ttl, user.TokenVersion)
 	if err != nil {
 		common.ServerError(c, err)
 		return
@@ -78,7 +78,9 @@ func Login(c *gin.Context) {
 	common.OK(c, gin.H{"token": token, "user": user.DTO()})
 }
 
-// currentUser 从 JWT 上下文解析当前管理员
+// currentUser 从 JWT 上下文解析当前管理员。
+// 同时校验 token 携带的 ver 与 DB 当前 token_version：改密后旧 token 全部失效。
+// 无 ver 的存量 token 按 0 处理（与新列默认值一致），一旦改密（version>0）即失效。
 func currentUser(c *gin.Context) (*model.User, bool) {
 	uid, ok := c.Get(middleware.ContextUserID)
 	if !ok {
@@ -90,6 +92,13 @@ func currentUser(c *gin.Context) (*model.User, bool) {
 	}
 	var user model.User
 	if err := model.DB.First(&user, id).Error; err != nil {
+		return nil, false
+	}
+	if ver, ok := c.Get(middleware.ContextTokenVersion); ok {
+		if v, isInt := ver.(int); !isInt || v != user.TokenVersion {
+			return nil, false
+		}
+	} else if user.TokenVersion != 0 {
 		return nil, false
 	}
 	return &user, true
@@ -105,7 +114,8 @@ func Me(c *gin.Context) {
 	common.OK(c, gin.H{"user": user.DTO()})
 }
 
-// UpdatePassword PUT /api/v1/admin/auth/password —— 新密码 ≥6 位；旧密码错误 20001
+// UpdatePassword PUT /api/v1/admin/auth/password —— 新密码 ≥6 位；旧密码错误 20001。
+// 成功后 token_version+1 吊销全部旧 token，并签发新 token 返回（当前会话无感续期）。
 func UpdatePassword(c *gin.Context) {
 	var req struct {
 		OldPassword string `json:"oldPassword"`
@@ -133,11 +143,22 @@ func UpdatePassword(c *gin.Context) {
 		common.ServerError(c, err)
 		return
 	}
-	if err := model.DB.Model(user).Update("password", string(hash)).Error; err != nil {
+	newVer := user.TokenVersion + 1
+	if err := model.DB.Model(user).Updates(map[string]any{
+		"password":      string(hash),
+		"token_version": newVer,
+	}).Error; err != nil {
 		common.ServerError(c, err)
 		return
 	}
-	common.OK(c, nil)
+	user.Password = string(hash)
+	user.TokenVersion = newVer
+	token, err := middleware.GenerateToken(user.ID, user.Username, jwtSecret, 24*time.Hour, newVer)
+	if err != nil {
+		common.ServerError(c, err)
+		return
+	}
+	common.OK(c, gin.H{"token": token})
 }
 
 // UpdateProfile PUT /api/v1/admin/auth/profile

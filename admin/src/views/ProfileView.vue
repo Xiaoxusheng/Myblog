@@ -114,10 +114,14 @@ async function savePassword() {
   await passwordRef.value?.validate()
   passwordSaving.value = true
   try {
-    await updatePassword({
+    const result = await updatePassword({
       oldPassword: passwordForm.oldPassword,
       newPassword: passwordForm.newPassword,
     })
+    // 旧 token 已被服务端吊销（契约 #13），替换为新 token 保持会话
+    if (result?.token) {
+      auth.setToken(result.token)
+    }
     message.success('密码已修改')
     passwordRef.value?.resetFields()
   } finally {

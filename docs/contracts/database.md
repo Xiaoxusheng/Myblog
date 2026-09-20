@@ -8,6 +8,7 @@ GORM AutoMigrate 建表；表名复数小写下划线（GORM 默认）。所有�
 | id | uint PK | |
 | username | string uniqueIndex size:64 | |
 | password | string size:128 | bcrypt |
+| token_version | int not null default:0 | 改密 +1；JWT claims `ver` 与之不符即 401（改密吊销旧 token） |
 | nickname | string size:64 | |
 | email | string size:128 | |
 | avatar | string size:512 | 可空 |

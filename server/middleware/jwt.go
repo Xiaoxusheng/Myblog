@@ -12,12 +12,14 @@ import (
 
 // JWT 上下文键
 const (
-	ContextUserID   = "authUserID"
-	ContextUsername = "authUsername"
+	ContextUserID       = "authUserID"
+	ContextUsername     = "authUsername"
+	ContextTokenVersion = "authTokenVersion"
 )
 
 // JWT 鉴权中间件：仅 /admin/* 路由组挂载。
 // 失败统一 HTTP 401 + code 10002（前端跳登录）。
+// token 中的 ver（签发时的 token_version）由 handler.currentUser 与 DB 比对，实现改密吊销。
 func JWT(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
@@ -48,16 +50,20 @@ func JWT(secret []byte) gin.HandlerFunc {
 		if username, ok := claims["username"].(string); ok {
 			c.Set(ContextUsername, username)
 		}
+		if ver, ok := claims["ver"].(float64); ok {
+			c.Set(ContextTokenVersion, int(ver))
+		}
 		c.Next()
 	}
 }
 
-// GenerateToken 签发 HS256 JWT
-func GenerateToken(userID uint, username, secret string, ttl time.Duration) (string, error) {
+// GenerateToken 签发 HS256 JWT；tokenVersion 随 claims 下发（ver），供改密后吊销校验
+func GenerateToken(userID uint, username, secret string, ttl time.Duration, tokenVersion int) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"uid":      userID,
 		"username": username,
+		"ver":      tokenVersion,
 		"iat":      now.Unix(),
 		"exp":      now.Add(ttl).Unix(),
 	}

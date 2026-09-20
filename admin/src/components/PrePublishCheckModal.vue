@@ -12,6 +12,8 @@ export interface PrePublishCheckItem {
   label: string
   detail?: string
   ok: boolean
+  /** 必填项：缺失时将真正阻止发布（后端校验），与建议项分开呈现 */
+  required?: boolean
 }
 
 const props = withDefaults(
@@ -34,7 +36,8 @@ const visible = computed({
   set: (value: boolean) => emit('update:open', value),
 })
 
-const failed = computed(() => props.checks.filter((c) => !c.ok))
+const requiredFailed = computed(() => props.checks.filter((c) => !c.ok && c.required))
+const suggestFailed = computed(() => props.checks.filter((c) => !c.ok && !c.required))
 const passed = computed(() => props.checks.filter((c) => c.ok))
 </script>
 
@@ -48,16 +51,30 @@ const passed = computed(() => props.checks.filter((c) => c.ok))
     @ok="emit('publish')"
   >
     <p class="precheck__lead">
-      <template v-if="failed.length === 0">
+      <template v-if="requiredFailed.length === 0 && suggestFailed.length === 0">
         所有检查项均已通过，可以直接发布。
       </template>
       <template v-else>
-        有 {{ failed.length }} 项建议在发布前完善（不阻止发布）：
+        <template v-if="requiredFailed.length > 0">
+          有 {{ requiredFailed.length }} 项必填内容缺失，发布会被拦截，请先完善：
+        </template>
+        <template v-else>必填项均已通过。</template>
+        <template v-if="suggestFailed.length > 0">
+          另有 {{ suggestFailed.length }} 项建议在发布前完善（不阻止发布）。
+        </template>
       </template>
     </p>
 
     <ul class="precheck__list">
-      <li v-for="item in failed" :key="item.key" class="precheck__item precheck__item--warn">
+      <li v-for="item in requiredFailed" :key="item.key" class="precheck__item precheck__item--error">
+        <span class="precheck__icon precheck__icon--error">✕</span>
+        <div class="precheck__text">
+          <span class="precheck__label">{{ item.label }}</span>
+          <span class="precheck__detail">必填，缺失时无法发布</span>
+        </div>
+        <a-button type="link" size="small" @click="emit('locate', item.key)">定位</a-button>
+      </li>
+      <li v-for="item in suggestFailed" :key="item.key" class="precheck__item precheck__item--warn">
         <span class="precheck__icon">⚠</span>
         <div class="precheck__text">
           <span class="precheck__label">{{ item.label }}</span>
@@ -101,6 +118,14 @@ const passed = computed(() => props.checks.filter((c) => c.ok))
   border-radius: var(--admin-radius-sm);
   font-size: 13px;
   line-height: 20px;
+}
+
+.precheck__item--error {
+  background: var(--admin-error-bg, rgba(255, 77, 79, 0.08));
+}
+
+.precheck__icon--error {
+  color: var(--admin-error, #ff4d4f);
 }
 
 .precheck__item--warn {

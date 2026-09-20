@@ -217,7 +217,7 @@ onMounted(() => {
                 v-model:value="formState.captcha"
                 size="large"
                 placeholder="请输入右侧字符"
-                maxlength="4"
+                :maxlength="4"
                 autocomplete="off"
               />
               <button

@@ -23,7 +23,8 @@ func AdminListAuditLogs(c *gin.Context) {
 	buildQuery := func() *gorm.DB {
 		db := model.DB.Model(&model.AuditLog{})
 		if actionPrefix != "" {
-			db = db.Where("action LIKE ?", actionPrefix+"%")
+			// 前缀过滤：转义用户输入中的 LIKE 通配符，防通配符注入
+			db = db.Where("action "+likeEscapeClause, escapeLike(actionPrefix)+"%")
 		}
 		return db
 	}

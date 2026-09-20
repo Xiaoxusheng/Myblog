@@ -15,6 +15,7 @@ const progress = ref(0)
 let ticking = false
 let lastSavedAt = 0
 let lastSavedProgress = -1
+let lastDone = false
 
 // 换文章时重置节流基线，避免上一篇的进度影响新文章的首次保存
 watch(
@@ -22,6 +23,7 @@ watch(
   () => {
     lastSavedAt = 0
     lastSavedProgress = -1
+    lastDone = false
   }
 )
 
@@ -35,11 +37,19 @@ function persist(force: boolean): void {
   const slug = props.slug
   if (!slug) return
   const now = Date.now()
-  if (!force && now - lastSavedAt < SAVE_INTERVAL_MS) return
-  if (!force && Math.abs(progress.value - lastSavedProgress) < SAVE_MIN_DELTA) return
+  // 完成判定：比例达到 95%，或视口已到达文档底部附近
+  //（文章详情页底部还有相关文章/评论区/页脚，仅按比例判定可能永远到不了 95%）
+  const doc = document.documentElement
+  const atBottom = window.innerHeight + window.scrollY >= doc.scrollHeight - 80
+  const done = atBottom || progress.value >= DONE_RATIO
+  // 完成态首次达成时放行节流，确保 d=true 及时落盘（瞬间跳底后静止的场景）
+  const doneJustReached = done && !lastDone
+  lastDone = done
+  if (!force && !doneJustReached && now - lastSavedAt < SAVE_INTERVAL_MS) return
+  if (!force && !doneJustReached && Math.abs(progress.value - lastSavedProgress) < SAVE_MIN_DELTA) return
   lastSavedAt = now
   lastSavedProgress = progress.value
-  saveReadingPosition(slug, progress.value, progress.value >= DONE_RATIO)
+  saveReadingPosition(slug, progress.value, done)
 }
 
 function update(): void {

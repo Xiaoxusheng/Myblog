@@ -292,7 +292,13 @@ async function save(nextStatus: PostStatus) {
     message.error('请选择计划发布时间')
     return
   }
-  await formRef.value?.validate()
+  try {
+    await formRef.value?.validate()
+  } catch {
+    // 表单已显示行内错误（如"请选择分类"），给出整体提示后终止
+    message.error('请完善表单必填项')
+    return
+  }
   const payload = buildPayload(nextStatus)
   saving.value = true
   try {
@@ -439,13 +445,15 @@ interface CheckItem {
   label: string
   detail?: string
   ok: boolean
+  /** 必填项：与 PrePublishCheckItem.required 对齐，缺失时发布会被拦截 */
+  required?: boolean
 }
 
 const prePublishChecks = computed<CheckItem[]>(() => {
   const items: CheckItem[] = [
-    { key: 'title', label: '标题', ok: formState.title.trim() !== '' },
-    { key: 'content', label: '正文', ok: formState.content.trim() !== '' },
-    { key: 'category', label: '分类', ok: formState.categoryId !== null },
+    { key: 'title', label: '标题', ok: formState.title.trim() !== '', required: true },
+    { key: 'content', label: '正文', ok: formState.content.trim() !== '', required: true },
+    { key: 'category', label: '分类', ok: formState.categoryId !== null, required: true },
     { key: 'tags', label: '标签', ok: formState.tagNames.length > 0 },
     { key: 'cover', label: '封面', ok: formState.cover.trim() !== '' },
     { key: 'summary', label: '摘要', ok: formState.summary.trim() !== '' },

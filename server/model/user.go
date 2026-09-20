@@ -4,14 +4,15 @@ import "time"
 
 // User 管理员（单管理员模式，users 表仅一条记录）
 type User struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Username  string    `gorm:"type:varchar(64);uniqueIndex" json:"username"`
-	Password  string    `gorm:"type:varchar(128)" json:"-"` // bcrypt，不外泄
-	Nickname  string    `gorm:"type:varchar(64)" json:"nickname"`
-	Email     string    `gorm:"type:varchar(512);serializer:securetext" json:"email"` // 静态加密
-	Avatar    string    `gorm:"type:varchar(512)" json:"avatar"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	Username     string    `gorm:"type:varchar(64);uniqueIndex" json:"username"`
+	Password     string    `gorm:"type:varchar(128)" json:"-"` // bcrypt，不外泄
+	TokenVersion int       `gorm:"not null;default:0" json:"-"` // 改密 +1 吊销全部旧 JWT
+	Nickname     string    `gorm:"type:varchar(64)" json:"nickname"`
+	Email        string    `gorm:"type:varchar(512);serializer:securetext" json:"email"` // 静态加密
+	Avatar       string    `gorm:"type:varchar(512)" json:"avatar"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // UserDTO 契约 User 对象（登录 / me / profile 返回）

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import type { FormInstance, TableColumnsType } from 'ant-design-vue'
@@ -127,6 +127,7 @@ function openCreate() {
   modalForm.sort = 0
   eventDateValue.value = null
   modalOpen.value = true
+  clearFormValidate()
   void loadPostOptions()
 }
 
@@ -142,11 +143,21 @@ function openEdit(record: TimelineEventAdmin) {
   modalForm.sort = record.sort
   eventDateValue.value = dayjs(record.eventDate)
   modalOpen.value = true
+  clearFormValidate()
   void loadPostOptions()
 }
 
+/** 弹窗重开时清除上一次的校验错误残留 */
+function clearFormValidate() {
+  void nextTick(() => formRef.value?.clearValidate())
+}
+
 async function submitModal() {
-  await formRef.value?.validate()
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return // 表单项已显示行内错误，静默终止
+  }
   if (!eventDateValue.value) {
     message.warning('请选择节点日期')
     return
@@ -173,6 +184,8 @@ async function submitModal() {
     }
     modalOpen.value = false
     await load()
+  } catch {
+    // 业务错误已由 http 拦截器统一提示，弹窗保持打开
   } finally {
     modalSaving.value = false
   }
@@ -287,7 +300,8 @@ onMounted(load)
         <a-form-item label="标题" name="title">
           <a-input v-model:value="modalForm.title" placeholder="节点标题，如：博客上线" :maxlength="100" show-count />
         </a-form-item>
-        <a-form-item label="日期" name="eventDate" :rules="[{ required: true, message: '请选择节点日期' }]">
+        <a-form-item label="日期" required>
+          <!-- 日期存于独立 eventDateValue ref（与 PostEditView 同约定），不走 form model 校验，提交前手动判空 -->
           <a-date-picker
             :value="eventDateValue"
             show-time

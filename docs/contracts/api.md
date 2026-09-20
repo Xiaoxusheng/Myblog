@@ -102,7 +102,7 @@
 ### 认证
 | 11 | POST `/admin/auth/login` | `{username,password,remember?,captchaId,captchaCode}` → `{token,user:User}`；验证码先校验（单次有效，错误→10001，不消耗失败计数）；**验证码失败时 message 区分两种情况**：题目不存在/已过期 → `验证码已过期，请点击图片刷新后重试`；答案不匹配 → `验证码不正确，请重新输入或点击图片刷新`（两种情况均返回 10001，且该题一律销毁）；remember=true 签发 7 天，否则 24h；同 IP 连续失败 5 次锁定 15 分钟→20003 |
 | 12 | GET `/admin/auth/me` | `{user:User}` |
-| 13 | PUT `/admin/auth/password` | `{oldPassword,newPassword}`(≥6位) → data:null |
+| 13 | PUT `/admin/auth/password` | `{oldPassword,newPassword}`(≥6位) → `{token}`；成功后 `token_version+1` **吊销全部旧 token**（含 remember 签发的长时 token），并返回 24h 新 token 供前端无缝续期；旧密码错误→20001 |
 | 14 | PUT `/admin/auth/profile` | `{nickname,email,avatar}` → `{user:User}` |
 
 ### 仪表盘
@@ -180,11 +180,11 @@
 | 75 | PUT `/admin/notifications/:id/read` | 单条已读 → data:null |
 | 76 | GET `/admin/audit-logs?page=&pageSize=&action=` | 操作日志分页：`{id,action,resourceType,resourceId,description,ipHash,createdAt}`，最新在前；action 可前缀过滤（如 `post.`）；不记录密码/JWT/完整请求体 |
 | 77 | GET `/admin/backups` | `{list:[{name,size,createdAt,type}]}` type：database(文件)/full(zip)，createdAt 倒序 |
-| 78 | POST `/admin/backups` | `{type:"database"\|"full"}` → `{item:{name,size,createdAt,type}}`；database=复制数据库文件（仅 SQLite；MySQL 模式返回 10001 提示使用导出，不伪造）；full=数据库+uploads 打包 zip；成功/失败写通知(type=backup) |
+| 78 | POST `/admin/backups` | `{type:"database"\|"full"}` → `{item:{name,size,createdAt,type}}`；database=SQLite `VACUUM INTO` **一致性快照**（仅 SQLite；MySQL 模式返回 10001 提示使用导出，不伪造）；full=数据库快照+uploads **递归（含 YYYYMM/ 子目录）** 打包 zip；成功/失败写通知(type=backup) |
 | 79 | GET `/admin/backups/:name/download` | 备份文件流下载；name 白名单校验（防路径穿越） |
 | 80 | DELETE `/admin/backups/:name` | 删除备份文件 |
-| 81 | GET `/admin/export` | 全站导出 zip：`posts.json/pages.json/categories.json/tags.json/links.json/comments.json/settings.json` + `media/`（uploads 原样） |
-| 82 | POST `/admin/import` | multipart 字段 `file`（zip，≤50MB，条目 ≤5000、解压总量 ≤200MB 防炸弹）；query `dryRun=true` 仅预览返回 `{summary:{posts:N,...},conflicts:[{type,value}]}`；`strategy=skip`(默认，冲突跳过)\|`update`(按 slug/名称更新已有)；媒体存入 uploads 跳过同名 → `{updated:int64,summary}` |
+| 81 | GET `/admin/export` | 全站导出 zip：`posts.json/pages.json/categories.json/tags.json/links.json/comments.json/settings.json` + `media/`（uploads **递归含 YYYYMM/ 子目录**，保留相对路径） |
+| 82 | POST `/admin/import` | multipart 字段 `file`（zip，≤50MB，条目 ≤5000、解压总量 ≤200MB 防炸弹）；query `dryRun=true` 仅预览返回 `{summary:{posts:N,...},conflicts:[{type,value}]}`；`strategy=skip`(默认，冲突跳过)\|`update`(按 slug/名称更新已有)；媒体按包内相对路径存入 uploads（含子目录，兼容旧包根下文件；含 `..` 段/绝对路径/盘符前缀的条目一律拒绝）跳过同名 → `{updated:int64,summary}` |
 | 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
 | 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 

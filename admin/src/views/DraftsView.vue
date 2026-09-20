@@ -97,6 +97,24 @@ const visibleList = computed(() =>
     : list.value,
 )
 
+/**
+ * 全部未定稿 Tab 做了客户端过滤，服务端 total 含已发布/隐藏，直接用会"共 N 条渲染 M 行"。
+ * stats.draftCount + scheduledCount 是未定稿的精确总数，覆盖分页 total；
+ * 单状态 Tab（草稿/定时）走服务端 status 过滤，total 本就精确。
+ */
+const tablePagination = computed(() =>
+  activeTab.value === '' && stats.value
+    ? { ...pagination.value, total: stats.value.draftCount + stats.value.scheduledCount }
+    : pagination.value,
+)
+
+/** 空态文案随 Tab 语义变化 */
+const emptyText = computed(() => {
+  if (activeTab.value === '0') return '没有草稿，去写一篇吧'
+  if (activeTab.value === '3') return '没有定时发布的文章'
+  return '没有未定稿的文章，都写完了'
+})
+
 // ---------------------------------------------------------------------------
 // 本地草稿标记：扫 localStorage 里 blog_admin_post_draft_* 存在哪些文章 id
 // 在加载后与窗口重新聚焦时重扫（另一标签页保存后本地草稿会被清掉）
@@ -335,13 +353,13 @@ onUnmounted(() => {
         :columns="columns"
         :data-source="visibleList"
         :loading="loading"
-        :pagination="pagination"
+        :pagination="tablePagination"
         :scroll="{ x: 1000 }"
         row-key="id"
         @change="onTableChange"
       >
         <template #emptyText>
-          <TableEmpty text="没有未定稿的文章，都写完了" />
+          <TableEmpty :text="emptyText" />
         </template>
         <template #headerCell="{ column }">
           <template v-if="column.key === 'wordCount'">

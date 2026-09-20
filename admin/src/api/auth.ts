@@ -20,7 +20,8 @@ export function getMe(): Promise<{ user: User }> {
   return http.get('/admin/auth/me')
 }
 
-export function updatePassword(payload: { oldPassword: string; newPassword: string }): Promise<null> {
+/** 改密成功后旧 token 全部吊销（契约 #13），响应携带 24h 新 token 供无缝续期 */
+export function updatePassword(payload: { oldPassword: string; newPassword: string }): Promise<{ token: string }> {
   return http.put('/admin/auth/password', payload)
 }
 
