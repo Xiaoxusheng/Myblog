@@ -9,7 +9,7 @@
 export const antdTokens = {
   borderRadius: 6,
   colorPrimary: '#1677ff',
-  colorBgLayout: '#f4f6fa',
+  colorBgLayout: '#fafafa',
   colorBgContainer: '#ffffff',
   colorBorder: '#e5e8ef',
   colorText: 'rgba(0, 0, 0, 0.88)',

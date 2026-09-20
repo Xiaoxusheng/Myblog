@@ -476,10 +476,7 @@ function goPostList(): void {
 </template>
 
 <style scoped>
-/* 数据密集型页面在大屏上多要一点横向空间，减少折线与表格的横向拥挤 */
-.analytics-page {
-  max-width: 1560px;
-}
+/* 宽度与其它页统一由 .page 控制（此前这里单独设 1560px，会造成切页时宽度跳变） */
 
 .analytics-page__alert {
   margin-bottom: var(--admin-space-4);
