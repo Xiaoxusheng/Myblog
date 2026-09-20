@@ -18,7 +18,9 @@ import {
   FileTextOutlined,
   LinkOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   BulbOutlined,
   FundOutlined,
   PictureOutlined,
@@ -47,6 +49,40 @@ const collapsed = ref(false)
 const isMobile = ref(false)
 const drawerOpen = ref(false)
 let mediaQuery: MediaQueryList | null = null
+
+/**
+ * 侧栏导航的键盘可达性补齐。
+ *
+ * 上游缺口（实测，AntD Vue 4.2）：
+ * 1. Menu 声明了 `tabindex` prop，但内置 Overflow 渲染并未把它写到 ul 上 → 侧栏进不了 Tab 顺序；
+ * 2. 菜单项固定 `tabindex="-1"`，且 inline 模式未实现方向键 roving focus → 即使容器可聚焦也选不中任何一项。
+ *
+ * 做法：把焦点与键盘处理挂在自己拥有的 `<nav>` 包装元素上（原生属性 + Vue 事件，随组件生命周期自动回收），
+ * 由它代理方向键移动焦点、Enter/Space 触发当前项。不改变任何路由与权限逻辑。
+ */
+function onMenuKeydown(event: KeyboardEvent): void {
+  const nav = event.currentTarget as HTMLElement | null
+  if (!nav) return
+  const items = Array.from(nav.querySelectorAll<HTMLElement>('.ant-menu-item'))
+  if (items.length === 0) return
+
+  const active = document.activeElement as HTMLElement | null
+  const index = active ? items.indexOf(active) : -1
+
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    const step = event.key === 'ArrowDown' ? 1 : -1
+    const next =
+      index < 0 ? (step === 1 ? 0 : items.length - 1) : (index + step + items.length) % items.length
+    items[next].focus()
+    return
+  }
+
+  if ((event.key === 'Enter' || event.key === ' ') && index >= 0) {
+    event.preventDefault()
+    items[index].click()
+  }
+}
 
 function onMediaChange(e: MediaQueryListEvent): void {
   isMobile.value = e.matches
@@ -248,14 +284,29 @@ onBeforeUnmount(() => {
           MyBlog<span class="sider-logo__sub">管理后台</span>
         </span>
       </div>
-      <a-menu theme="dark" mode="inline" :selected-keys="[activeKey]">
-        <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
-          <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
-            <component :is="item.icon" />
-            <span>{{ item.title }}</span>
-          </a-menu-item>
-        </a-menu-item-group>
-      </a-menu>
+      <nav class="sidebar-nav" aria-label="管理菜单" tabindex="0" @keydown="onMenuKeydown">
+        <a-menu theme="dark" mode="inline" :selected-keys="[activeKey]">
+          <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
+            <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
+              <!-- 图标走 icon 插槽：作为子节点传入会被包进 title-content，折叠态下会被一起隐藏 -->
+              <template #icon><component :is="item.icon" /></template>
+              <span>{{ item.title }}</span>
+            </a-menu-item>
+          </a-menu-item-group>
+        </a-menu>
+      </nav>
+      <template #trigger>
+        <button
+          type="button"
+          class="sider-trigger"
+          :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
+          :aria-expanded="!collapsed"
+          @click.stop="collapsed = !collapsed"
+        >
+          <MenuUnfoldOutlined v-if="collapsed" />
+          <MenuFoldOutlined v-else />
+        </button>
+      </template>
     </a-layout-sider>
 
     <!-- 移动端抽屉侧边栏 -->
@@ -274,19 +325,21 @@ onBeforeUnmount(() => {
           MyBlog<span class="sider-logo__sub">管理后台</span>
         </span>
       </div>
-      <a-menu
-        theme="dark"
-        mode="inline"
-        :selected-keys="[activeKey]"
-        style="border-inline-end: 0"
-      >
-        <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
-          <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
-            <component :is="item.icon" />
-            <span>{{ item.title }}</span>
-          </a-menu-item>
-        </a-menu-item-group>
-      </a-menu>
+      <nav class="sidebar-nav" aria-label="管理菜单" tabindex="0" @keydown="onMenuKeydown">
+        <a-menu
+          theme="dark"
+          mode="inline"
+          :selected-keys="[activeKey]"
+          style="border-inline-end: 0"
+        >
+          <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
+            <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
+              <template #icon><component :is="item.icon" /></template>
+              <span>{{ item.title }}</span>
+            </a-menu-item>
+          </a-menu-item-group>
+        </a-menu>
+      </nav>
     </a-drawer>
 
     <a-layout>
@@ -410,13 +463,14 @@ onBeforeUnmount(() => {
   background: var(--admin-bg);
 }
 
-/* 品牌区：渐变小方块是品牌视觉（唯一允许渐变的位置），文案双字重排版 */
+/* 品牌区：与 favicon 同一套视觉（品牌色方块 + 衬线 M），是唯一允许渐变的品牌位；
+   文案双字重排版，副标与主标拉开明度差 */
 .sider-logo {
   height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 10px;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -426,15 +480,18 @@ onBeforeUnmount(() => {
 
 .sider-logo__mark {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--admin-brand), var(--admin-brand-hover));
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
+  /* 内描边让方块在深色侧栏上边缘清晰，不靠加重投影 */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1;
   color: #fff;
   letter-spacing: 0;
@@ -451,7 +508,7 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .admin-header {
@@ -541,18 +598,21 @@ onBeforeUnmount(() => {
 .admin-sider .ant-menu,
 .admin-drawer .ant-menu {
   background: transparent;
+  border-inline-end: 0;
 }
 
 /* 抽屉 logo 复用 .sider-logo 品牌区结构，无需额外样式 */
 
-/* 菜单分组标题：小号灰字，组间不加大留白 */
+/* 菜单分组标题：统一 12px / 500 / 0.6px 字距，组间靠同一档上下留白拉节奏 */
 .admin-sider .ant-menu-item-group-title,
 .admin-drawer .ant-menu-item-group-title {
-  padding: 10px 16px 4px;
+  padding: 12px 16px 6px;
   font-size: 12px;
+  font-weight: 500;
   line-height: 18px;
-  letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.6px;
+  /* 0.38 在深藏青/深灰底上对比不足，提到 0.52 保证小字可读 */
+  color: rgba(255, 255, 255, 0.52);
 }
 
 /* 折叠态隐藏分组标题，仅保留图标项 */
@@ -560,7 +620,8 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* 菜单项：38~40px 行高；选中态 = 浅色底 + 左侧 2px 指示线，避免大面积厚重蓝色块 */
+/* 菜单项：40px 行高；选中态 = 柔和品牌底 + 左侧 2px 指示条 + 提亮文字，
+   三重表达而非只靠一根蓝色描边 */
 .admin-sider .ant-menu-item,
 .admin-drawer .ant-menu-item {
   height: 40px;
@@ -568,11 +629,22 @@ onBeforeUnmount(() => {
   margin-inline: 0;
   margin-block: 1px;
   width: 100%;
+  padding-inline: 16px;
   border-radius: 0;
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.74);
   transition:
     color var(--admin-dur) var(--admin-ease),
     background-color var(--admin-dur) var(--admin-ease);
+}
+
+/* 图标盒宽与字号统一：不同图标字宽不同，固定 16px 盒保证文字起点对齐。
+   水平间距交给 AntD 原生规则（.ant-menu-item-icon 已带 10px），此处不再叠加。 */
+.admin-sider .ant-menu-item .anticon,
+.admin-drawer .ant-menu-item .anticon {
+  width: 16px;
+  min-width: 16px;
+  font-size: 16px;
+  vertical-align: -0.2em;
 }
 
 .admin-sider .ant-menu-item:hover,
@@ -584,6 +656,7 @@ onBeforeUnmount(() => {
 .admin-sider .ant-menu-item-selected,
 .admin-drawer .ant-menu-item-selected {
   position: relative;
+  font-weight: 600;
   color: #fff;
   background: rgba(22, 119, 255, 0.18);
 }
@@ -602,6 +675,40 @@ onBeforeUnmount(() => {
 .admin-sider .ant-menu-item-selected::after,
 .admin-drawer .ant-menu-item-selected::after {
   display: none;
+}
+
+/* 键盘焦点：深色侧栏上必须有可见焦点环。
+   焦点环挂在自有的 nav 包装元素上（不依赖 AntD 内部节点是否可聚焦）。 */
+.sidebar-nav:focus-visible,
+.admin-sider .ant-menu-item:focus-visible,
+.admin-drawer .ant-menu-item:focus-visible {
+  outline: 2px solid var(--admin-brand);
+  outline-offset: -2px;
+}
+
+/* 折叠触发器：改用真实 button 承载，键盘可聚焦可触发（原实现是不可聚焦的 div） */
+.sider-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color var(--admin-dur) var(--admin-ease);
+}
+
+.sider-trigger:hover {
+  color: #fff;
+}
+
+.sider-trigger:focus-visible {
+  outline: 2px solid var(--admin-brand);
+  outline-offset: -2px;
 }
 
 /* 通知面板 */

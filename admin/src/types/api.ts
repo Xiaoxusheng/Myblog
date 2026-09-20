@@ -510,6 +510,12 @@ export interface AnalyticsDistItem {
 export interface AnalyticsData {
   range: AnalyticsRange
   totals: { pv: number; uv: number }
+  /**
+   * 环比基线（契约 #67）：紧邻当前窗口之前、与之等长、且只取到「当前窗口已过时长」的
+   * 前一窗口 PV/UV。即「今日 00:00→现在」对标「昨日 00:00→同一时刻」。
+   * 旧后端可能不返回——缺失时前端不展示变化比例（不伪造数字）。
+   */
+  prevTotals?: { pv: number; uv: number }
   trend: AnalyticsTrendPoint[]
   topPosts: AnalyticsTopPost[]
   sources: AnalyticsSourceItem[]

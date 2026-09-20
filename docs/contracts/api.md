@@ -185,7 +185,7 @@
 | 80 | DELETE `/admin/backups/:name` | 删除备份文件 |
 | 81 | GET `/admin/export` | 全站导出 zip：`posts.json/pages.json/categories.json/tags.json/links.json/comments.json/settings.json` + `media/`（uploads **递归含 YYYYMM/ 子目录**，保留相对路径） |
 | 82 | POST `/admin/import` | multipart 字段 `file`（zip，≤50MB，条目 ≤5000、解压总量 ≤200MB 防炸弹）；query `dryRun=true` 仅预览返回 `{summary:{posts:N,...},conflicts:[{type,value}]}`；`strategy=skip`(默认，冲突跳过)\|`update`(按 slug/名称更新已有)；媒体按包内相对路径存入 uploads（含子目录，兼容旧包根下文件；含 `..` 段/绝对路径/盘符前缀的条目一律拒绝）跳过同名 → `{updated:int64,summary}` |
-| 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造 |
+| 67 | GET `/admin/analytics?range=today\|7d\|30d\|90d` | 访问分析（默认 7d）：`{range,totals:{pv,uv},prevTotals:{pv,uv},trend:[{date,pv,uv}](按日分桶),topPosts:[{postId,title,pv,uv,likeCount,commentCount}](≤10，pv 降序),sources:[{source,pv}] (direct/search/github/social/other),devices:[{device,pv}](desktop/mobile/tablet),browsers:[{browser,pv}],oses:[{os,pv}]}`；空数据返回空数组，不伪造。**prevTotals**（环比基线，新增）：紧邻当前窗口之前、与之等长、且只取到「当前窗口已过时长」的前一窗口 PV/UV——即「今日 00:00→现在」对标「昨日 00:00→同一时刻」，避免用不完整的一天比完整一天而系统性偏低；PV=访问行数，UV=visitor_hash 去重，与 totals 同口径。纯新增字段，旧客户端可忽略 |
 | 68 | GET `/admin/analytics/posts/:id?range=7d\|30d\|90d` | 单篇文章分析：`{post:{id,title},range,totals:{pv,uv,likeCount,commentCount},trend:[{date,pv,uv}],sources:[{source,pv}],devices:[{device,pv}]}`；文章不存在 → 10004 |
 
 ### 安全防护（反爬 / 恶意请求 / IP 封禁）

@@ -32,6 +32,14 @@
   --admin-radius-sm: 6px;
   --admin-radius-md: 8px;
 
+  /* 间距：全站只走这一档刻度（4 为微调，其余为栅格节拍），避免各处随手写 13/18/22 */
+  --admin-space-1: 4px;
+  --admin-space-2: 8px;
+  --admin-space-3: 12px;
+  --admin-space-4: 16px;
+  --admin-space-5: 20px;
+  --admin-space-6: 24px;
+
   /* 阴影：两档双层柔影（高级感来自阴影的"轻而柔"，不是重投影） */
   --admin-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.05);
   --admin-shadow-md: 0 2px 4px rgba(16, 24, 40, 0.04), 0 12px 28px rgba(16, 24, 40, 0.1);
@@ -178,6 +186,16 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   margin-top: 4px;
 }
 
+/* 窄屏：头部改为上下堆叠。
+   行内并排会把筛选/操作区挤到不可读，堆叠后由各页自行控制块内换行。 */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}
+
 /* 列表页工具栏（搜索/筛选在左，动作在右） */
 .table-toolbar {
   display: flex;
@@ -229,8 +247,90 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   overflow: hidden;
 }
 
+/* --------------------------------------------------------------------------
+   轻量表格：低对比表头 + 细分割线 + 行悬浮。
+   数据面板共用一套工艺，避免每个页面各写一份 :deep(.ant-table) 覆盖。
+   -------------------------------------------------------------------------- */
+.table-quiet .ant-table {
+  background: transparent;
+}
+
+.table-quiet .ant-table-thead > tr > th {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  background: transparent;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+/* AntD 表头分隔竖线在轻量表头里是多余噪音 */
+.table-quiet .ant-table-thead > tr > th::before {
+  display: none;
+}
+
+.table-quiet .ant-table-tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid var(--admin-border);
+  transition: background-color var(--admin-dur) var(--admin-ease);
+}
+
+.table-quiet .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
+}
+
+.table-quiet .ant-table-tbody > tr:hover > td {
+  background: var(--admin-surface-2);
+}
+
+/* 首末列补足内边距，让表格与面板标题左对齐 */
+.table-quiet .ant-table-thead > tr > th:first-child,
+.table-quiet .ant-table-tbody > tr > td:first-child {
+  padding-inline-start: 20px;
+}
+
+.table-quiet .ant-table-thead > tr > th:last-child,
+.table-quiet .ant-table-tbody > tr > td:last-child {
+  padding-inline-end: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   分段控件（时间范围 / 视图切换）：容器浅底无描边，选中项靠表面色与字重区分，
+   不靠加粗边框表达选中（边框堆叠会让工具栏显得很重）。
+   -------------------------------------------------------------------------- */
+.admin-content .ant-segmented {
+  padding: 2px;
+  background: var(--admin-surface-2);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-content .ant-segmented .ant-segmented-item-label {
+  font-weight: 500;
+  color: var(--admin-muted);
+}
+
+.admin-content .ant-segmented .ant-segmented-item-selected {
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-content .ant-segmented .ant-segmented-item-selected .ant-segmented-item-label {
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
 @media (max-width: 768px) {
   .page {
     padding: 16px;
+  }
+
+  .table-quiet .ant-table-thead > tr > th:first-child,
+  .table-quiet .ant-table-tbody > tr > td:first-child {
+    padding-inline-start: 16px;
+  }
+
+  .table-quiet .ant-table-thead > tr > th:last-child,
+  .table-quiet .ant-table-tbody > tr > td:last-child {
+    padding-inline-end: 16px;
   }
 }

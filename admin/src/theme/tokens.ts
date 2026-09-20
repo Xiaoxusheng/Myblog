@@ -35,7 +35,20 @@ export const chartPalette = {
   axisLine: '#e5e8ef',
   axisLabel: 'rgba(0, 0, 0, 0.45)',
   splitLine: '#eef0f5',
-  legendText: 'rgba(0, 0, 0, 0.65)'
+  legendText: 'rgba(0, 0, 0, 0.65)',
+  /** 图例未选中态:与选中态拉开明显差距,让"选中"一眼可辨 */
+  legendMuted: 'rgba(0, 0, 0, 0.25)',
+  /** 悬浮指示线 */
+  axisPointer: 'rgba(15, 23, 42, 0.16)',
+  /** 提示框:沿用卡片表面的浮层语言(白底 + 细描边 + 柔影由 extraCssText 提供) */
+  tooltipBg: 'rgba(255, 255, 255, 0.98)',
+  tooltipBorder: '#e5e8ef',
+  tooltipText: 'rgba(15, 23, 42, 0.88)',
+  /** 峰值标记的描边环:取卡片底色,让圆点"嵌入"折线而非浮在上面 */
+  markerRing: '#ffffff',
+  /** 面积填充渐变:极低透明度,只做体积暗示,不喧宾夺主 */
+  areaPrimary: ['rgba(22, 119, 255, 0.16)', 'rgba(22, 119, 255, 0)'],
+  areaSecondary: ['rgba(166, 173, 184, 0.14)', 'rgba(166, 173, 184, 0)'],
 } as const
 
 /** 图表色板(暗色) */
@@ -45,5 +58,13 @@ export const chartDarkPalette = {
   axisLine: '#333333',
   axisLabel: 'rgba(255, 255, 255, 0.45)',
   splitLine: '#262626',
-  legendText: 'rgba(255, 255, 255, 0.65)'
+  legendText: 'rgba(255, 255, 255, 0.65)',
+  legendMuted: 'rgba(255, 255, 255, 0.22)',
+  axisPointer: 'rgba(255, 255, 255, 0.18)',
+  tooltipBg: 'rgba(31, 31, 31, 0.98)',
+  tooltipBorder: '#333333',
+  tooltipText: 'rgba(255, 255, 255, 0.88)',
+  markerRing: '#1f1f1f',
+  areaPrimary: ['rgba(22, 104, 220, 0.28)', 'rgba(22, 104, 220, 0)'],
+  areaSecondary: ['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0)'],
 } as const

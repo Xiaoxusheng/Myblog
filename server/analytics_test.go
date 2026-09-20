@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"myblog/server/model"
 )
@@ -120,6 +121,61 @@ func TestTrackAndAggregates(t *testing.T) {
 type countItemJSON struct {
 	Key string `json:"source"`
 	PV  int64  `json:"pv"`
+}
+
+// TestAnalyticsPrevTotals 环比基线（契约 #67 prevTotals）：
+// 上一周期只取「紧邻当前窗口之前、等长、且只到当前已过时长」的时间切片。
+func TestAnalyticsPrevTotals(t *testing.T) {
+	r := newTestApp(t)
+	token := loginToken(t, r)
+
+	base := time.Now()
+	seed := func(offsetDays int, hour int, visitor string) {
+		t.Helper()
+		at := time.Date(base.Year(), base.Month(), base.Day(), hour, 0, 0, 0, base.Location()).
+			AddDate(0, 0, offsetDays)
+		if err := model.DB.Create(&model.PageView{
+			Path:        "/post/seed",
+			VisitorHash: visitor,
+			CreatedAt:   at,
+		}).Error; err != nil {
+			t.Fatalf("写入样本失败：%v", err)
+		}
+	}
+
+	// range=7d：当前窗口 = [today-6 00:00, today+1 00:00)；
+	// 环比窗口 = [now-13d, now-7d)（即紧邻之前、等长、且只到当前已过时长的切片）。
+	// 下列取样点与「当下时刻」无关，任何运行时间下归属都稳定。
+	seed(-10, 9, "prev-a") // 仅在环比窗口
+	seed(-8, 20, "prev-b") // 仅在环比窗口
+	seed(-6, 9, "cur-a")   // 仅在当前窗口（今日-6 起算）
+	seed(-3, 9, "cur-b")   // 仅在当前窗口
+	seed(-1, 9, "cur-c")   // 仅在当前窗口
+	seed(-40, 9, "old-a")  // 早于两个窗口，均不计入
+
+	var data struct {
+		Totals struct {
+			PV int64 `json:"pv"`
+			UV int64 `json:"uv"`
+		} `json:"totals"`
+		PrevTotals struct {
+			PV int64 `json:"pv"`
+			UV int64 `json:"uv"`
+		} `json:"prevTotals"`
+	}
+	rec := doJSON(t, r, http.MethodGet, "/api/v1/admin/analytics?range=7d", token, nil)
+	e := decode(t, rec)
+	if e.Code != 0 {
+		t.Fatalf("analytics 失败：%s", e.Message)
+	}
+	decodeInto(t, e, &data)
+
+	if data.Totals.PV != 3 {
+		t.Fatalf("当前窗口 PV 应为 3（cur-a/cur-b/cur-c），got %d", data.Totals.PV)
+	}
+	if data.PrevTotals.PV != 2 || data.PrevTotals.UV != 2 {
+		t.Fatalf("环比窗口 PV/UV 应为 2/2（prev-a/prev-b），got %+v", data.PrevTotals)
+	}
 }
 
 func TestTrackValidationAndRateLimit(t *testing.T) {

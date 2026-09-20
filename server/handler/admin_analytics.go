@@ -126,6 +126,40 @@ func aggregateCount(rows []pvRow, keyOf func(pvRow) string) []countItem {
 	return out
 }
 
+// countTotals 统计窗口内的 PV/UV（PV=访问行数，UV=visitor_hash 去重）。
+// 与当前周期的 len(rows)/distinctVisitors 语义一致，但走 COUNT 聚合，
+// 避免为「上一周期」再拉一份明细行。
+func countTotals(start, end time.Time) (pv, uv int64) {
+	if err := model.DB.Model(&model.PageView{}).
+		Where("created_at >= ? AND created_at < ?", start, end).
+		Count(&pv).Error; err != nil {
+		return 0, 0
+	}
+	if err := model.DB.Model(&model.PageView{}).
+		Where("created_at >= ? AND created_at < ?", start, end).
+		Distinct("visitor_hash").Count(&uv).Error; err != nil {
+		return pv, 0
+	}
+	return pv, uv
+}
+
+// prevWindow 计算环比基线窗口：紧邻当前窗口之前、与之等长的一段，
+// 且只取到「当前窗口已过去的那部分时长」——即前一个窗口的同一时间切片。
+// 这样「今日 00:00→现在」对标「昨日 00:00→同一时刻」，而不是拿不完整的一天
+// 去比完整的一天（那会让今日环比系统性偏低）。
+func prevWindow(start, end time.Time) (time.Time, time.Time) {
+	span := end.Sub(start)
+	elapsed := time.Since(start)
+	if elapsed > span {
+		elapsed = span
+	}
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	prevStart := start.Add(-span)
+	return prevStart, prevStart.Add(elapsed)
+}
+
 // Analytics GET /api/v1/admin/analytics?range=today|7d|30d|90d
 func Analytics(c *gin.Context) {
 	start, end, name, ok := parseAnalyticsRange(c, true)
@@ -135,6 +169,8 @@ func Analytics(c *gin.Context) {
 	rows := fetchPvRows(start, end, 0)
 
 	totals := gin.H{"pv": len(rows), "uv": distinctVisitors(rows)}
+	prevPv, prevUv := countTotals(prevWindow(start, end))
+	prevTotals := gin.H{"pv": prevPv, "uv": prevUv}
 	trendDays := map[string]int{"today": 1, "7d": 7, "30d": 30, "90d": 90}[name]
 	trend := aggregateTrend(rows, start, trendDays)
 	topPosts := topPostRows(rows)
@@ -144,14 +180,15 @@ func Analytics(c *gin.Context) {
 	oses := aggregateCount(rows, func(r pvRow) string { return r.OS })
 
 	common.OK(c, gin.H{
-		"range":    name,
-		"totals":   totals,
-		"trend":    trend,
-		"topPosts": topPosts,
-		"sources":  sources,
-		"devices":  devices,
-		"browsers": browsers,
-		"oses":     oses,
+		"range":      name,
+		"totals":     totals,
+		"prevTotals": prevTotals,
+		"trend":      trend,
+		"topPosts":   topPosts,
+		"sources":    sources,
+		"devices":    devices,
+		"browsers":   browsers,
+		"oses":       oses,
 	})
 }
 

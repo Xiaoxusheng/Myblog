@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatCount, formatNumber } from '@/utils/format'
 import type { AnalyticsDistItem } from '@/types/api'
 
 /**
@@ -11,21 +12,29 @@ const props = defineProps<{
 }>()
 
 const maxPv = computed(() => props.items.reduce((max, item) => Math.max(max, item.pv), 0))
+const totalPv = computed(() => props.items.reduce((sum, item) => sum + item.pv, 0))
 
 function barWidth(pv: number): string {
   if (maxPv.value <= 0 || pv <= 0) return '0%'
   return `${Math.max((pv / maxPv.value) * 100, 2)}%`
 }
+
+/** 悬浮给出精确值与占比——横条只表达相对量级，精确读数在这里补齐 */
+function rowTitle(name: string, pv: number): string {
+  if (totalPv.value <= 0) return `${name}：0`
+  const share = ((pv / totalPv.value) * 100).toFixed(1)
+  return `${name}：${formatNumber(pv)} 次（占 ${share}%）`
+}
 </script>
 
 <template>
   <div class="dist">
-    <div v-for="item in items" :key="item.name" class="dist__row">
-      <span class="dist__name" :title="item.name">{{ item.name }}</span>
+    <div v-for="item in items" :key="item.name" class="dist__row" :title="rowTitle(item.name, item.pv)">
+      <span class="dist__name">{{ item.name }}</span>
       <span class="dist__track">
         <span class="dist__fill" :style="{ width: barWidth(item.pv) }"></span>
       </span>
-      <span class="dist__pv tabular-nums">{{ item.pv }}</span>
+      <span class="dist__pv tabular-nums">{{ formatCount(item.pv) }}</span>
     </div>
   </div>
 </template>

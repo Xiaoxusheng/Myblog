@@ -35,6 +35,15 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+/**
+ * 判断错误是否为「请求被主动中止」（AbortController.cancel）。
+ * 中止是调用方的正常控制流（如时间范围快速切换时丢弃在途请求），
+ * 调用方应静默忽略，不得当作加载失败处理。
+ */
+export function isRequestCanceled(error: unknown): boolean {
+  return axios.isCancel(error) || (error as { code?: string } | null)?.code === 'ERR_CANCELED'
+}
+
 /** 401 / 10002 统一处理：清 token 跳登录 */
 function handleUnauthorized(): void {
   clearToken()
