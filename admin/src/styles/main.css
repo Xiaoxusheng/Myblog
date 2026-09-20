@@ -243,6 +243,12 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   color: var(--admin-muted);
 }
 
+/* 单元格内容不折行：时间戳、编号这类"拆开就失去意义"的值用。
+   列宽需按最长值预留（YYYY-MM-DD HH:mm 约 16 字符 + 内边距）。 */
+.cell-nowrap {
+  white-space: nowrap;
+}
+
 /* 两行截断 */
 .clamp-2 {
   display: -webkit-box;

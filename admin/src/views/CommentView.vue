@@ -61,12 +61,13 @@ const tabs: { key: TabKey; label: string }[] = [
 
 const columns: TableColumnsType = [
   { title: '文章', dataIndex: 'postTitle', key: 'postTitle', width: 160, ellipsis: true },
-  { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 130 },
+  // 昵称列需容纳「名字 + 身份标签」同行，时间列需容纳 YYYY-MM-DD HH:mm（两者都不折行）
+  { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 150 },
   { title: '邮箱', dataIndex: 'email', key: 'email', width: 170, ellipsis: true },
   { title: '内容', dataIndex: 'content', key: 'content', ellipsis: true },
   { title: 'IP', dataIndex: 'ip', key: 'ip', width: 120, ellipsis: true },
   { title: '状态', key: 'status', width: 90 },
-  { title: '时间', key: 'createdAt', width: 140 },
+  { title: '时间', key: 'createdAt', width: 160 },
   { title: '操作', key: 'action', width: 250, fixed: 'right' },
 ]
 
@@ -283,11 +284,13 @@ onMounted(load)
         </template>
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'nickname'">
-            <span>{{ record.nickname }}</span>
-            <a-space :size="4" style="margin-left: 4px">
-              <a-tag v-if="record.isAdmin" color="blue">管理员</a-tag>
-              <a-tag v-else-if="record.parentId > 0">回复</a-tag>
-            </a-space>
+            <!-- 名字与身份标签必须同行：此前用 a-space(块级 div) 包标签，标签必然掉到第二行；
+                 改为 nowrap 的行内 flex，名字过长只截断名字本身，标签始终可见 -->
+            <span class="comment-author">
+              <span class="comment-author__name" :title="record.nickname">{{ record.nickname }}</span>
+              <a-tag v-if="record.isAdmin" color="blue" class="comment-author__tag">管理员</a-tag>
+              <a-tag v-else-if="record.parentId > 0" class="comment-author__tag">回复</a-tag>
+            </span>
           </template>
 
           <template v-else-if="column.key === 'content'">
@@ -303,7 +306,7 @@ onMounted(load)
           </template>
 
           <template v-else-if="column.key === 'createdAt'">
-            {{ formatTime(record.createdAt) }}
+            <span class="cell-nowrap">{{ formatTime(record.createdAt) }}</span>
           </template>
 
           <template v-else-if="column.key === 'action'">
@@ -429,6 +432,26 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* 昵称列：名字 + 身份标签同行（nowrap），名字过长只截断名字，标签保持可见 */
+.comment-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.comment-author__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-author__tag {
+  flex: none;
+  margin-inline-end: 0;
+}
+
 .comment-post-filter {
   margin-bottom: 12px;
 }
