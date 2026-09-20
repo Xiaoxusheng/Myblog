@@ -12,6 +12,14 @@
 - 分页：query `page`(默认1)、`pageSize`(默认10，上限50)；响应 data：`{"list":[...],"total":123,"page":1,"pageSize":10}`
 - 时间：RFC3339 字符串（如 `2026-09-19T12:00:00+08:00`）
 - 鉴权：请求头 `Authorization: Bearer <token>`，仅 `/admin/*` 需要
+- 前端错误提示分级（管理端 `admin/src/api/http.ts`）：
+  - 默认：请求失败由 axios 拦截器统一弹全局错误 toast（业务错误码 / 500 / 网络失败）。
+  - **`{ silent: true }`**：用于「后台轮询（如 60s 通知）」「页面次级面板（如搜索统计）」
+    这类失败不应打断用户的请求 —— 拦截器不弹 toast，由调用方局部降级展示。
+    注意 `silent` **不影响** 401/10002 的跳登录逻辑。
+  - 约定：凡是用 `void fn()` fire-and-forget 触发的 async 函数，**必须**有 `catch`
+    （或调用点 `.catch()`），否则会逃逸成 unhandledrejection。
+    该规则由 `admin/scripts/check-void-async.mjs` 在 `npm run build` 前静态校验。
 - 枚举：post.status `0`草稿 `1`已发布 `2`隐藏 `3`定时发布（到点由后端调度器自动置为 `1`，`publishedAt` = 计划时间；`3` 不会出现在任何公开接口）；comment.status `0`待审核 `1`已通过 `2`已拒绝 `3`垃圾 `4`回收站（公开接口仅返回 `1`）
 
 ## 对象结构

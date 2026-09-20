@@ -182,6 +182,10 @@ async function loadNotifications() {
     const data = await getNotifications()
     notifList.value = data.list
     notifUnread.value = data.unreadCount
+  } catch {
+    // 接口层已标记 silent，不弹全局 toast。
+    // 这里必须吞掉异常：60s 轮询是 fire-and-forget（void），若不捕获会变成
+    // 未处理 rejection，且失败时不应清空已有列表、打断用户。
   } finally {
     notifLoading.value = false
   }
