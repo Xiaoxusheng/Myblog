@@ -1,6 +1,22 @@
 import axios from 'axios'
 import { TOKEN_KEY } from '@/constants/status'
-import type { PagePayload, PostPayload } from '@/types/api'
+import type { AdminPostItem, PagePayload, PostPayload } from '@/types/api'
+
+/**
+ * 静默请求失败时抛出的结构化错误。
+ * code 用于上层识别业务语义（如 10005 并发编辑冲突 → 弹出冲突处理）。
+ */
+export class SilentRequestError extends Error {
+  readonly code: number
+  constructor(code: number, message: string) {
+    super(message)
+    this.name = 'SilentRequestError'
+    this.code = code
+  }
+}
+
+/** 内容冲突（文章已在其他窗口被修改）—— 与后端 common.CodeConflict 对齐 */
+export const CODE_CONFLICT = 10005
 
 /**
  * 服务器自动保存专用「静默」请求通道。
@@ -24,24 +40,29 @@ instance.interceptors.request.use((config) => {
   return config
 })
 
-/** 静默更新文章（auto 自动保存）：成功 resolve；失败 reject，不弹任何全局提示 */
-export function silentUpdatePost(id: number, payload: PostPayload): Promise<void> {
-  return instance.put(`/admin/posts/${id}`, payload).then((response) => {
-    const body = response.data as { code?: number } | null
-    if (body && typeof body === 'object' && body.code === 0) {
-      return undefined
-    }
-    throw new Error('自动保存失败')
-  })
+/** 从信箱响应中取 data；业务码非 0 时抛 SilentRequestError */
+function unwrap<T>(data: unknown): T {
+  const body = data as { code?: number; message?: string; data?: T } | null
+  if (body && typeof body === 'object' && body.code === 0) {
+    return body.data as T
+  }
+  throw new SilentRequestError(body?.code ?? -1, body?.message || '自动保存失败')
+}
+
+/**
+ * 静默更新文章（auto 自动保存）。
+ * 成功 resolve 服务器定稿后的文章（含新的 updatedAt，供基线回填）；失败 reject
+ * SilentRequestError（不弹任何全局提示，由调用方决定 UI 反馈）。
+ */
+export function silentUpdatePost(id: number, payload: PostPayload): Promise<AdminPostItem> {
+  return instance
+    .put(`/admin/posts/${id}`, payload)
+    .then((response) => unwrap<{ post: AdminPostItem }>(response.data).post)
 }
 
 /** 静默更新自定义页面（自动保存）：语义同 silentUpdatePost */
 export function silentUpdatePage(id: number, payload: PagePayload): Promise<void> {
   return instance.put(`/admin/pages/${id}`, payload).then((response) => {
-    const body = response.data as { code?: number } | null
-    if (body && typeof body === 'object' && body.code === 0) {
-      return undefined
-    }
-    throw new Error('自动保存失败')
+    unwrap<unknown>(response.data)
   })
 }

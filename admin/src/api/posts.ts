@@ -12,6 +12,10 @@ export interface PostListParams {
   keyword?: string
   status?: PostStatus | ''
   categoryId?: number | ''
+  /** 按标签筛选（服务端 JOIN post_tags，不产生重复计数） */
+  tagId?: number | ''
+  /** 排序：updatedAt=按最后编辑时间倒序；缺省按创建时间倒序 */
+  sort?: 'updatedAt'
   page?: number
   pageSize?: number
 }

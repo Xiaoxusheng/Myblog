@@ -84,6 +84,7 @@ export interface AdminPostItem extends PostSummary {
   seoDescription: string
   canonical: string
   ogImage: string
+  /** 最后保存时间；草稿工作区「最近编辑」排序依据 */
   updatedAt?: string
 }
 
@@ -119,6 +120,12 @@ export interface PostPayload {
   seoDescription?: string
   canonical?: string
   ogImage?: string
+  /**
+   * 并发编辑保护：编辑器读取该文章时服务器返回的 updatedAt。
+   * 提供且与服务器当前值不符 → 服务端返回 10005（文章已在其他窗口被修改）。
+   * 缺省则不校验（向后兼容）。
+   */
+  baseUpdatedAt?: string
 }
 
 /** 站内搜索统计项 */

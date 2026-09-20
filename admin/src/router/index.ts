@@ -34,6 +34,12 @@ const router = createRouter({
           meta: { title: '文章管理' },
         },
         {
+          path: 'posts/drafts',
+          name: 'post-drafts',
+          component: () => import('@/views/DraftsView.vue'),
+          meta: { title: '草稿工作区', parentTitle: '文章管理', parentPath: '/posts', activeMenu: '/posts' },
+        },
+        {
           path: 'posts/edit',
           name: 'post-create',
           component: () => import('@/views/PostEditView.vue'),

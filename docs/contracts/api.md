@@ -7,7 +7,7 @@
 - Base URL：`/api/v1`；RSS 特例 `GET /rss`（根路径，返回 XML）
 - 所有业务响应 HTTP 200，body：`{"code":0,"message":"ok","data":...}`
 - HTTP 401：未登录 / token 失效（前端统一跳登录）；HTTP 500：服务器错误
-- 错误码：`0` 成功；`10001` 参数错误；`10002` 未认证；`10003` 无权限；`10004` 资源不存在；`20001` 用户名或密码错误；`20002` 评论已关闭；`20003` 操作过于频繁
+- 错误码：`0` 成功；`10001` 参数错误；`10002` 未认证；`10003` 无权限；`10004` 资源不存在；`10005` 内容冲突（并发编辑保护）；`20001` 用户名或密码错误；`20002` 评论已关闭；`20003` 操作过于频繁
 - 防护层（反爬/恶意请求/自动封禁，环境变量 `BLOG_RATE_LIMIT_PER_MIN`/`BLOG_WAF_MODE`/`BLOG_BAN_*`）：命中封禁或 WAF 规则 → HTTP 403 + `{"code":10003,"message":"请求被拒绝"}`；超过全局限流 → HTTP 429 + `{"code":20003,...}` + `Retry-After`。违规按次计点，窗口内达阈值自动封禁（封禁持久化，重启不失效；防护事件仅内存）
 - 分页：query `page`(默认1)、`pageSize`(默认10，上限50)；响应 data：`{"list":[...],"total":123,"page":1,"pageSize":10}`
 - 时间：RFC3339 字符串（如 `2026-09-19T12:00:00+08:00`）
@@ -93,10 +93,10 @@
 | 15 | GET `/admin/stats` | `{postCount,draftCount,scheduledCount,commentCount,pendingCommentCount,viewCount,likeCount,linkCount,trend:[{date:"2026-09-13",posts,comments}](近7天，按 created_at),recentComments:[{id,postTitle,nickname,content,status,createdAt}](5条),scheduledPosts:[{id,title,publishAt}](计划发布文章 ≤5 条，publishAt 升序),todayPv,todayUv,yesterdayPv,yesterdayUv}` |
 
 ### 文章
-| 16 | GET `/admin/posts?keyword=&status=&categoryId=&page=&pageSize=` | 分页 AdminPostItem，最新在前；status 可为 `0/1/2/3` |
+| 16 | GET `/admin/posts?keyword=&status=&categoryId=&tagId=&sort=&page=&pageSize=` | 分页 AdminPostItem，缺省按创建时间倒序；status 可为 `0/1/2/3`；`tagId` 按标签筛选（JOIN post_tags，同一文章不重复计数）；`sort=updatedAt` 按最后编辑时间倒序（草稿工作区用），其余取值忽略 |
 | 17 | POST `/admin/posts` | `{title,slug?,summary?,content,cover?,categoryId,tags:[名称字符串],status,isTop,publishAt?,seriesId?,seriesSort?,seoTitle?,seoDescription?,canonical?,ogImage?}` → `{post:AdminPostItem}`；slug 空/重复则自动生成（post-{id} 或追加 -id）；tags 按 name upsert；status=3 时 publishAt 必填（RFC3339）；seriesId>0 加入该专题（seriesSort 0=自动排末尾）；创建成功即写入首个版本（v1，remark=首次保存） |
 | 18 | GET `/admin/posts/:id` | `{post:AdminPostItem}` |
-| 19 | PUT `/admin/posts/:id` | 同 17，全量更新（含 SEO 四字段；版本快照不含 SEO 字段）；可选 `auto:true`（前端自动保存标记）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空；seriesId 变更同步专题归属。**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动创建 `/post/旧slug → /post/新slug` 301 重定向** |
+| 19 | PUT `/admin/posts/:id` | 同 17，全量更新（含 SEO 四字段；版本快照不含 SEO 字段）；可选 `auto:true`（前端自动保存标记）。**并发编辑保护**：可选 `baseUpdatedAt`（RFC3339，编辑器读取时的 `updatedAt`）；提供且与服务器当前 `updated_at` 不一致（比较前统一截断到毫秒，消除驱动精度差异）→ `10005`（文章已在其他窗口被修改），内容不被覆盖；缺省则跳过该检查（向后兼容）。版本生成规则：title/slug/summary/cover/content/categoryId/isTop/status 与最新版本相比有变化 → 自动生成新版本（remark 按变更字段生成，如 `修改标题、正文`）；`auto=true` 且距最新版本 < 120s → 仅保存内容不生成版本（防抖）；无变化不生成。status=3 时 publishAt 必填；status 非 3 时 publishAt 置空；seriesId 变更同步专题归属。**slug 变更且设置 `autoRedirectOnSlugChange` 开启（默认开）时自动创建 `/post/旧slug → /post/新slug` 301 重定向**。成功响应中的 `updatedAt` 即新的并发基线，客户端应回填后再发起下次保存 |
 | 20 | PUT `/admin/posts/:id/status` | `{status,publishAt?}` → data:null；status=3 需 publishAt；状态实际变化时生成版本（remark=修改状态），仅调整计划时间不生成版本 |
 | 21 | DELETE `/admin/posts/:id` | data:null；同时删除其 post_tags、评论与版本历史 |
 | 50 | GET `/admin/posts/:id/revisions?page=&pageSize=` | 分页 PostRevisionItem，version 倒序；仅内容真正变化才产生版本 |
@@ -197,3 +197,4 @@
 12. 防护：`curl -A sqlmap :8080/api/v1/site` → 403；快速请求超过 `BLOG_RATE_LIMIT_PER_MIN` → 429 且计点达阈值自动封禁 → 后续 403；登录拿 token → `POST /admin/security/bans` 手动封禁某 IP → 该 IP 请求 403 → `DELETE` 解封恢复；`GET /admin/security/events` 可见 waf/rate_limit/auto_ban 事件
 13. 时间线：创建节点（含关联文章、sort=-1 置顶）→ `GET /api/v1/timeline` 首位可见且带 post 标题；PUT visible=false → 前台消失；DELETE → 消失；postId 不存在 → 10001
 14. 版本记录：创建 v1.0.0（status=0）→ `GET /api/v1/changelog` 不可见；PUT status=1 → 可见；再创建 v1.10.0（releasedAt 更晚）→ 排在 v1.0.0 之前；DELETE 已发布记录不带 force → 10001，带 force=true → 删除成功；version 重复/非法 → 10001
+15. 草稿工作区与并发保护：`GET /admin/posts?tagId={标签id}&sort=updatedAt` → 仅返回带该标签的文章且按最后编辑倒序；PUT 更新文章带服务器返回的 `updatedAt` 作 `baseUpdatedAt` → 成功并返回新的 `updatedAt`；再用**旧** `baseUpdatedAt` 重发 → `10005` 且内容未被覆盖；不带 `baseUpdatedAt` 重发 → 成功（向后兼容）；`PUT /admin/posts/:id/status` 等状态变更后 `updatedAt` 应同步刷新

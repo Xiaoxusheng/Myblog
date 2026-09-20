@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { SLUG_PATTERN, SLUG_PATTERN_MESSAGE } from '@/utils/validators'
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFeedback } from '@/composables/useFeedback'
-const { message } = useFeedback()
+const { message, modal } = useFeedback()
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import {
@@ -16,11 +16,13 @@ import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import FormSection from '@/components/FormSection.vue'
 import MediaSelectModal from '@/components/MediaSelectModal.vue'
 import PostRevisionDrawer from '@/components/PostRevisionDrawer.vue'
+import PrePublishCheckModal from '@/components/PrePublishCheckModal.vue'
 import { createPost, getPost, updatePost } from '@/api/posts'
 import { getCategories } from '@/api/taxonomy'
 import { getSeriesList } from '@/api/series'
-import { silentUpdatePost } from '@/utils/autosaveHttp'
+import { CODE_CONFLICT, SilentRequestError, silentUpdatePost } from '@/utils/autosaveHttp'
 import { useAutoSave } from '@/composables/useAutoSave'
+import { countWords, estimateReadingMinutes, scanMarkdownRefs, type MarkdownRefScan } from '@/utils/postCheck'
 import type { AdminPostItem, Category, PostPayload, PostStatus, Series } from '@/types/api'
 
 const route = useRoute()
@@ -40,6 +42,26 @@ const revisionOpen = ref(false)
 
 /** 定时发布计划时间（status=3 时使用） */
 const publishAtValue = ref<Dayjs | null>(null)
+
+// ---------------------------------------------------------------------------
+// 并发编辑保护（模块五）
+// syncedUpdatedAt：本编辑器最后一次与服务器同步的 updatedAt 基线。每次 GET/PUT/
+// 自动保存成功后回填，构建请求时作为 baseUpdatedAt 发回服务端做乐观锁比对。
+// ---------------------------------------------------------------------------
+const syncedUpdatedAt = ref<string | null>(null)
+/** 冲突状态：服务端返回 10005 时置位，暂停自动保存并提示用户处理 */
+const conflictDetected = ref(false)
+/** 其他标签页正在编辑同一文章（storage 事件） */
+const otherTabEditing = ref(false)
+/** 网络离线状态 */
+const offline = ref(false)
+
+/** 发布前检查弹窗 */const prePublishOpen = ref(false)
+/** 待执行的发布状态（用户确认检查清单后继续） */
+const pendingPublishStatus = ref<PostStatus>(1)
+
+/** 正文引用扫描（链接/图片空 URL 检测） */
+const refScan = computed<MarkdownRefScan>(() => scanMarkdownRefs(formState.content))
 
 const formState = reactive({
   title: '',
@@ -125,6 +147,7 @@ const {
   setBaseline,
   schedule: scheduleAutosave,
   flushDraft,
+  writeNow,
 } = useAutoSave<typeof formState, PostDraftExtra>({
   draftKey,
   form: formState,
@@ -152,9 +175,21 @@ const {
     formState.categoryId !== null &&
     formState.status !== 1 &&
     (formState.status !== 3 || publishAtValue.value !== null),
-  serverSave: () => silentUpdatePost(postId.value as number, buildPayload(formState.status)),
+  serverSave: async () => {
+    const post = await silentUpdatePost(postId.value as number, buildPayload(formState.status))
+    // 服务器定稿后的 updatedAt 即新基线，供后续请求比对
+    if (post?.updatedAt) syncedUpdatedAt.value = post.updatedAt
+  },
   payloadSnapshot: () => JSON.stringify(buildPayload(formState.status)),
   isBusy: () => saving.value,
+  onServerError: (error) => {
+    // 并发编辑冲突：暂停自动保存，交给用户决策（继续自动保存只会反复失败）
+    if (error instanceof SilentRequestError && error.code === CODE_CONFLICT) {
+      conflictDetected.value = true
+      offline.value = false
+      pauseAutosave()
+    }
+  },
 })
 
 watch(publishAtValue, () => touchAutosave())
@@ -189,6 +224,8 @@ async function load() {
   try {
     const result = await getPost(postId.value)
     fillForm(result.post)
+    syncedUpdatedAt.value = result.post.updatedAt ?? null
+    conflictDetected.value = false
     setBaseline()
     checkLocalDraft((draft) => formSnapshot(draft.form, draft.publishAt) !== formSnapshot(formState, currentPublishAtIso()))
   } finally {
@@ -216,7 +253,7 @@ function fillForm(post: AdminPostItem) {
   publishAtValue.value = post.publishAt ? dayjs(post.publishAt) : null
 }
 
-function buildPayload(nextStatus: PostStatus): PostPayload {
+function buildPayload(nextStatus: PostStatus, withBaseline = true): PostPayload {
   return {
     title: formState.title.trim(),
     slug: formState.slug.trim(),
@@ -235,6 +272,8 @@ function buildPayload(nextStatus: PostStatus): PostPayload {
     seoDescription: formState.seoDescription.trim(),
     canonical: formState.canonical.trim(),
     ogImage: formState.ogImage.trim(),
+    // 编辑存量文章时带上并发基线；新建（无同步基线）不带
+    ...(withBaseline && syncedUpdatedAt.value ? { baseUpdatedAt: syncedUpdatedAt.value } : {}),
   }
 }
 
@@ -252,7 +291,9 @@ async function save(nextStatus: PostStatus) {
   saving.value = true
   try {
     if (postId.value) {
-      await updatePost(postId.value, payload)
+      const result = await updatePost(postId.value, payload)
+      syncedUpdatedAt.value = result.post.updatedAt ?? syncedUpdatedAt.value
+      conflictDetected.value = false
       // 暂停自动保存，避免状态回填触发一次多余的保存
       pauseAutosave()
       formState.status = nextStatus
@@ -272,9 +313,32 @@ async function save(nextStatus: PostStatus) {
       // 转入编辑模式，后续保存走 PUT
       await router.replace(`/posts/edit/${result.post.id}`)
     }
+  } catch (error) {
+    // 手动保存撞上并发冲突：本地内容不丢，转由冲突弹窗处理
+    if (error instanceof SilentRequestError && error.code === CODE_CONFLICT) {
+      conflictDetected.value = true
+      pauseAutosave()
+      void promptManualConflict()
+      return
+    }
+    throw error
   } finally {
     saving.value = false
   }
+}
+
+/** 手动保存遇到冲突时的决策弹窗：载入最新 / 以当前内容覆盖 */
+function promptManualConflict() {
+  modal.confirm({
+    title: '文章已在其他窗口被修改',
+    content:
+      '服务器上的内容比你打开时更新。选择「载入最新」会用服务器版本替换当前编辑内容（你的改动会暂存为本地草稿）；选择「强制覆盖」则以你当前的内容为准写入。',
+    okText: '载入最新',
+    cancelText: '强制覆盖（用我的内容）',
+    okButtonProps: { type: 'primary' },
+    onOk: () => resolveConflictReload(),
+    onCancel: () => resolveConflictOverwrite(),
+  })
 }
 
 /** 版本恢复成功：用返回的 post 回填表单，清空本地草稿；暂停自动保存避免恢复内容再触发保存 */
@@ -285,6 +349,138 @@ async function onRestored(post: AdminPostItem) {
   clearLocalDraft()
   await nextTick()
   resumeAutosave()
+}
+
+// ---------------------------------------------------------------------------
+// 并发冲突处理（模块五）
+// 服务器返回 10005 时给出两个选项：载入最新（放弃本地改动）或强制覆盖（以当前内容为准）
+// ---------------------------------------------------------------------------
+
+/** 载入最新：先把正在输入的内容暂存到本地草稿，再拉取服务器版本回填 */
+async function resolveConflictReload() {
+  if (!postId.value) return
+  writeNow()
+  const result = await getPost(postId.value)
+  pauseAutosave()
+  fillForm(result.post)
+  syncedUpdatedAt.value = result.post.updatedAt ?? null
+  setBaseline()
+  clearLocalDraft()
+  conflictDetected.value = false
+  await nextTick()
+  resumeAutosave()
+  message.success('已载入服务器最新版本（你的改动已暂存为本地草稿）')
+}
+
+/** 以当前内容覆盖：重发一次不带基线的请求，强制写入 */
+async function resolveConflictOverwrite() {
+  if (!postId.value) return
+  saving.value = true
+  try {
+    const result = await updatePost(postId.value, buildPayload(formState.status, false))
+    syncedUpdatedAt.value = result.post.updatedAt ?? null
+    setBaseline()
+    clearLocalDraft()
+    conflictDetected.value = false
+    await nextTick()
+    resumeAutosave()
+    message.success('已用当前内容覆盖服务器版本')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 网络状态：离线时自动保存只落本地，恢复在线后若处于错误态则重试
+// ---------------------------------------------------------------------------
+function onOnline() {
+  offline.value = false
+  if (draftStatus.value === 'error' && !conflictDetected.value) {
+    resumeAutosave()
+    scheduleAutosave()
+  }
+}
+function onOffline() {
+  offline.value = true
+}
+
+// ---------------------------------------------------------------------------
+// 多标签页协作：同一文章在其他标签页被写入/清除时提示
+// ---------------------------------------------------------------------------
+function onStorage(event: StorageEvent) {
+  if (event.key !== draftKey.value) return
+  // 另一标签页清除了草稿（通常意味着它保存成功并同步了服务器）
+  otherTabEditing.value = event.newValue !== null
+}
+
+onMounted(() => {
+  window.addEventListener('online', onOnline)
+  window.addEventListener('offline', onOffline)
+  window.addEventListener('storage', onStorage)
+  if (!navigator.onLine) offline.value = true
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('online', onOnline)
+  window.removeEventListener('offline', onOffline)
+  window.removeEventListener('storage', onStorage)
+})
+
+// ---------------------------------------------------------------------------
+// 发布前检查清单
+// ---------------------------------------------------------------------------
+interface CheckItem {
+  key: string
+  label: string
+  detail?: string
+  ok: boolean
+}
+
+const prePublishChecks = computed<CheckItem[]>(() => {
+  const items: CheckItem[] = [
+    { key: 'title', label: '标题', ok: formState.title.trim() !== '' },
+    { key: 'content', label: '正文', ok: formState.content.trim() !== '' },
+    { key: 'category', label: '分类', ok: formState.categoryId !== null },
+    { key: 'tags', label: '标签', ok: formState.tagNames.length > 0 },
+    { key: 'cover', label: '封面', ok: formState.cover.trim() !== '' },
+    { key: 'summary', label: '摘要', ok: formState.summary.trim() !== '' },
+    { key: 'seoTitle', label: 'SEO 标题', ok: formState.seoTitle.trim() !== '' },
+    { key: 'seoDescription', label: 'SEO 描述', ok: formState.seoDescription.trim() !== '' },
+    {
+      key: 'refs',
+      label: '链接与图片引用',
+      detail:
+        refScan.value.issues.length > 0
+          ? `${refScan.value.issues.length} 处空链接：${refScan.value.issues
+              .map((i) => i.snippet)
+              .join('、')}`
+          : undefined,
+      ok: refScan.value.issues.length === 0,
+    },
+  ]
+  return items
+})
+
+/** 点击发布：先展示检查清单（不阻塞，用户可直接确认发布） */
+function requestPublish(nextStatus: PostStatus) {
+  pendingPublishStatus.value = nextStatus
+  prePublishOpen.value = true
+}
+
+async function confirmPublish() {
+  prePublishOpen.value = false
+  await save(pendingPublishStatus.value)
+}
+
+/** 检查项「定位」：滚动到侧栏对应分组并聚焦标题 */
+function locateCheck(key: string) {
+  prePublishOpen.value = false
+  const selector = key === 'title' ? '.post-edit__title' : `[data-section="${key}"]`
+  nextTick(() => {
+    const el = document.querySelector(selector) as HTMLElement | null
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (key === 'title') (el as HTMLInputElement).focus?.()
+  })
 }
 
 /** 定时发布日期禁选今天之前 */
@@ -329,12 +525,11 @@ function onSeriesSortChange(value: number | string | null) {
 }
 
 // ---------------------------------------------------------------------------
-// 底部状态栏：字数 / 预计阅读时长（中文 400 字/分钟）
+// 底部状态栏：字数 / 预计阅读时长
+// 口径统一走 utils/postCheck（去 Markdown 语法噪声、跳过代码块），与草稿工作区一致
 // ---------------------------------------------------------------------------
-const wordCount = computed(() => formState.content.length)
-const readingMinutes = computed(() =>
-  wordCount.value === 0 ? 0 : Math.max(1, Math.ceil(wordCount.value / 400)),
-)
+const wordCount = computed(() => countWords(formState.content))
+const readingMinutes = computed(() => estimateReadingMinutes(wordCount.value))
 
 // ---------- SEO 检查项（明确可验证项，不做虚假评分） ----------
 const seoChecks = computed(() => {
@@ -390,12 +585,51 @@ onBeforeUnmount(() => {
         <a-button
           type="primary"
           :loading="saving"
-          @click="formState.status === 3 ? save(3) : save(1)"
+          @click="formState.status === 3 || publishAtValue ? requestPublish(3) : requestPublish(1)"
         >
           {{ formState.status === 3 ? '定时发布' : '发布' }}
         </a-button>
       </a-space>
     </div>
+
+    <!-- 并发冲突提示：不抢焦点，用户处理后自动消失 -->
+    <a-alert
+      v-if="conflictDetected"
+      class="post-edit__alert"
+      type="warning"
+      show-icon
+      message="文章已在其他窗口被修改"
+      description="自动保存已暂停。请选择「载入最新」获取服务器版本，或用「强制覆盖」保留你的内容。"
+    >
+      <template #action>
+        <a-space>
+          <a-button size="small" @click="resolveConflictReload">载入最新</a-button>
+          <a-button size="small" danger @click="resolveConflictOverwrite">强制覆盖</a-button>
+        </a-space>
+      </template>
+    </a-alert>
+
+    <!-- 离线提示 -->
+    <a-alert
+      v-if="offline"
+      class="post-edit__alert"
+      type="info"
+      show-icon
+      message="网络已断开"
+      description="你的改动会先保存在本地，恢复网络后自动同步。"
+    />
+
+    <!-- 其他标签页正在编辑提示 -->
+    <a-alert
+      v-if="otherTabEditing"
+      class="post-edit__alert"
+      type="info"
+      show-icon
+      closable
+      message="其他标签页正在编辑这篇文章"
+      description="同时编辑可能互相覆盖，建议只保留一个编辑窗口。"
+      @close="otherTabEditing = false"
+    />
 
     <a-spin :spinning="loading">
       <a-form ref="formRef" :model="formState" :rules="rules" layout="vertical">
@@ -453,7 +687,7 @@ onBeforeUnmount(() => {
               </p>
             </FormSection>
 
-            <FormSection title="分类与标签">
+            <FormSection title="分类与标签" anchor="tags">
               <a-form-item label="分类" name="categoryId" required>
                 <a-select
                   v-model:value="formState.categoryId"
@@ -500,7 +734,7 @@ onBeforeUnmount(() => {
               <p class="post-edit__hint">留空自动排到专题末尾；清空专题即移出。</p>
             </FormSection>
 
-            <FormSection title="封面">
+            <FormSection title="封面" anchor="cover">
               <a-space direction="vertical" :size="8" style="width: 100%">
                 <a-input
                   v-model:value="formState.cover"
@@ -521,7 +755,7 @@ onBeforeUnmount(() => {
               </a-space>
             </FormSection>
 
-            <FormSection title="摘要">
+            <FormSection title="摘要" anchor="summary">
               <a-textarea
                 v-model:value="formState.summary"
                 placeholder="留空则前台可能截取正文开头"
@@ -531,7 +765,7 @@ onBeforeUnmount(() => {
               />
             </FormSection>
 
-            <FormSection title="SEO">
+            <FormSection title="SEO" anchor="seoTitle">
               <a-form-item label="SEO 标题" :extra="`当前 ${formState.seoTitle.length}/60 字（建议 ≤60）`">
                 <a-input
                   v-model:value="formState.seoTitle"
@@ -576,6 +810,14 @@ onBeforeUnmount(() => {
       :current-content="formState.content"
       @restored="onRestored"
     />
+
+    <PrePublishCheckModal
+      v-model:open="prePublishOpen"
+      :checks="prePublishChecks"
+      :confirm-text="pendingPublishStatus === 3 ? '确认加入定时发布' : '确认发布'"
+      @publish="confirmPublish"
+      @locate="locateCheck"
+    />
   </div>
 </template>
 
@@ -595,6 +837,15 @@ onBeforeUnmount(() => {
 
 .post-edit__back {
   flex: none;
+}
+
+/* 冲突/离线/多标签页提示条：与顶部工具条留出呼吸感 */
+.post-edit__alert {
+  margin-bottom: 12px;
+}
+
+.post-edit__alert :deep(.ant-alert-action) {
+  margin-inline-start: 12px;
 }
 
 .post-edit__title-box {

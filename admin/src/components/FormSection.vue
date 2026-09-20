@@ -5,11 +5,13 @@
  */
 defineProps<{
   title: string
+  /** 锚点名（渲染为 data-section），供发布前检查「定位」跳转 */
+  anchor?: string
 }>()
 </script>
 
 <template>
-  <section class="form-section">
+  <section class="form-section" :data-section="anchor">
     <h3 class="form-section__title">{{ title }}</h3>
     <div class="form-section__body">
       <slot></slot>

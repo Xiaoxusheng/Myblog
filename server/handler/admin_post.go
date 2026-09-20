@@ -28,11 +28,30 @@ type postPayload struct {
 	Auto       bool       `json:"auto"`       // 前端自动保存标记：版本生成防抖
 	SeriesID   uint       `json:"seriesId"`   // 0=移出专题
 	SeriesSort int        `json:"seriesSort"` // 0=自动排到末尾（已是成员则保持原序号）
+	// 并发编辑保护：编辑器持有的服务器更新时间基线。提供且与当前 updated_at
+	// 不一致（超出微秒级格式化容差）→ 10005（文章已被其他窗口修改）。
+	// 缺省跳过检查（向后兼容旧客户端）。
+	BaseUpdatedAt *time.Time `json:"baseUpdatedAt"`
 	// SEO 扩展（契约：空串=用默认值；不参与版本快照）
 	SeoTitle       string `json:"seoTitle"`
 	SeoDescription string `json:"seoDescription"`
 	Canonical      string `json:"canonical"`
 	OgImage        string `json:"ogImage"`
+}
+
+// updateConflictTolerance 基线比对容差。
+//
+// updated_at 写入前统一截断到毫秒（normalizeMillis），而浏览器 Date 本身即毫秒
+// 精度，因此客户端持有的基线往返后无损，比对可要求精确相等（容差 0）。
+// 不设容差是为了让「毫秒级相邻的两次不同保存」也能被识别为冲突——若留容差，
+// 快速连续保存（自动保存连击）会被误判为同一版本而绕过保护。
+const updateConflictTolerance = 0
+
+// normalizeMillis 把时间截断到毫秒精度。
+// 客户端（JS Date）只有毫秒精度，若服务端存纳秒，客户端读到的基线回传后会
+// 丢失亚毫秒部分，导致每次保存都被误判为冲突。
+func normalizeMillis(t time.Time) time.Time {
+	return t.Truncate(time.Millisecond)
 }
 
 func (p *postPayload) validate(c *gin.Context) bool {
@@ -96,6 +115,15 @@ func AdminListPosts(c *gin.Context) {
 		}
 		if catID := queryUint(c, "categoryId"); catID > 0 {
 			db = db.Where("category_id = ?", catID)
+		}
+		// 草稿工作区按标签筛选（模块五）：一篇文章同一 tag 仅一行，JOIN 不产生重复计数
+		if tagID := queryUint(c, "tagId"); tagID > 0 {
+			db = db.Joins("JOIN post_tags ON post_tags.post_id = posts.id").
+				Where("post_tags.tag_id = ?", tagID)
+		}
+		// sort=updatedAt 供草稿工作区「最近编辑」排序；缺省维持 created_at DESC
+		if c.Query("sort") == "updatedAt" {
+			return db.Order("updated_at DESC, id DESC")
 		}
 		return db.Order("created_at DESC, id DESC")
 	}
@@ -319,12 +347,25 @@ func AdminUpdatePost(c *gin.Context) {
 		common.Fail(c, common.CodeNotFound, "文章不存在")
 		return
 	}
+	// 并发编辑保护（模块五）：编辑器带上自己读取时的更新时间基线，
+	// 若期间被其他窗口/设备改过则拒绝写入，由前端给出冲突处理选项。
+	// 两侧都归一到毫秒后比较，消除驱动存储精度差异带来的假冲突。
+	if req.BaseUpdatedAt != nil &&
+		normalizeMillis(post.UpdatedAt).Sub(normalizeMillis(*req.BaseUpdatedAt)).Abs() > updateConflictTolerance {
+		common.Fail(c, common.CodeConflict, "文章已在其他窗口被修改，请先处理冲突")
+		return
+	}
 	oldSlug := post.Slug
 	if err := checkSeriesExists(req.SeriesID); err != nil {
 		common.Fail(c, common.CodeParamError, "专题不存在")
 		return
 	}
 
+	// 显式写 updated_at：SQLite 驱动不刷新自动时间戳（MySQL 会），不显式写则
+	// 「最后保存时间」排序与并发编辑保护基线在该驱动下永远不变化。
+	// 截断到毫秒以保证与客户端 JS Date 的往返无损（见 normalizeMillis）。
+	now := normalizeMillis(time.Now())
+	post.UpdatedAt = now
 	updates := map[string]any{
 		"title":       strings.TrimSpace(req.Title),
 		"summary":     strings.TrimSpace(req.Summary),
@@ -333,6 +374,7 @@ func AdminUpdatePost(c *gin.Context) {
 		"category_id": req.CategoryID,
 		"status":      req.Status,
 		"is_top":      req.IsTop,
+		"updated_at":  now,
 		// 定时发布写计划时间；离开定时状态置空
 		"publish_at":      publishAtForStatus(req.Status, req.PublishAt),
 		"seo_title":       strings.TrimSpace(req.SeoTitle),
@@ -347,7 +389,11 @@ func AdminUpdatePost(c *gin.Context) {
 	publishNowIfFirst(&post, req.Status, updates)
 
 	err = model.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&post).Updates(updates).Error; err != nil {
+		// GORM 在 Updates 时会用 time.Now() 覆盖 updated_at，使上面写入的毫秒归一
+		// 值失效；而 SQLite 驱动甚至不刷新该列。两种行为都破坏并发基线的可比性。
+		// 这里 Omit 自动时间戳，并在事务末尾（所有写入完成后）单独落盘归一值。
+		if err := tx.Session(&gorm.Session{SkipHooks: true}).
+			Model(&post).Omit("updated_at").Updates(updates).Error; err != nil {
 			return err
 		}
 		// Updates 不回写结构体，手动同步 published_at 供后续判断
@@ -381,6 +427,12 @@ func AdminUpdatePost(c *gin.Context) {
 		if err := tx.Model(&post).Association("Tags").Replace(tags); err != nil {
 			return err
 		}
+		// updated_at 必须最后落盘：ensurePostSlug 等步骤内部会再次 Update，
+		// GORM 的 autoUpdateTime 会把该列改回当前纳秒时间，覆盖此前的归一值。
+		if err := tx.Model(&post).UpdateColumn("updated_at", now).Error; err != nil {
+			return err
+		}
+		post.UpdatedAt = now
 		return maybeCreateRevisionOnUpdate(tx, &post, &req)
 	})
 	if err != nil {

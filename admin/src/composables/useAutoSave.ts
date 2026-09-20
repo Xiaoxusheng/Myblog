@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { onScopeDispose, ref, watch, type Ref } from 'vue'
 import dayjs from 'dayjs'
 import { App } from 'ant-design-vue'
 
@@ -34,6 +34,12 @@ export interface UseAutoSaveOptions<TForm extends object, TExtra extends object>
   isBusy?: () => boolean
   /** 恢复询问标题主体(如「文章」「页面」) */
   subject?: string
+  /**
+   * 服务器自动保存失败时的回调(在状态条置 error 之前调用)。
+   * 页面据此实现业务级反馈:如 10005 冲突 → 暂停自动保存并提示用户。
+   * 返回 true 表示页面已接管(pause 由页面自行决定),内核不再额外处理。
+   */
+  onServerError?: (error: unknown) => void
 }
 
 /**
@@ -122,9 +128,10 @@ export function useAutoSave<TForm extends object, TExtra extends object = Record
       draftStatus.value = 'saved-server'
       // 服务器已接住,清理本地兜底草稿(下次变更会重新写入)
       localStorage.removeItem(options.draftKey.value)
-    } catch {
-      // 静默失败:不弹错误提示,本地草稿已兜底
+    } catch (error) {
+      // 静默失败:不弹错误提示,本地草稿已兜底;业务级处理交给页面回调
       if (seq !== autosaveSeq) return
+      options.onServerError?.(error)
       draftStatus.value = 'error'
     }
   }
@@ -226,6 +233,48 @@ export function useAutoSave<TForm extends object, TExtra extends object = Record
     }
   }
 
+  /** 立即把当前内容写入本地草稿(不等防抖)。用于冲突处理「载入最新」前暂存用户输入 */
+  function writeNow() {
+    clearDraftTimer()
+    try {
+      const draft: LocalDraft<TForm, TExtra> = options.draftPayload
+        ? options.draftPayload()
+        : ({ form: options.form, savedAt: Date.now() } as LocalDraft<TForm, TExtra>)
+      localStorage.setItem(options.draftKey.value, JSON.stringify(draft))
+    } catch {
+      // 本地写入失败不阻断流程(如配额满/隐私模式)
+    }
+  }
+
+  /** 是否有尚未落盘的防抖变更(供 beforeunload 判断是否需要拦截) */
+  function hasPending(): boolean {
+    return draftTimer !== null
+  }
+
+  // 页面隐藏/卸载兜底:防抖窗口内直接关页会丢内容,这里同步落盘。
+  // pagehide 覆盖移动端切后台与 bfcache;beforeunload 仅在真有未落盘变更时拦截。
+  function onPageHide() {
+    flushDraft()
+  }
+  function onBeforeUnload(event: BeforeUnloadEvent) {
+    if (!hasPending()) return
+    flushDraft()
+    event.preventDefault()
+    // 部分浏览器需设置 returnValue 才展示离开确认
+    event.returnValue = ''
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('beforeunload', onBeforeUnload)
+  }
+  onScopeDispose(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+    clearDraftTimer()
+  })
+
   return {
     autosaveReady,
     draftStatus,
@@ -240,5 +289,7 @@ export function useAutoSave<TForm extends object, TExtra extends object = Record
     setBaseline,
     schedule,
     flushDraft,
+    writeNow,
+    hasPending,
   }
 }

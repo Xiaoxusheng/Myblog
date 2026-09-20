@@ -14,6 +14,7 @@ import {
   CommentOutlined,
   ClockCircleOutlined,
   DashboardOutlined,
+  EditOutlined,
   FileTextOutlined,
   LinkOutlined,
   LogoutOutlined,
@@ -77,6 +78,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { key: '/dashboard', title: '仪表盘', icon: DashboardOutlined },
       { key: '/posts', title: '文章管理', icon: FileTextOutlined },
+      { key: '/posts/drafts', title: '草稿工作区', icon: EditOutlined },
       { key: '/pages', title: '页面管理', icon: ProfileOutlined },
       { key: '/series', title: '专题管理', icon: BookOutlined },
       { key: '/timeline', title: '时间线管理', icon: ClockCircleOutlined },
