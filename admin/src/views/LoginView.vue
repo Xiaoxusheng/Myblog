@@ -1,23 +1,28 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useFeedback } from '@/composables/useFeedback'
-import { LockOutlined, UserOutlined } from '@ant-design/icons-vue'
+import type { FormInstance } from 'ant-design-vue'
+import { LockOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons-vue'
 import { getCaptcha } from '@/api/auth'
+import { fetchPublicSite } from '@/api/site'
 import { useAuthStore } from '@/stores/auth'
+import { useFeedback } from '@/composables/useFeedback'
 
 const { message } = useFeedback()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const formRef = ref()
+const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const loginError = ref('')
 
 const captchaId = ref('')
 const captchaImage = ref('')
 const captchaLoading = ref(false)
+
+/** 站点名从公开接口读取，失败则静默降级 */
+const siteName = ref('MyBlog')
 
 const formState = reactive({
   username: '',
@@ -32,6 +37,10 @@ const rules = {
   captcha: [{ required: true, message: '请输入验证码' }],
 }
 
+const brandInitial = computed(() => (siteName.value.trim()[0] || 'M').toUpperCase())
+
+const year = new Date().getFullYear()
+
 /** 拉取图形验证码（进入页面 / 点击图片 / 登录失败后刷新） */
 async function refreshCaptcha() {
   captchaLoading.value = true
@@ -44,9 +53,22 @@ async function refreshCaptcha() {
   }
 }
 
+async function loadSiteName() {
+  try {
+    const info = await fetchPublicSite()
+    if (info?.siteName) siteName.value = info.siteName
+  } catch {
+    /* 读不到站点名不影响登录，保留默认值 */
+  }
+}
+
 async function handleSubmit() {
   loginError.value = ''
-  await formRef.value?.validate()
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
   submitting.value = true
   try {
     await auth.login({
@@ -60,7 +82,7 @@ async function handleSubmit() {
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     await router.replace(redirect)
   } catch (e) {
-    // 拦截器已 toast;行内 Alert 提供持续可见的错误态(docs/09 §9.1)
+    // 行内错误区提供持续可见的错误态（全局 toast 会消失）
     loginError.value = e instanceof Error && e.message ? e.message : '登录失败，请稍后重试'
     // 验证码单次有效：任何失败后都换新题
     formState.captcha = ''
@@ -70,212 +92,478 @@ async function handleSubmit() {
   }
 }
 
-onMounted(refreshCaptcha)
+onMounted(() => {
+  void refreshCaptcha()
+  void loadSiteName()
+})
 </script>
 
 <template>
-  <div class="login-view">
-    <div class="login-box">
-      <div class="login-brand">
-        <span class="login-brand__logo">M</span>
-        <span class="login-brand__name">MyBlog</span>
+  <div class="login">
+    <!-- 左：品牌面板（宽屏展示，作用是把「这是什么产品」讲清楚） -->
+    <aside class="login-brand-panel">
+      <div class="login-brand-panel__inner">
+        <div class="login-brand">
+          <span class="login-brand__mark">{{ brandInitial }}</span>
+          <span class="login-brand__name">{{ siteName }}</span>
+        </div>
+
+        <div class="login-brand-copy">
+          <h2 class="login-brand-copy__title">内容管理后台</h2>
+          <p class="login-brand-copy__desc">
+            在这里撰写与发布文章、管理分类与标签、处理评论审核，并查看站点访问数据。
+          </p>
+        </div>
+
+        <ul class="login-brand-list">
+          <li>
+            <span class="login-brand-list__dot" />
+            <span class="login-brand-list__label">文章与草稿</span>
+            <span class="login-brand-list__hint">自动保存 · 冲突保护</span>
+          </li>
+          <li>
+            <span class="login-brand-list__dot" />
+            <span class="login-brand-list__label">评论与审核</span>
+            <span class="login-brand-list__hint">待审队列 · 敏感词</span>
+          </li>
+          <li>
+            <span class="login-brand-list__dot" />
+            <span class="login-brand-list__label">站点数据</span>
+            <span class="login-brand-list__hint">访问趋势 · 内容统计</span>
+          </li>
+        </ul>
       </div>
+    </aside>
 
-      <h1 class="login-title">管理员登录</h1>
+    <!-- 右：表单区 -->
+    <main class="login-form-panel">
+      <div class="login-form-panel__inner">
+        <!-- 窄屏时品牌面板隐藏，这里补一个轻量品牌头 -->
+        <div class="login-compact-brand">
+          <span class="login-brand__mark">{{ brandInitial }}</span>
+          <span class="login-brand__name">{{ siteName }}</span>
+        </div>
 
-      <a-alert
-        v-if="loginError"
-        type="error"
-        :message="loginError"
-        show-icon
-        style="margin-bottom: 12px"
-      />
+        <header class="login-head">
+          <h1 class="login-head__title">登录</h1>
+          <p class="login-head__sub">使用管理员账号继续</p>
+        </header>
 
-      <a-form
-        ref="formRef"
-        :model="formState"
-        :rules="rules"
-        layout="vertical"
-        hide-required-mark
-        @finish="handleSubmit"
-      >
-        <a-form-item name="username">
-          <a-input
-            v-model:value="formState.username"
-            placeholder="用户名"
-            autocomplete="username"
-          >
-            <template #prefix><UserOutlined /></template>
-          </a-input>
-        </a-form-item>
+        <a-alert
+          v-if="loginError"
+          class="login-alert"
+          type="error"
+          :message="loginError"
+          show-icon
+          closable
+          @close="loginError = ''"
+        />
 
-        <a-form-item name="password">
-          <a-input-password
-            v-model:value="formState.password"
-            placeholder="密码"
-            autocomplete="current-password"
-          >
-            <template #prefix><LockOutlined /></template>
-          </a-input-password>
-        </a-form-item>
-
-        <a-form-item name="captcha">
-          <div class="captcha-row">
-            <a-input v-model:value="formState.captcha" placeholder="验证码" maxlength="4" autocomplete="off" />
-            <button
-              type="button"
-              class="captcha-img"
-              title="看不清？点击刷新"
-              @click="refreshCaptcha"
+        <a-form
+          ref="formRef"
+          :model="formState"
+          :rules="rules"
+          layout="vertical"
+          hide-required-mark
+          @finish="handleSubmit"
+        >
+          <a-form-item label="用户名" name="username">
+            <a-input
+              v-model:value="formState.username"
+              size="large"
+              placeholder="请输入用户名"
+              autocomplete="username"
             >
-              <img v-if="captchaImage" :src="captchaImage" alt="验证码" />
-              <span v-else class="captcha-img__loading">…</span>
-            </button>
+              <template #prefix><UserOutlined class="login-field-icon" /></template>
+            </a-input>
+          </a-form-item>
+
+          <a-form-item label="密码" name="password">
+            <a-input-password
+              v-model:value="formState.password"
+              size="large"
+              placeholder="请输入密码"
+              autocomplete="current-password"
+            >
+              <template #prefix><LockOutlined class="login-field-icon" /></template>
+            </a-input-password>
+          </a-form-item>
+
+          <a-form-item label="验证码" name="captcha">
+            <div class="login-captcha">
+              <a-input
+                v-model:value="formState.captcha"
+                size="large"
+                placeholder="请输入右侧字符"
+                maxlength="4"
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                class="login-captcha__box"
+                :class="{ 'is-loading': captchaLoading, 'is-blank': !captchaImage }"
+                title="看不清？点击换一张"
+                aria-label="刷新验证码"
+                @click="refreshCaptcha"
+              >
+                <img
+                  v-if="captchaImage"
+                  :src="captchaImage"
+                  alt=""
+                  aria-hidden="true"
+                  @error="captchaImage = ''"
+                />
+                <span v-else class="login-captcha__placeholder" />
+                <span class="login-captcha__refresh"><ReloadOutlined /></span>
+              </button>
+            </div>
+          </a-form-item>
+
+          <div class="login-options">
+            <a-checkbox v-model:checked="formState.remember">7 天内免登录</a-checkbox>
           </div>
-        </a-form-item>
 
-        <a-form-item class="login-remember">
-          <a-checkbox v-model:checked="formState.remember">7 天内免登录</a-checkbox>
-        </a-form-item>
+          <a-button
+            class="login-submit"
+            type="primary"
+            size="large"
+            block
+            html-type="submit"
+            :loading="submitting"
+          >
+            登录
+          </a-button>
+        </a-form>
 
-        <a-form-item class="login-submit">
-          <a-button type="primary" block html-type="submit" :loading="submitting">登录</a-button>
-        </a-form-item>
-      </a-form>
-    </div>
-
-    <p class="login-foot">© 2026 MyBlog</p>
+        <p class="login-foot">© {{ year }} {{ siteName }} · 管理后台</p>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.login-view {
-  position: relative;
+.login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #fafbfd 0%, #eef1f6 100%);
-  padding: 24px;
+  background: var(--admin-surface);
 }
 
-/* 顶部极淡品牌光晕，打破平坦但不抢戏 */
-.login-view::before {
+/* ---------- 左：品牌面板 ---------- */
+
+.login-brand-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 56px;
+  background: var(--admin-bg);
+  border-right: 1px solid var(--admin-border);
+  overflow: hidden;
+}
+
+/* 极淡的品牌光晕：只做氛围，不做装饰 */
+.login-brand-panel::before {
   content: '';
   position: absolute;
-  top: -140px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 720px;
-  height: 320px;
-  background: radial-gradient(ellipse at center, rgba(22, 119, 255, 0.08), transparent 70%);
+  top: -180px;
+  left: -120px;
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle, rgba(22, 119, 255, 0.1), transparent 68%);
   pointer-events: none;
 }
 
-.login-box {
+.login-brand-panel__inner {
   position: relative;
   width: 100%;
-  max-width: 264px;
-  padding: 24px 22px 18px;
-  background: #fff;
-  border: 1px solid var(--admin-border, #e5e7eb);
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 21, 41, 0.06);
-  text-align: center;
+  max-width: 380px;
 }
 
 .login-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: 10px;
 }
 
-.login-brand__logo {
+.login-brand__mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #1677ff, #4096ff);
-  font-size: 14px;
-  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-brand);
   color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .login-brand__name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
   color: var(--admin-text);
 }
 
-.login-title {
-  margin: 0 0 16px;
-  font-size: 15px;
-  font-weight: 500;
+.login-brand-copy {
+  margin-top: 40px;
+}
+
+.login-brand-copy__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--admin-text);
+}
+
+.login-brand-copy__desc {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
   color: var(--admin-muted);
 }
 
-.login-box :deep(.ant-form-item) {
-  margin-bottom: 12px;
-}
-
-.captcha-row {
-  display: flex;
-  gap: 8px;
-}
-
-.captcha-img {
-  flex: none;
-  width: 96px;
-  height: 32px;
+.login-brand-list {
+  margin: 36px 0 0;
   padding: 0;
-  border: 1px solid var(--admin-border, #d9d9d9);
-  border-radius: 6px;
-  background: #fff;
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.login-brand-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.login-brand-list__dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--admin-brand);
+  transform: translateY(-2px);
+}
+
+.login-brand-list__label {
+  color: var(--admin-text);
+  font-weight: 500;
+}
+
+.login-brand-list__hint {
+  color: var(--admin-muted);
+}
+
+/* ---------- 右：表单区 ---------- */
+
+.login-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  background: var(--admin-surface);
+}
+
+.login-form-panel__inner {
+  width: 100%;
+  max-width: 340px;
+}
+
+.login-compact-brand {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.login-head {
+  margin-bottom: 28px;
+}
+
+.login-head__title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--admin-text);
+}
+
+.login-head__sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--admin-muted);
+}
+
+.login-alert {
+  margin-bottom: 20px;
+}
+
+/* 表单项：标签在上，间距靠节奏建立 */
+.login-form-panel :deep(.ant-form-item) {
+  margin-bottom: 18px;
+}
+
+.login-form-panel :deep(.ant-form-item-label) {
+  padding-bottom: 6px;
+}
+
+.login-form-panel :deep(.ant-form-item-label > label) {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-text);
+  height: auto;
+}
+
+.login-field-icon {
+  color: var(--admin-muted);
+}
+
+/* 验证码：输入框 + 可点击图块 */
+.login-captcha {
+  display: flex;
+  gap: 10px;
+}
+
+.login-captcha :deep(.ant-input-affix-wrapper),
+.login-captcha :deep(.ant-input) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.login-captcha__box {
+  position: relative;
+  flex: none;
+  width: 112px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-2);
   cursor: pointer;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.2s;
+  transition:
+    border-color 0.18s ease-out,
+    background-color 0.18s ease-out;
 }
 
-.captcha-img:hover {
-  border-color: var(--admin-brand, #1677ff);
+.login-captcha__box:hover {
+  border-color: var(--admin-brand);
 }
 
-.captcha-img img {
+.login-captcha__box:focus-visible {
+  outline: 2px solid var(--admin-brand);
+  outline-offset: 1px;
+}
+
+.login-captcha__box.is-loading {
+  opacity: 0.6;
+}
+
+/* 加载失败 / 未取到验证码：显示可点击的重试占位，而不是浏览器的裂图 */
+.login-captcha__box.is-blank {
+  background: var(--admin-surface-2);
+}
+
+.login-captcha__box img {
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: cover;
 }
 
-.captcha-img__loading {
-  font-size: 14px;
-  color: var(--admin-muted);
+.login-captcha__placeholder {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--admin-muted);
+  opacity: 0.5;
 }
 
-.login-remember {
-  text-align: left;
+/* 刷新角标：hover 才显出，避免静态干扰 */
+.login-captcha__refresh {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  transition: opacity 0.18s ease-out;
 }
 
-.login-remember :deep(.ant-checkbox + span) {
-  font-size: 12px;
+.login-captcha__box:hover .login-captcha__refresh {
+  opacity: 1;
+}
+
+.login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.login-options :deep(.ant-checkbox + span) {
+  font-size: 13px;
   color: var(--admin-muted);
 }
 
 .login-submit {
-  margin-bottom: 0;
+  height: 42px;
+  font-weight: 500;
 }
 
 .login-foot {
-  margin: 16px 0 0;
-  font-size: 11px;
+  margin: 24px 0 0;
+  font-size: 12px;
   color: var(--admin-muted);
+  text-align: center;
+}
+
+/* ---------- 响应式 ---------- */
+
+/* 中等宽度：收起品牌面板，改用顶部紧凑品牌头 */
+@media (max-width: 900px) {
+  .login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .login-brand-panel {
+    display: none;
+  }
+
+  .login-compact-brand {
+    display: flex;
+  }
+
+  .login-form-panel {
+    padding: 40px 24px;
+  }
+}
+
+/* 窄屏：进一步收紧留白 */
+@media (max-width: 480px) {
+  .login-form-panel {
+    padding: 32px 20px;
+    align-items: flex-start;
+  }
+
+  .login-head__title {
+    font-size: 22px;
+  }
+
+  .login-captcha__box {
+    width: 96px;
+  }
 }
 </style>
