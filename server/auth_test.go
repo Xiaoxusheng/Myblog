@@ -2,7 +2,10 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"testing"
+
+	"myblog/server/handler"
 )
 
 // 登录成功：code 0，token 非空，user 为契约 User 对象
@@ -24,6 +27,49 @@ func TestLoginWrongPassword(t *testing.T) {
 	e := decode(t, rec)
 	if e.Code != 20001 {
 		t.Fatalf("期望错误码 20001，实际 %d（%s）", e.Code, e.Message)
+	}
+}
+
+// 关键语义：验证码正确但密码错误时，错误码必须是 20001 而非 10001。
+// 前端依赖这个区分——10001 才刷新验证码，20001 不该连坐刷新，
+// 否则用户每改一次密码都要重看验证码，会被误解成「验证码一直过期」。
+func TestLoginWrongPasswordKeepsCaptchaSemantics(t *testing.T) {
+	app := newTestApp(t)
+
+	// attemptLogin 内部会取一题并用正确答案提交，因此这里得到的是「验证码已通过」的响应
+	rec := attemptLogin(t, app, "admin", "wrong-password")
+	e := decode(t, rec)
+	if e.Code != 20001 {
+		t.Fatalf("验证码正确 + 密码错误 应返回 20001，实际 %d（%s）", e.Code, e.Message)
+	}
+	if strings.Contains(e.Message, "验证码") {
+		t.Fatalf("20001 的提示不应涉及验证码，实际 %q", e.Message)
+	}
+
+	// 反向确认：同一题被消费后重用 → 10001（这才是「已过期」的来源）
+	capRec := doJSON(t, app, http.MethodGet, "/api/v1/admin/auth/captcha", "", nil)
+	capEnv := decode(t, capRec)
+	var capData struct {
+		CaptchaID string `json:"captchaId"`
+	}
+	decodeInto(t, capEnv, &capData)
+	answer := handler.GetCaptchaAnswer(capData.CaptchaID)
+
+	payload := map[string]any{
+		"username": "admin", "password": "admin123",
+		"captchaId": capData.CaptchaID, "captchaCode": answer,
+	}
+	// 第一次：验证码正确 + 密码正确 → 成功并消费该题
+	if e := decode(t, doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "", payload)); e.Code != 0 {
+		t.Fatalf("首次登录应成功：%s", e.Message)
+	}
+	// 第二次用同一题 → 10001，提示「已过期」
+	e2 := decode(t, doJSON(t, app, http.MethodPost, "/api/v1/admin/auth/login", "", payload))
+	if e2.Code != 10001 {
+		t.Fatalf("复用已消费的验证码应 10001，实际 %d", e2.Code)
+	}
+	if !strings.Contains(e2.Message, "已过期") {
+		t.Fatalf("复用已消费的验证码应提示「已过期」，实际 %q", e2.Message)
 	}
 }
 
