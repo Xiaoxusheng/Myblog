@@ -106,8 +106,12 @@ watch([page, pageSize], () => {
 })
 
 async function loadCategories() {
-  const result = await getCategories({ page: 1, pageSize: 100 })
-  categories.value = result.list
+  try {
+    const result = await getCategories({ page: 1, pageSize: 100 })
+    categories.value = result.list
+  } catch {
+    // 分类筛选项为辅助数据：失败时保留空列表，不影响列表主流程
+  }
 }
 
 function onSearch() {
@@ -207,8 +211,8 @@ function onRowAction(action: string, record: AdminPostItem) {
   }
 }
 
-/** a-menu click 事件在模板中无类型,柯里化显式标注 */
-const onMenuClick = (record: AdminPostItem) => (info: { key: string | number }) =>
+/** a-menu click：直接双参数调用（模板 @click 内联柯里化表达式会被 Vue 丢弃内层函数，菜单曾整体失效） */
+const onMenuClick = (record: AdminPostItem, info: { key: string | number }) =>
   onRowAction(String(info.key), record)
 
 function goCreate() {
@@ -434,7 +438,7 @@ onMounted(() => {
                   <template #icon><MoreOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="onMenuClick(record)">
+                  <a-menu @click="onMenuClick(record, $event)">
                     <a-menu-item key="analytics">分析</a-menu-item>
                     <a-menu-item key="view" :disabled="record.status !== 1">前台查看</a-menu-item>
                     <a-menu-divider />

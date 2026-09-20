@@ -238,7 +238,8 @@ function onRowAction(action: string, record: AdminPostItem) {
   }
 }
 
-const onMenuClick = (record: AdminPostItem) => (info: { key: string | number }) =>
+/** a-menu click：直接双参数调用（模板 @click 内联柯里化表达式会被 Vue 丢弃内层函数，菜单曾整体失效） */
+const onMenuClick = (record: AdminPostItem, info: { key: string | number }) =>
   onRowAction(String(info.key), record)
 
 /** 窗口重新聚焦时重扫本地草稿（另一标签页保存后会清理） */
@@ -405,7 +406,7 @@ onUnmounted(() => {
                   <template #icon><MoreOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="onMenuClick(record)">
+                  <a-menu @click="onMenuClick(record, $event)">
                     <a-menu-item key="view" :disabled="record.status !== 1">前台查看</a-menu-item>
                     <a-menu-item key="discardLocal" :disabled="!localDraftIds.has(record.id)">
                       丢弃本地草稿

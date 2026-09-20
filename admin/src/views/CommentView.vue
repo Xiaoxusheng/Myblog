@@ -235,8 +235,8 @@ function onRowAction(action: string, record: CommentAdmin) {
   }
 }
 
-/** a-menu click 事件在模板中无类型,柯里化显式标注 */
-const onMenuClick = (record: CommentAdmin) => (info: { key: string | number }) =>
+/** a-menu click：直接双参数调用（模板 @click 内联柯里化表达式会被 Vue 丢弃内层函数，菜单曾整体失效） */
+const onMenuClick = (record: CommentAdmin, info: { key: string | number }) =>
   onRowAction(String(info.key), record)
 
 onMounted(load)
@@ -316,7 +316,7 @@ onMounted(load)
                   <template #icon><MoreOutlined /></template>
                 </a-button>
                 <template #overlay>
-                  <a-menu @click="onMenuClick(record)">
+                  <a-menu @click="onMenuClick(record, $event)">
                     <a-menu-item v-if="record.status !== 1" key="approve">通过</a-menu-item>
                     <a-menu-item v-if="record.status !== 2 && !record.isAdmin" key="reject">拒绝</a-menu-item>
                     <a-menu-item v-if="record.status !== 3 && !record.isAdmin" key="spam">标记垃圾</a-menu-item>
