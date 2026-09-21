@@ -175,8 +175,10 @@ onMounted(() => {
 }
 
 @media (max-width: 1023px) {
+  /* 移动端信息已由 SiteSidebar 横滑卡片承担（p15），
+     本组件保留仅为兼顾「侧栏被隐藏」的将来形态；两者不同时出现，避免 NOTICE/热门 重复渲染。 */
   .mobile-discover {
-    display: flex;
+    display: none;
   }
 }
 </style>
