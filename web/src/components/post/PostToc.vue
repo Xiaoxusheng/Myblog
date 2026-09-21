@@ -119,11 +119,9 @@ onBeforeUnmount(() => {
   padding-bottom: 10px;
   margin-bottom: 6px;
   border-bottom: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--text-3);
+  color: var(--text-1);
 }
 
 .toc-body {
@@ -163,7 +161,7 @@ onBeforeUnmount(() => {
   display: block;
   padding: 5px 0 5px 12px;
   color: var(--text-3);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   transition: color var(--transition);
   overflow: hidden;

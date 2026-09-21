@@ -36,7 +36,7 @@
           @reply="openReply"
         />
       </ul>
-      <EmptyState v-else size="compact" title="还没有评论，来写下第一条" />
+      <EmptyState v-else size="compact" title="— 还没有评论 —" description="来写下第一条" />
     </template>
   </section>
 </template>
@@ -112,14 +112,17 @@ onMounted(() => {
 }
 
 .section-heading {
-  font-size: 18px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--fs-xl);
+  line-height: var(--lh-heading-2);
+  letter-spacing: -0.01em;
 }
 
 .heading-count {
-  margin-left: 6px;
-  font-family: var(--font-mono);
-  font-size: 12px;
+  margin-left: 8px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -129,7 +132,7 @@ onMounted(() => {
   margin-top: 14px;
   padding: 14px 18px;
   color: var(--text-3);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
 }
 
 .comment-list {

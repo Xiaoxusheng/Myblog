@@ -3,7 +3,8 @@
     <div class="header-inner container">
       <RouterLink to="/" class="brand">
         <img v-if="site.settings.logo" :src="site.settings.logo" alt="" />
-        <span>{{ site.settings.siteName || 'MyBlog' }}</span>
+        <span v-else class="brand-mark" aria-hidden="true">{{ brandInitial }}</span>
+        <span class="brand-name">{{ site.settings.siteName || 'MyBlog' }}</span>
       </RouterLink>
 
       <nav class="main-nav" aria-label="主导航">
@@ -103,6 +104,9 @@ const kbdHint = computed(() =>
   /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent) ? '⌘ K' : 'Ctrl K'
 )
 
+/** 无自定义 logo 时，用站名首字母填充品牌方块（p02 品牌标记形态） */
+const brandInitial = computed(() => (site.settings.siteName || 'MyBlog').trim().charAt(0).toUpperCase())
+
 function onMobileSearch(): void {
   menuOpen.value = false
   palette.open()
@@ -177,21 +181,20 @@ onBeforeUnmount(() => {
 .header-inner {
   display: flex;
   align-items: center;
-  gap: 20px;
   height: var(--header-height);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   flex-shrink: 0;
   color: var(--text-1);
-  /* 报头化：衬线站名（docs/05 §5.1） */
   font-family: var(--font-display);
   font-weight: var(--display-weight);
   font-size: var(--fs-lg);
   line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .brand:hover {
@@ -199,23 +202,40 @@ onBeforeUnmount(() => {
 }
 
 .brand img {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
+}
+
+/* 品牌方块：紫底白字首字母（p02 / p13 页脚同形） */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  user-select: none;
 }
 
 .main-nav {
   display: flex;
-  gap: 4px;
-  margin-left: 6px;
+  gap: 2px;
+  margin-left: 18px;
 }
 
-/* 编辑部式导航：hover 与 active 只动文字与下划线，不做底色胶囊。
-   hover 是墨色下划线，active 才是 accent——弱化引导、强化当前位置（docs/07 §6.3） */
+/* 导航：hover 出墨色下划线，active 才是紫色——弱化引导、强化当前位置 */
 .nav-link {
   position: relative;
-  padding: 6px 10px;
+  padding: 6px 11px;
   color: var(--text-2);
   font-size: var(--fs-md);
   transition: color var(--transition);
@@ -224,8 +244,8 @@ onBeforeUnmount(() => {
 .nav-link::after {
   content: '';
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: 11px;
+  right: 11px;
   bottom: -2px;
   height: 2px;
   border-radius: 1px;
@@ -264,17 +284,17 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
-/* 搜索入口：外观延续搜索框形态，语义为打开命令面板的按钮（docs/06 §5） */
+/* 搜索入口：外观延续搜索框形态，语义为打开命令面板的按钮 */
 .search-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 190px;
+  width: 200px;
   height: 34px;
   padding: 0 8px 0 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   color: var(--text-3);
   font-size: var(--fs-sm);
   transition: border-color var(--transition), background var(--transition),
@@ -282,7 +302,8 @@ onBeforeUnmount(() => {
 }
 
 .search-trigger:hover {
-  background: var(--border);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
   color: var(--text-2);
 }
 
@@ -337,6 +358,7 @@ onBeforeUnmount(() => {
 
   .search-trigger-full {
     width: 100%;
+    height: 38px;
   }
 
   .st-kbd {
@@ -351,7 +373,7 @@ onBeforeUnmount(() => {
     display: block;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
-    padding: 12px 20px 16px;
+    padding: 14px 20px 18px;
   }
 
   .mobile-nav {
@@ -361,7 +383,7 @@ onBeforeUnmount(() => {
   }
 
   .mobile-nav a {
-    padding: 12px 4px;
+    padding: 13px 4px;
     color: var(--text-1);
     font-size: var(--fs-base);
     border-bottom: 1px solid var(--border);
@@ -369,10 +391,10 @@ onBeforeUnmount(() => {
 
   .mobile-nav a.active {
     color: var(--brand);
-    font-weight: 500;
+    font-weight: 600;
   }
 
-  /* 末项去分隔线，避免与面板底边 hairline 叠成双线（docs/08 §6.4） */
+  /* 末项去分隔线，避免与面板底边 hairline 叠成双线 */
   .mobile-nav a:last-child {
     border-bottom: none;
   }

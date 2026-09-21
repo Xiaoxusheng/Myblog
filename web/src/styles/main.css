@@ -1,6 +1,7 @@
 /* ============================================================
    MyBlog 前台全局样式：设计令牌（双主题）/ Reset / 布局骨架 / 通用类
-   设计基准：docs/04-前台UI设计规范.md（现代编辑部式极简）
+   设计基准：docs/prototypes/myblog-web-redesign-v1.pdf（Notion 基调）
+     深藏蓝 Hero + 紫色主 CTA + 粉彩特征色；8px 直角按钮、12px 卡片、发丝描边分层
    ============================================================ */
 
 :root {
@@ -8,58 +9,72 @@
     'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
   --font-mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Consolas,
     'Liberation Mono', Menlo, monospace;
-  /* 衬线 display 层：仅用于大字号标题（docs/05 §3），正文/列表保持 sans */
-  --font-display: Georgia, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC',
-    'Songti SC', SimSun, serif;
-  --display-weight: 620;
+  /* 标题层：新稿整体无衬线（p13 字阶），与正文同栈、靠字重与字号分层 */
+  --font-display: var(--font-sans);
+  --display-weight: 700;
 
-  /* 中性层（纸感暖灰） */
-  --bg: #f9f9f8;
-  --surface: #ffffff;
+  /* 中性层（白纸冷灰） */
+  --bg: #ffffff;
+  --surface: #f6f5f4;
   --surface-2: #f2f1ef;
   --popover: #ffffff;
-  --border: #e8e6e3;
-  --border-strong: #d9d6d2;
+  --border: #e6e5e3;
+  --border-strong: #d4d2cf;
 
-  /* 文本（三级灰阶，墨色） */
-  --text-1: #1c1c1a;
-  --text-2: #55534e;
-  --text-3: #96938d;
+  /* 文本 */
+  --text-1: #17171a;
+  --text-2: #55535a;
+  --text-3: #8e8c94;
 
-  /* 品牌与语义：accent 只出现在链接 hover / 当前态 / 精选标记 / focus */
-  --brand: #0f766e;
-  --brand-hover: #0b5d56;
-  --brand-soft: rgba(15, 118, 110, 0.07);
-  --brand-soft-border: rgba(15, 118, 110, 0.25);
+  /* 品牌与语义 */
+  --brand: #5645d4; /* primary：主 CTA / 当前态 / focus */
+  --brand-hover: #4534b8; /* pressed 按下态 */
+  --brand-soft: rgba(86, 69, 212, 0.08);
+  --brand-soft-border: rgba(86, 69, 212, 0.28);
+  --brand-navy: #0a1530; /* 深藏蓝：Hero / 深色按钮 / 顶部条 */
+  --link: #0075de;
   --danger: #dc2626;
+  --success: #1aae39;
 
-  /* 表面细节：阴影仅用于浮层，内容层靠 hairline 分层 */
-  --header-bg: rgba(249, 249, 248, 0.8);
-  --header-bg-scrolled: rgba(249, 249, 248, 0.92);
-  --code-bg: #f4f3f1;
-  --code-border: #e8e6e3;
-  --shadow-sm: 0 1px 2px rgba(28, 28, 26, 0.05);
-  --shadow-md: 0 12px 32px -16px rgba(28, 28, 26, 0.16);
+  /* 粉彩特征色（卡片封面 / 专题色块 / 首字母头像轮转） */
+  --tint-sky: #dce6fa;
+  --tint-mint: #d9f3e1;
+  --tint-peach: #ffe8d4;
+  --tint-lavender: #e6e0f5;
+  --notice-bg: #fdf6e3; /* NOTICE 卡浅黄底 */
 
-  /* 几何：圆角只在封面/代码块/按钮层级出现 */
-  --radius-lg: 12px;
-  --radius-md: 8px;
+  /* 表面细节 */
+  --header-bg: rgba(255, 255, 255, 0.86);
+  --header-bg-scrolled: rgba(255, 255, 255, 0.95);
+  --code-bg: #f6f5f4;
+  --code-border: #e6e5e3;
+  --shadow-sm: 0 1px 2px rgba(23, 23, 26, 0.05);
+  --shadow-md: 0 12px 32px -16px rgba(23, 23, 26, 0.16);
+
+  /* 几何（p13）：radius 4 / 6 · 8 按钮输入 · 12 卡片 · 999 胶囊 */
+  --radius-xs: 4px;
   --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
   --header-height: 60px;
   --container-width: 1120px;
   --header-offset: 76px;
   /* 正文阅读列宽 */
   --reading-width: 720px;
 
-  /* 排版刻度 */
+  /* 排版刻度（p13）：display 40/52 · heading-2 22/32 · body 16/30 */
   --fs-xs: 12px;
   --fs-sm: 13px;
-  --fs-md: 14.5px;
-  --fs-base: 15px;
-  --fs-lg: 17px;
-  --fs-xl: 20px;
-  --fs-2xl: 26px;
-  --fs-display: clamp(36px, 5vw, 52px);
+  --fs-md: 14px;
+  --fs-base: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-display: clamp(30px, 4.4vw, 40px);
+  --lh-display: 1.3; /* 40/52 */
+  --lh-heading-2: 1.45; /* 22/32 */
+  --lh-body: 1.875; /* 16/30 */
 
   /* 动效：hover 快、进出场稳 */
   --transition: 0.16s ease-out;
@@ -68,29 +83,38 @@
 }
 
 html.dark {
-  /* 宋体暗色下加粗易糊，weight 降一档 */
-  --display-weight: 600;
-  --bg: #121211;
-  --surface: #1a1a18;
-  --surface-2: #232320;
-  --popover: #1e1e1c;
-  --border: #2a2a27;
-  --border-strong: #3d3d38;
+  --display-weight: 680;
+  --bg: #0e0e11;
+  --surface: #17171b;
+  --surface-2: #1f1f24;
+  --popover: #1b1b20;
+  --border: #2a2a31;
+  --border-strong: #3b3b44;
 
-  --text-1: #e8e7e3;
-  --text-2: #a3a19a;
-  --text-3: #71706a;
+  --text-1: #eceaf0;
+  --text-2: #a5a3ad;
+  --text-3: #74727c;
 
-  --brand: #4dbdb0;
-  --brand-hover: #6fd0c5;
-  --brand-soft: rgba(77, 189, 176, 0.1);
-  --brand-soft-border: rgba(77, 189, 176, 0.35);
+  --brand: #8b7cf0;
+  --brand-hover: #a094f5;
+  --brand-soft: rgba(139, 124, 240, 0.14);
+  --brand-soft-border: rgba(139, 124, 240, 0.4);
+  --brand-navy: #0a1530;
+  --link: #5aa9f7;
   --danger: #f87171;
+  --success: #3ecf63;
 
-  --header-bg: rgba(18, 18, 17, 0.75);
-  --header-bg-scrolled: rgba(18, 18, 17, 0.9);
-  --code-bg: #1b1b19;
-  --code-border: #2a2a27;
+  /* 暗色下粉彩降饱和：保持色相可辨，不刺眼 */
+  --tint-sky: #1c2a44;
+  --tint-mint: #16301f;
+  --tint-peach: #3a2718;
+  --tint-lavender: #2a2342;
+  --notice-bg: #2b2415;
+
+  --header-bg: rgba(14, 14, 17, 0.8);
+  --header-bg-scrolled: rgba(14, 14, 17, 0.94);
+  --code-bg: #17171b;
+  --code-border: #2a2a31;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 12px 32px -16px rgba(0, 0, 0, 0.6);
 }
@@ -110,32 +134,11 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--fs-base);
-  line-height: 1.7;
+  line-height: var(--lh-body);
   color: var(--text-1);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-/* 纸面颗粒：全屏固定纹理层，消除大面积纯色的塑料感（docs/05 §4） */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  pointer-events: none;
-  opacity: 0.022;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-html.dark body::after {
-  opacity: 0.03;
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  body::after {
-    display: none;
-  }
 }
 
 h1,
@@ -211,7 +214,6 @@ ol {
 html.dark ::selection {
   color: var(--brand);
 }
-
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
@@ -261,11 +263,11 @@ html::-webkit-scrollbar-track {
 /* 主列 + 侧栏（纵向 padding 用长写法，避免覆盖 .container 的横向 padding） */
 .page-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 40px;
   align-items: start;
-  padding-top: 28px;
-  padding-bottom: 64px;
+  padding-top: 40px;
+  padding-bottom: 72px;
 }
 
 .page-aside {
@@ -273,31 +275,33 @@ html::-webkit-scrollbar-track {
   top: calc(var(--header-height) + 24px);
   display: flex;
   flex-direction: column;
+  gap: 20px;
 }
 
 .page-title-bar {
-  padding: 28px 0 0;
+  padding: 40px 0 0;
 }
 
 .page-heading {
-  /* 列表页大标题：衬线 display 层（docs/05 §3.2） */
+  /* 列表页大标题：无衬线、加重（p13 heading 层） */
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: clamp(26px, 3.5vw, 30px);
-  line-height: 1.3;
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-heading-2);
+  letter-spacing: -0.02em;
 }
 
 .page-sub {
-  margin-top: 6px;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
+  margin-top: 8px;
+  font-size: var(--fs-md);
+  color: var(--text-2);
 }
 
 @media (max-width: 1023px) {
   .page-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
-    padding-top: 20px;
+    padding-top: 28px;
   }
 
   .page-aside {
@@ -331,36 +335,39 @@ html::-webkit-scrollbar-track {
 }
 
 /* ---------- 通用组件类 ---------- */
+/* 按钮：8px 直角（非胶囊，p14） */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 16px;
+  height: 38px;
+  padding: 0 18px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
   color: var(--text-1);
   font-size: var(--fs-md);
+  font-weight: 500;
   line-height: 1;
+  white-space: nowrap;
   transition: background var(--transition), border-color var(--transition),
     color var(--transition), transform var(--transition);
 }
 
 .btn:hover {
-  background: var(--border);
+  background: var(--surface-2);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* 按压反馈：按下去有物理感，松开即回（docs/07 §6.2） */
+/* 按压反馈：按下去有物理感，松开即回 */
 .btn:active:not(:disabled),
 .icon-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .btn-primary {
@@ -375,26 +382,57 @@ html::-webkit-scrollbar-track {
   color: #fff;
 }
 
+/* 次级按钮：描边（p14） */
 .btn-ghost {
   background: transparent;
   border-color: var(--border-strong);
 }
 
 .btn-ghost:hover:not(:disabled) {
-  border-color: var(--brand);
+  border-color: var(--text-3);
+  color: var(--text-1);
+  background: var(--surface);
+}
+
+/* 深色按钮：深藏蓝（p14） */
+.btn-dark {
+  background: var(--brand-navy);
+  border-color: var(--brand-navy);
+  color: #fff;
+}
+
+.btn-dark:hover:not(:disabled) {
+  background: #14204a;
+  border-color: #14204a;
+  color: #fff;
+}
+
+/* 浅紫底胶囊按钮：点赞 / 收藏（p03、p15） */
+.btn-soft {
+  background: var(--brand-soft);
+  border-color: transparent;
   color: var(--brand);
-  background: transparent;
+}
+
+.btn-soft:hover:not(:disabled) {
+  background: var(--brand-soft-border);
+  color: var(--brand-hover);
+}
+
+.btn-soft.is-on {
+  background: var(--brand);
+  color: #fff;
 }
 
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-2);
   transition: background var(--transition), color var(--transition),
@@ -402,33 +440,93 @@ html::-webkit-scrollbar-track {
 }
 
 .icon-btn:hover {
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-1);
 }
 
-/* 标签/分类：编辑部式纯文字，去底色 */
+/* 徽章 / 标签（p14）：浅底胶囊，非透明纯文字 */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 2px;
-  border-radius: 4px;
-  background: transparent;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   color: var(--text-2);
   font-size: var(--fs-xs);
   line-height: 1.7;
-  transition: color var(--transition);
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
 }
 
 a.chip:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+/* 分类徽章：浅紫底紫字 */
+.chip-cat {
+  background: var(--brand-soft);
   color: var(--brand);
 }
 
-.card {
+a.chip-cat:hover {
+  background: var(--brand-soft-border);
+  color: var(--brand-hover);
+}
+
+/* 状态徽章：进行中（绿）/ 已完成（灰） */
+.chip-success {
+  background: rgba(26, 174, 57, 0.12);
+  color: var(--success);
+}
+
+.chip-muted {
   background: var(--surface);
+  color: var(--text-3);
+}
+
+/* 强调徽章：紫底白字（NEW / 置顶） */
+.chip-accent {
+  background: var(--brand);
+  color: #fff;
+}
+
+.card {
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+}
+
+/* 输入框（p14）：focus 紫色描边 */
+.input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: var(--fs-md);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.input::placeholder {
+  color: var(--text-3);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.input.is-error {
+  border-color: var(--danger);
+}
+
+.input.is-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
 }
 
 /* ---------- 骨架屏 ---------- */
@@ -524,6 +622,15 @@ html.dark .skeleton::after {
     --brand-hover: #111111;
     --brand-soft: transparent;
     --brand-soft-border: #999999;
+    --brand-navy: #111111;
+    --link: #333333;
+    --success: #111111;
+    --danger: #111111;
+    --tint-sky: #f2f2f2;
+    --tint-mint: #f2f2f2;
+    --tint-peach: #f2f2f2;
+    --tint-lavender: #f2f2f2;
+    --notice-bg: #f6f6f4;
     --code-bg: #f6f6f4;
     --code-border: #dddddd;
     --hl-comment: #666666;

@@ -1,12 +1,12 @@
 <template>
   <aside class="page-aside sidebar">
-    <section v-if="site.settings.notice" v-reveal class="side-section">
-      <h3 class="side-title">Notice</h3>
+    <section v-if="site.settings.notice" v-reveal class="side-card side-card--notice">
+      <h3 class="side-title">NOTICE</h3>
       <p class="notice">{{ site.settings.notice }}</p>
     </section>
 
-    <section v-reveal="{ delay: 60 }" class="side-section">
-      <h3 class="side-title">Trending</h3>
+    <section v-reveal="{ delay: 60 }" class="side-card">
+      <h3 class="side-title">热门文章</h3>
       <div v-if="hotLoading" class="hot-skeletons" aria-hidden="true">
         <div v-for="i in 5" :key="i" class="hot-skeleton">
           <span class="skeleton sk-line"></span>
@@ -17,30 +17,16 @@
       <ol v-else-if="hotPosts.length" class="hot-list">
         <li v-for="(post, index) in hotPosts" :key="post.id" class="hot-row">
           <RouterLink :to="`/post/${post.slug}`" class="hot-item">
-            <span class="hot-rank" :class="{ top: index < 3 }">{{ String(index + 1).padStart(2, '0') }}</span>
+            <span class="hot-rank">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="hot-title">{{ post.title }}</span>
           </RouterLink>
-          <span class="hot-views">{{ formatNumber(post.viewCount) }}</span>
         </li>
       </ol>
       <EmptyState v-else size="compact" title="暂无热门文章" />
     </section>
 
-    <section v-if="navSeries.length" v-reveal="{ delay: 90 }" class="side-section">
-      <h3 class="side-title">Series</h3>
-      <ul class="series-list">
-        <li v-for="item in navSeries" :key="item.id" class="series-row">
-          <RouterLink :to="`/series/${item.slug}`" class="series-item">
-            <span class="series-name">{{ item.name }}</span>
-            <span class="series-count">{{ item.postCount ?? 0 }} 篇</span>
-          </RouterLink>
-        </li>
-      </ul>
-      <RouterLink to="/series" class="side-more">全部专题 →</RouterLink>
-    </section>
-
-    <section v-if="cloudTags.length" v-reveal="{ delay: 120 }" class="side-section">
-      <h3 class="side-title">Tags</h3>
+    <section v-if="cloudTags.length" v-reveal="{ delay: 90 }" class="side-card">
+      <h3 class="side-title">标签云</h3>
       <div class="tag-cloud">
         <RouterLink
           v-for="tag in cloudTags"
@@ -49,36 +35,31 @@
           class="chip"
         >
           {{ tag.name }}
+          <span v-if="tag.postCount" class="tag-count">{{ tag.postCount }}</span>
         </RouterLink>
       </div>
       <RouterLink v-if="site.tags.length > 24" to="/tags" class="side-more">更多标签 →</RouterLink>
     </section>
+
+    <section v-if="archiveYears.length" v-reveal="{ delay: 120 }" class="side-card">
+      <h3 class="side-title">归档</h3>
+      <ul class="archive-list">
+        <li v-for="item in archiveYears" :key="item.year" class="archive-row">
+          <RouterLink :to="{ path: '/archives', query: { year: item.year } }" class="archive-item">
+            <span class="archive-year">{{ item.year }}年</span>
+            <span class="archive-count">{{ item.count }} 篇</span>
+          </RouterLink>
+        </li>
+      </ul>
+    </section>
   </aside>
 </template>
 
-<script lang="ts">
-import type { Series } from '@/types'
-import { fetchSeriesList } from '@/api/series'
-
-/**
- * 专题导航模块级缓存：一个页面会话只发一次请求（与 useHotPosts 同一策略）
- */
-const seriesCache: { loaded: boolean; list: Series[] } = { loaded: false, list: [] }
-
-async function loadSeriesNav(): Promise<Series[]> {
-  if (seriesCache.loaded) return seriesCache.list
-  const list = await fetchSeriesList()
-  seriesCache.list = list.slice(0, 3)
-  seriesCache.loaded = true
-  return seriesCache.list
-}
-</script>
-
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useHotPosts } from '@/composables/useHotPosts'
 import { useSiteStore } from '@/stores/site'
-import { formatNumber } from '@/utils/format'
+import { fetchArchive } from '@/api/content'
 import ErrorState from '@/components/common/ErrorState.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
@@ -87,51 +68,59 @@ const { hotPosts, hotLoading, hotError, load } = useHotPosts()
 
 const cloudTags = computed(() => site.tags.slice(0, 24))
 
-/** 侧栏专题导航：最多展示 3 个 */
-const navSeries = ref<Series[]>([])
+/** 归档年份 + 篇数：取最近 4 个年份 */
+const archiveYears = ref<{ year: number; count: number }[]>([])
 
 onMounted(() => {
   void load()
-  loadSeriesNav()
-    .then((list) => {
-      navSeries.value = list
+  // 侧栏归档加载失败静默隐藏，不影响主体内容
+  const controller = new AbortController()
+  fetchArchive(controller.signal)
+    .then((years) => {
+      archiveYears.value = years.slice(0, 4).map((y) => ({ year: y.year, count: y.items.length }))
     })
-    .catch(() => {
-      // 侧栏专题导航加载失败静默隐藏，不影响主体内容
-    })
-})
-
-onBeforeUnmount(() => {
-  // 热门文章是模块级共享状态，离开页面不中断已完成的加载
+    .catch(() => {})
 })
 </script>
 
 <style scoped>
-/* 文字栏：无卡片，区块以 hairline 分隔 */
-.side-section + .side-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
+/* 侧栏：四张独立卡片，底部同色发丝描边（p02） */
+.sidebar {
+  gap: 16px;
 }
 
-/* 编辑感栏头：mono 大写字距 */
+.side-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+/* 公告卡：浅黄底（p02 NOTICE） */
+.side-card--notice {
+  background: var(--notice-bg);
+  border-color: transparent;
+}
+
 .side-title {
   margin: 0 0 14px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-3);
+  color: var(--text-1);
 }
 
-/* 公告：左侧 accent 竖线引用式，无底色 */
+.side-card--notice .side-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
 .notice {
-  padding-left: 12px;
-  border-left: 2px solid var(--brand-soft-border);
   font-size: var(--fs-sm);
   color: var(--text-2);
-  line-height: 1.8;
+  line-height: 1.75;
   white-space: pre-wrap;
 }
 
@@ -142,28 +131,18 @@ onBeforeUnmount(() => {
   padding: 0;
 }
 
-.hot-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .hot-row + .hot-row {
-  border-top: 1px solid var(--border);
+  margin-top: 10px;
 }
 
 .hot-item {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 9px 0;
+  gap: 9px;
 }
 
 .hot-rank {
   flex-shrink: 0;
-  width: 24px;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -171,31 +150,22 @@ onBeforeUnmount(() => {
   color: var(--text-3);
 }
 
-.hot-rank.top {
-  color: var(--brand);
-}
-
 .hot-title {
   flex: 1;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: var(--fs-sm);
   color: var(--text-1);
+  line-height: 1.55;
   transition: color var(--transition);
 }
 
 .hot-item:hover .hot-title {
   color: var(--brand);
-}
-
-.hot-views {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
 }
 
 .hot-skeletons {
@@ -221,52 +191,54 @@ onBeforeUnmount(() => {
   width: 55%;
 }
 
-/* 专题：名称 + mono 篇数 */
-.series-list {
+/* 标签云：浅底胶囊 chip + mono 计数 */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.tag-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+a.chip:hover .tag-count {
+  color: var(--text-2);
+}
+
+/* 归档：年份 + mono 篇数 */
+.archive-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.series-row + .series-row {
-  border-top: 1px solid var(--border);
+.archive-row + .archive-row {
+  margin-top: 2px;
 }
 
-.series-item {
+.archive-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 0;
-}
-
-.series-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 5px 0;
   font-size: var(--fs-sm);
-  color: var(--text-1);
+  color: var(--text-2);
   transition: color var(--transition);
 }
 
-.series-item:hover .series-name {
+.archive-item:hover {
   color: var(--brand);
 }
 
-.series-count {
-  flex-shrink: 0;
+.archive-count {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
-}
-
-/* 标签：纯文字 chip + 更多入口 */
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
 }
 
 .side-more {
@@ -279,4 +251,48 @@ onBeforeUnmount(() => {
 .side-more:hover {
   color: var(--brand);
 }
+
+/* 移动端：侧栏退到正文之后，卡片横滑（p15 首屏形态） */
+@media (max-width: 1023px) {
+  .sidebar {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar .side-card {
+    flex: 0 0 auto;
+    width: 260px;
+    scroll-snap-align: start;
+  }
+
+  /* 公告卡在横滑带里内容更窄，压一档内边距 */
+  .sidebar .side-card--notice {
+    width: 240px;
+  }
+}
+
+/* 极窄屏：横滑带改为纵向堆叠，避免只剩一条缝 */
+@media (max-width: 419px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow-x: visible;
+  }
+
+  .sidebar .side-card,
+  .sidebar .side-card--notice {
+    width: auto;
+  }
+}
 </style>
+

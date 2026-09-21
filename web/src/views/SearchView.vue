@@ -1,25 +1,28 @@
 <template>
   <div class="container search-page">
     <header class="search-head">
-      <h1 class="page-heading">搜索</h1>
       <form class="search-big" role="search" @submit.prevent="submitSearch">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
           <path
             d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"
           />
         </svg>
         <input
+          ref="inputEl"
           v-model="input"
           type="search"
-          placeholder="输入关键词，回车或点击搜索"
+          placeholder="搜索文章标题、摘要与正文…"
           aria-label="搜索关键词"
+          @keydown.esc="inputEl?.blur()"
         />
-        <button class="btn btn-primary" type="submit">搜索</button>
+        <span class="kbd search-esc">ESC</span>
       </form>
-      <p v-if="keyword" class="page-sub result-stat">
-        “{{ keyword }}” 的搜索结果：共 {{ total }} 条<span v-if="elapsedMs !== null">，耗时 {{ elapsedText }}</span>
-      </p>
-      <p v-else class="page-sub">支持搜索文章标题、摘要与正文内容</p>
+
+      <div v-if="keyword" class="result-head">
+        <p class="result-stat">找到 {{ total }} 篇与「{{ keyword }}」相关的文章</p>
+        <span v-if="elapsedMs !== null" class="result-time">耗时 {{ elapsedText }}</span>
+      </div>
+      <p v-else class="result-hint">输入关键词后回车开始搜索</p>
     </header>
 
     <ListSkeleton v-if="loading" />
@@ -27,7 +30,13 @@
 
     <template v-else>
       <div v-if="keyword && items.length" class="post-list">
-        <ArticleCard v-for="post in items" :key="post.id" :post="post" :keyword="keyword" />
+        <ArticleCard
+          v-for="(post, index) in items"
+          :key="post.id"
+          :post="post"
+          :keyword="keyword"
+          :tint-index="index"
+        />
       </div>
       <EmptyState
         v-else-if="keyword"
@@ -74,6 +83,7 @@ const site = useSiteStore()
 
 const keyword = computed(() => String(route.query.keyword ?? '').trim())
 const input = ref(keyword.value)
+const inputEl = ref<HTMLInputElement | null>(null)
 
 const list = usePagedList<PostSummary>(
   ({ page, pageSize, signal }) => fetchPosts({ page, pageSize, keyword: keyword.value }, signal),
@@ -86,7 +96,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / list.pageS
 /** 客户端感知的搜索耗时（请求发出到当前列表就绪） */
 const elapsedMs = ref<number | null>(null)
 const elapsedText = computed(() =>
-  elapsedMs.value === null ? '' : elapsedMs.value >= 1000 ? `${(elapsedMs.value / 1000).toFixed(1)} 秒` : `${elapsedMs.value} 毫秒`
+  elapsedMs.value === null ? '' : elapsedMs.value >= 1000 ? `${(elapsedMs.value / 1000).toFixed(1)} 秒` : `${elapsedMs.value} ms`
 )
 
 let searchStartedAt = 0
@@ -107,7 +117,7 @@ function submitSearch(): void {
 
 function handlePageChange(next: number): void {
   list.goToPage(next)
-  // page 追加到 URL（keyword 仍为主键，docs/08 §7.4）
+  // page 追加到 URL（keyword 仍为主键）
   void router.replace({
     query: { ...route.query, page: next > 1 ? String(next) : undefined }
   })
@@ -129,27 +139,27 @@ watch(
 <style scoped>
 .search-page {
   max-width: 860px;
-  padding-bottom: 56px;
+  padding-bottom: 64px;
 }
 
 .search-head {
-  padding-top: 28px;
+  padding-top: 40px;
 }
 
+/* 大搜索框：紫色描边 + 右侧 ESC 徽标（p09） */
 .search-big {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--border-strong);
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border: 1.5px solid var(--brand);
   border-radius: var(--radius-md);
-  background: var(--surface);
-  transition: border-color var(--transition);
+  background: var(--bg);
+  transition: box-shadow var(--transition);
 }
 
 .search-big:focus-within {
-  border-color: var(--text-3);
+  box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
 .search-big svg {
@@ -160,10 +170,11 @@ watch(
 .search-big input {
   flex: 1;
   min-width: 0;
+  height: 34px;
   border: none;
   outline: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-base);
   color: var(--text-1);
 }
 
@@ -171,14 +182,47 @@ watch(
   color: var(--text-3);
 }
 
+.search-esc {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.result-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+}
+
 .result-stat {
-  margin-top: 12px;
+  font-size: var(--fs-base);
+  color: var(--text-1);
+}
+
+.result-stat::first-letter {
+  font-weight: 600;
+}
+
+.result-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-hint {
+  margin-top: 18px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
 }
 
 .post-list {
   display: flex;
   flex-direction: column;
-  margin-top: 8px;
+  gap: 16px;
+  margin-top: 20px;
 }
 
 .empty-actions {

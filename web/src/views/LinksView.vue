@@ -1,8 +1,9 @@
 <template>
   <div class="container links-page">
     <header class="page-title-bar">
+      <p class="kicker">LINKS · 交换友链</p>
       <h1 class="page-heading">友情链接</h1>
-      <p v-if="links.length" class="page-sub">共 {{ links.length }} 位朋友</p>
+      <p v-if="links.length" class="page-sub">共 {{ links.length }} 位朋友，欢迎互相交换。</p>
     </header>
 
     <div v-if="loading" class="link-grid" aria-hidden="true">
@@ -11,25 +12,42 @@
 
     <ErrorState v-else-if="error" :message="error" @retry="load" />
 
-    <div v-else-if="links.length" class="link-grid">
-      <a
-        v-for="link in links"
-        :key="link.id"
-        :href="link.url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="link-card"
-      >
-        <span class="link-logo">
-          <img v-if="!logoFailed.has(link.id)" :src="link.logo" :alt="link.name" loading="lazy" @error="logoFailed.add(link.id)" />
-          <span v-else class="logo-fallback">{{ fallbackChar(link.name) }}</span>
-        </span>
-        <span class="link-info">
-          <span class="link-name">{{ link.name }}</span>
-          <span class="link-desc">{{ link.description || '这位朋友还没有留下介绍' }}</span>
-        </span>
-      </a>
-    </div>
+    <template v-else-if="links.length">
+      <div class="link-grid">
+        <a
+          v-for="(link, index) in links"
+          :key="link.id"
+          :href="link.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="link-card"
+        >
+          <span class="link-logo" :class="`tint-${TINTS[index % TINTS.length]}`">
+            <img
+              v-if="link.logo && !logoFailed.has(link.id)"
+              :src="link.logo"
+              :alt="link.name"
+              loading="lazy"
+              @error="logoFailed.add(link.id)"
+            />
+            <span v-else class="logo-fallback">{{ fallbackChar(link.name) }}</span>
+          </span>
+          <span class="link-info">
+            <span class="link-name">{{ link.name }}</span>
+            <span class="link-desc">{{ link.description || '这位朋友还没有留下介绍' }}</span>
+          </span>
+        </a>
+      </div>
+
+      <!-- 底部 CTA：交换友链（p11） -->
+      <section class="cta-block">
+        <div>
+          <h2 class="cta-title">想交换友链？</h2>
+          <p class="cta-desc">把你的站点信息发给我，合适的话很快加上。</p>
+        </div>
+        <a class="btn btn-primary" :href="mailtoHref">发送邮件</a>
+      </section>
+    </template>
 
     <EmptyState
       v-else
@@ -40,18 +58,28 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { fetchLinks } from '@/api/content'
 import { ApiError, isRequestCanceled } from '@/api/http'
+import { useSiteStore } from '@/stores/site'
 import type { LinkItem } from '@/types'
 import EmptyState from '@/components/common/EmptyState.vue'
 import ErrorState from '@/components/common/ErrorState.vue'
 
+const TINTS = ['sky', 'mint', 'peach', 'lavender'] as const
+
+const site = useSiteStore()
 const links = ref<LinkItem[]>([])
 const loading = ref(true)
 const error = ref('')
 const logoFailed = reactive(new Set<number>())
 let controller: AbortController | null = null
+
+/** 邮件地址未在设置中提供，用站点域名兜底 */
+const mailtoHref = computed(() => {
+  const host = site.settings.siteUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '')
+  return `mailto:hi@${host || 'myblog.dev'}?subject=${encodeURIComponent('友链申请')}`
+})
 
 function fallbackChar(name: string): string {
   return (name || '链').trim().charAt(0).toUpperCase()
@@ -82,57 +110,39 @@ onMounted(() => {
 
 <style scoped>
 .links-page {
-  padding-bottom: 56px;
+  padding-bottom: 64px;
 }
 
 .link-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  margin-top: 22px;
-}
-
-@media (max-width: 900px) {
-  .link-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  .link-grid {
-    grid-template-columns: 1fr;
-  }
+  margin-top: 24px;
 }
 
 .link-card {
   display: flex;
   align-items: center;
   gap: 14px;
-  /* 负 margin 外扩 hover 底色；grid gap 16px 保证相邻列视觉隔离（docs/08 §5.3） */
-  margin: 0 -8px;
-  padding: 16px 8px;
-  border-bottom: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  transition: background var(--transition);
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  transition: border-color var(--transition), background var(--transition);
 }
 
 .link-card:hover {
+  border-color: var(--border-strong);
   background: var(--surface);
 }
 
+/* 首字母头像块：tint 色 + 深色字母（p11） */
 .link-logo {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  transition: transform var(--transition-slow);
-}
-
-.link-card:hover .link-logo {
-  transform: scale(1.06);
 }
 
 .link-logo img {
@@ -147,48 +157,102 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-3);
-  font-family: var(--font-mono);
-  font-size: 17px;
-  font-weight: 600;
+  color: var(--text-1);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tint-sky {
+  background: var(--tint-sky);
+}
+
+.tint-mint {
+  background: var(--tint-mint);
+}
+
+.tint-peach {
+  background: var(--tint-peach);
+}
+
+.tint-lavender {
+  background: var(--tint-lavender);
 }
 
 .link-info {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .link-name {
-  /* 收缩到内容宽，保证下划线长度与文字一致（与页脚同语言，docs/08 §5.3） */
   align-self: flex-start;
-  font-size: 14.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-1);
-  background-image: linear-gradient(var(--brand), var(--brand));
-  background-size: 0% 1px;
-  background-repeat: no-repeat;
-  background-position: 0 100%;
-  transition: color var(--transition), background-size 0.25s var(--ease-out-quart);
+  transition: color var(--transition);
 }
 
 .link-card:hover .link-name {
   color: var(--brand);
-  background-size: 100% 1px;
 }
 
 .link-desc {
-  font-size: 12.5px;
-  color: var(--text-3);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
   line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+/* 底部 CTA（p11） */
+.cta-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 32px;
+  padding: 26px 28px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.cta-title {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-heading-2);
+  letter-spacing: -0.01em;
+}
+
+.cta-desc {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
 }
 
 .sk-link {
   display: block;
-  height: 72px;
+  height: 82px;
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 640px) {
+  .link-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cta-block {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  .cta-block .btn {
+    width: 100%;
+  }
 }
 </style>

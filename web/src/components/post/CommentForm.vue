@@ -51,7 +51,7 @@
         v-model.trim="form.content"
         rows="4"
         :maxlength="CONTENT_MAX"
-        placeholder="写下你的评论…"
+        placeholder="友善发言，支持 Markdown"
         :class="{ invalid: !!errors.content }"
       ></textarea>
       <div class="content-foot">
@@ -167,7 +167,8 @@ async function submit(): Promise<void> {
 <style scoped>
 .comment-form {
   margin-top: 16px;
-  padding: 18px 20px;
+  padding: 20px;
+  border-radius: var(--radius-lg);
 }
 
 .replying {
@@ -176,10 +177,10 @@ async function submit(): Promise<void> {
   gap: 10px;
   margin-bottom: 14px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--brand-soft);
   color: var(--text-2);
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
 }
 
 .replying b {
@@ -192,7 +193,7 @@ async function submit(): Promise<void> {
   border: none;
   background: transparent;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
 }
 
 .replying .cancel:hover {
@@ -219,7 +220,7 @@ async function submit(): Promise<void> {
 
 .field label {
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
 }
 
@@ -234,26 +235,28 @@ async function submit(): Promise<void> {
 
 .field input,
 .field textarea {
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   background: var(--bg);
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 9px 12px;
+  font-size: var(--fs-md);
   color: var(--text-1);
   outline: none;
-  transition: border-color var(--transition), background var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .field textarea {
   resize: vertical;
-  min-height: 88px;
-  line-height: 1.7;
+  min-height: 92px;
+  line-height: 1.75;
 }
 
+/* focus 紫色描边 + 柔光（p14 输入框规格） */
 .field input:focus,
 .field textarea:focus {
   border-color: var(--brand);
-  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+  background: var(--bg);
 }
 
 .field input.invalid,
@@ -261,9 +264,14 @@ async function submit(): Promise<void> {
   border-color: var(--danger);
 }
 
+.field input.invalid:focus,
+.field textarea.invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
 .field-error {
   margin-top: 5px;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--danger);
 }
 
@@ -274,7 +282,7 @@ async function submit(): Promise<void> {
   justify-content: space-between;
   gap: 12px;
   min-height: 20px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .content-foot .field-error {
@@ -284,7 +292,7 @@ async function submit(): Promise<void> {
 .char-count {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
   transition: color var(--transition);
@@ -302,7 +310,7 @@ async function submit(): Promise<void> {
 }
 
 .hint {
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 

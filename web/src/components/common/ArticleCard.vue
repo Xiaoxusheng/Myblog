@@ -1,50 +1,45 @@
 <template>
-  <article class="post-row">
-    <div class="post-row-main">
-      <h2 class="post-row-title">
-        <span v-if="post.isTop" class="pin">置顶</span>
-        <!-- eslint-disable-next-line vue/no-v-html：内容已 HTML 转义，仅注入 <mark> -->
-        <RouterLink :to="`/post/${post.slug}`" v-html="titleHtml"></RouterLink>
-      </h2>
-      <p class="post-row-summary" :class="{ placeholder: !post.summary }">
-        <!-- eslint-disable-next-line vue/no-v-html：同上 -->
-        <span v-html="summaryHtml"></span>
-      </p>
-      <div class="post-row-meta">
-        <span class="meta-date">{{ displayDate }}</span>
-        <RouterLink
-          v-if="post.category"
-          :to="`/category/${post.category.slug}`"
-          class="meta-cat"
-        >
-          {{ post.category.name }}
-        </RouterLink>
-        <span v-if="post.tags.length" class="meta-tags">
-          <RouterLink
-            v-for="tag in post.tags"
-            :key="tag.id"
-            :to="`/tag/${tag.slug}`"
-            class="meta-tag"
-          >
-            # {{ tag.name }}
-          </RouterLink>
-        </span>
-        <span class="meta-tail">
-          <span>阅读 {{ formatNumber(post.viewCount) }}</span>
-          <span class="meta-dot">·</span>
-          <span>{{ formatNumber(post.likeCount) }} 赞</span>
-        </span>
-      </div>
-    </div>
+  <article class="post-card">
     <RouterLink
-      v-if="post.cover"
       :to="`/post/${post.slug}`"
-      class="post-row-cover"
+      class="post-card-cover"
+      :class="`tint-${tintName}`"
       tabindex="-1"
       aria-hidden="true"
     >
-      <img ref="coverEl" :src="post.cover" :alt="post.title" loading="lazy" @load="onImgLoad" />
+      <img v-if="post.cover" ref="coverEl" :src="post.cover" :alt="post.title" loading="lazy" @load="onImgLoad" />
     </RouterLink>
+
+    <div class="post-card-main">
+      <div class="post-card-flags">
+        <span v-if="post.isTop" class="pin">置顶</span>
+        <span class="post-card-date">{{ displayDate }}</span>
+      </div>
+
+      <h2 class="post-card-title">
+        <!-- eslint-disable-next-line vue/no-v-html：内容已 HTML 转义，仅注入 <mark> -->
+        <span v-html="titleHtml"></span>
+      </h2>
+
+      <p class="post-card-summary" :class="{ placeholder: !post.summary }">
+        <!-- eslint-disable-next-line vue/no-v-html：同上 -->
+        <span v-html="summaryHtml"></span>
+      </p>
+
+      <div class="post-card-meta">
+        <span>{{ post.category?.name || '未分类' }}</span>
+        <span class="meta-dot">·</span>
+        <span>阅读 {{ formatNumber(post.viewCount) }}</span>
+        <span class="meta-dot">·</span>
+        <span>{{ formatNumber(post.likeCount) }} 赞</span>
+        <span v-if="readingMinutes" class="meta-dot">·</span>
+        <span v-if="readingMinutes">约 {{ readingMinutes }} 分钟</span>
+      </div>
+
+      <RouterLink :to="`/post/${post.slug}`" class="post-card-more">
+        继续阅读 →
+      </RouterLink>
+    </div>
   </article>
 </template>
 
@@ -54,14 +49,33 @@ import type { PostSummary } from '@/types'
 import { formatDate, formatNumber } from '@/utils/format'
 import { highlightText } from '@/utils/highlight'
 
-const props = withDefaults(defineProps<{ post: PostSummary; keyword?: string }>(), {
-  keyword: ''
-})
+const props = withDefaults(
+  defineProps<{ post: PostSummary; keyword?: string; tintIndex?: number }>(),
+  { keyword: '', tintIndex: 0 }
+)
+
+const TINTS = ['sky', 'mint', 'peach', 'lavender'] as const
+
+/** 无封面时的色块：四色按索引轮转（p02 卡片左色块） */
+const tintName = computed(() => TINTS[props.tintIndex % TINTS.length])
 
 const titleHtml = computed(() => highlightText(props.post.title, props.keyword))
 const summaryHtml = computed(() => highlightText(props.post.summary || '暂无摘要', props.keyword))
 
-const displayDate = computed(() => formatDate(props.post.publishedAt || props.post.createdAt))
+/** p02 卡片日期带「更新」后缀 */
+const displayDate = computed(() => {
+  const d = formatDate(props.post.publishedAt || props.post.createdAt)
+  return d ? `${d} 更新` : ''
+})
+
+/** 摘要长度估算阅读时长（CJK 400 字/分 + 其余 200 词/分），与详情页口径一致 */
+const readingMinutes = computed(() => {
+  const text = `${props.post.title ?? ''}${props.post.summary ?? ''}`
+  if (!text.trim()) return 0
+  const cjk = (text.match(/[\u4e00-\u9fa5]/g) ?? []).length
+  const words = text.replace(/[\u4e00-\u9fa5]/g, ' ').trim().split(/\s+/).filter(Boolean).length
+  return Math.max(1, Math.round(cjk / 400 + words / 200))
+})
 
 // 封面加载完成后淡入（缓存图在 mounted 前可能已 complete，需补一次）
 const coverEl = ref<HTMLImageElement | null>(null)
@@ -76,131 +90,35 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 编辑部式列表行：无卡片，hairline 分隔 */
-.post-row {
+/* 文章卡片：12px 圆角 + 发丝描边，左色块右文字（p02） */
+.post-card {
   display: flex;
-  gap: 24px;
-  padding: 22px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 22px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.post-row-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+.post-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
-.post-row-title {
-  font-size: var(--fs-lg);
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.pin {
-  margin-right: 8px;
-  padding: 1px 8px;
-  border: 1px solid var(--brand-soft-border);
-  border-radius: 999px;
-  background: var(--brand-soft);
-  color: var(--brand);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  line-height: 1.6;
-  vertical-align: 2px;
-}
-
-.post-row-title a {
-  color: var(--text-1);
-  transition: color var(--transition);
-}
-
-.post-row-title a:hover {
-  color: var(--brand);
-}
-
-.post-row-summary {
-  margin-top: 7px;
-  color: var(--text-2);
-  font-size: var(--fs-sm);
-  line-height: 1.75;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-row-summary.placeholder {
-  color: var(--text-3);
-}
-
-.post-row-meta {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-}
-
-/* 日期走 mono + 等宽数字，编辑感；行 hover 时与归档时间轴同语言变 accent（docs/07 §6.4） */
-.meta-date {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-  transition: color var(--transition);
-}
-
-.post-row:hover .meta-date {
-  color: var(--brand);
-}
-
-.meta-cat {
-  color: var(--text-2);
-}
-
-.meta-cat:hover {
-  color: var(--brand);
-}
-
-.meta-tags {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta-tag {
-  color: var(--text-3);
-}
-
-.meta-tag:hover {
-  color: var(--brand);
-}
-
-.meta-tail {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-.meta-dot {
-  color: var(--border-strong);
-}
-
-.post-row-cover {
+/* 封面区：有图显示图，无图显示 tint 色块；固定在左侧，占卡片主体（p02 实测约 1:1） */
+.post-card-cover {
   flex-shrink: 0;
-  align-self: center;
-  width: 136px;
-  height: 90px;
+  align-self: stretch;
+  width: 46%;
+  max-width: 420px;
+  min-height: 128px;
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
-.post-row-cover img {
+.post-card-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -208,25 +126,155 @@ onMounted(() => {
   transition: opacity 0.45s ease-out, transform 0.4s var(--ease-out-quart);
 }
 
-.post-row-cover img.loaded {
+.post-card-cover img.loaded {
   opacity: 1;
 }
 
-.post-row:hover .post-row-cover img.loaded {
-  transform: scale(1.03);
+.post-card:hover .post-card-cover img.loaded {
+  transform: scale(1.04);
 }
 
-@media (max-width: 640px) {
-  .post-row {
-    flex-direction: column-reverse;
-    gap: 12px;
-    padding: 18px 0;
+.tint-sky {
+  background: var(--tint-sky);
+}
+
+.tint-mint {
+  background: var(--tint-mint);
+}
+
+.tint-peach {
+  background: var(--tint-peach);
+}
+
+.tint-lavender {
+  background: var(--tint-lavender);
+}
+
+.post-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶行：置顶徽标 + mono 日期 */
+.post-card-flags {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 22px;
+}
+
+.post-card-flags:empty {
+  display: none;
+}
+
+.pin {
+  padding: 1px 8px;
+  border-radius: var(--radius-xs);
+  background: #f7e2a0;
+  color: #6b4f08;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+html.dark .pin {
+  background: #4a3c12;
+  color: #f0d98a;
+}
+
+.post-card-date {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.post-card-title {
+  margin-top: 6px;
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
+}
+
+.post-card-title span {
+  color: var(--text-1);
+  transition: color var(--transition);
+}
+
+.post-card:hover .post-card-title span {
+  color: var(--brand);
+}
+
+.post-card-summary {
+  margin-top: 8px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.post-card-summary.placeholder {
+  color: var(--text-3);
+}
+
+/* meta 行：纯文字（p02，不用分类徽章） */
+.post-card-meta {
+  margin-top: 9px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta-dot {
+  color: var(--border-strong);
+}
+
+.post-card-more {
+  margin-top: 9px;
+  align-self: flex-start;
+  font-size: var(--fs-sm);
+  color: var(--brand);
+  transition: color var(--transition);
+}
+
+.post-card:hover .post-card-more {
+  color: var(--brand-hover);
+}
+
+@media (max-width: 767px) {
+  .post-card {
+    gap: 14px;
+    padding: 14px;
   }
 
-  .post-row-cover {
-    width: 100%;
-    height: 150px;
-    align-self: stretch;
+  /* 移动端退回小缩略图，文字优先（p15） */
+  .post-card-cover {
+    width: 104px;
+    max-width: none;
+    min-height: 92px;
+    align-self: flex-start;
+  }
+
+  .post-card-title {
+    font-size: var(--fs-lg);
+    line-height: 1.38;
+  }
+
+  .post-card-summary {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 }
 </style>
+

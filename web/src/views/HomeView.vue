@@ -1,83 +1,82 @@
 <template>
-  <div class="container page-layout">
-    <section class="page-main">
-      <header v-reveal class="hero">
+  <div class="home">
+    <!-- 通栏深藏蓝 Hero（p02）：装饰几何 + 居中标题 + 双按钮 + 分隔线 + mono 统计行 -->
+    <section class="hero">
+      <div class="hero-deco" aria-hidden="true">
+        <span class="deco deco-pink"></span>
+        <span class="deco deco-yellow"></span>
+        <span class="deco deco-orange"></span>
+        <span class="deco deco-cyan"></span>
+        <span class="deco deco-white"></span>
+        <span class="deco-square deco-square-1"></span>
+        <span class="deco-square deco-square-2"></span>
+        <svg class="deco-orbit" viewBox="0 0 1200 420" preserveAspectRatio="none">
+          <path d="M-40 300 Q 300 120 640 210 T 1240 150" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="1.5" />
+        </svg>
+      </div>
+
+      <div class="hero-inner container">
+        <p class="hero-kicker">{{ heroKicker }}</p>
         <h1 class="hero-title">{{ site.settings.siteName || 'MyBlog' }}</h1>
-        <p class="hero-desc">{{ site.settings.siteDescription || '记录、思考与分享' }}</p>
-        <p class="hero-stats">
-          <span><strong>{{ total }}</strong> POSTS</span>
-          <span class="hero-sep"></span>
-          <span><strong>{{ site.categories.length }}</strong> CATEGORIES</span>
-          <span class="hero-sep"></span>
-          <span><strong>{{ site.tags.length }}</strong> TAGS</span>
+        <p class="hero-desc">
+          {{ site.settings.siteDescription || '一个关于 Go、Vue 与工程实践的长期笔记站点。' }}
         </p>
-      </header>
-
-      <ListSkeleton v-if="loading" />
-      <ErrorState v-else-if="error" :message="error" @retry="reload" />
-      <template v-else>
-        <!-- 置顶文章升级为 Featured 层级（仅第一页） -->
-        <article v-if="featured" v-reveal class="featured" itemscope itemtype="https://schema.org/BlogPosting">
-          <div class="featured-main">
-            <div class="featured-flags">
-              <span class="featured-kicker">FEATURED</span>
-              <RouterLink
-                v-if="featured.category"
-                :to="`/category/${featured.category.slug}`"
-                class="chip"
-              >
-                {{ featured.category.name }}
-              </RouterLink>
-            </div>
-            <h2 class="featured-title" itemprop="headline">
-              <RouterLink :to="`/post/${featured.slug}`">{{ featured.title }}</RouterLink>
-            </h2>
-            <p class="featured-summary" :class="{ placeholder: !featured.summary }">
-              {{ featured.summary || '暂无摘要' }}
-            </p>
-            <div class="featured-meta">
-              <span>{{ formatDate(featured.publishedAt || featured.createdAt) }}</span>
-              <span class="meta-dot">·</span>
-              <span>阅读 {{ formatNumber(featured.viewCount) }}</span>
-              <span class="meta-dot">·</span>
-              <span>{{ formatNumber(featured.likeCount) }} 赞</span>
-            </div>
-          </div>
-          <RouterLink
-            v-if="featured.cover"
-            :to="`/post/${featured.slug}`"
-            class="featured-cover"
-            tabindex="-1"
-            aria-hidden="true"
-          >
-            <img :src="featured.cover" :alt="featured.title" loading="lazy" />
-          </RouterLink>
-        </article>
-
-        <div v-if="restPosts.length" class="post-list">
-          <div
-            v-for="(post, index) in restPosts"
-            :key="post.id"
-            v-reveal="{ delay: Math.min(index * 55, 275) }"
-          >
-            <ArticleCard :post="post" />
-          </div>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#latest">阅读最新文章</a>
+          <a class="btn btn-hero-ghost" href="/rss" target="_blank" rel="noopener noreferrer">
+            订阅 RSS
+          </a>
         </div>
-        <EmptyState
-          v-else-if="!featured"
-          title="这里还没有文章"
-          description="博主尚未发布内容，过段时间再来看看吧。"
-        />
-        <Pagination
-          v-if="items.length"
-          :page="page"
-          :total-pages="totalPages"
-          @change="handlePageChange"
-        />
-        <MobileDiscover />
-      </template>
+        <p class="hero-stats">
+          <span>{{ total }} 篇文章</span>
+          <span class="hero-sep">·</span>
+          <span>{{ site.categories.length }} 个分类</span>
+          <span class="hero-sep">·</span>
+          <span>{{ site.tags.length }} 个标签</span>
+          <span class="hero-sep">·</span>
+          <span>持续更新中</span>
+        </p>
+      </div>
     </section>
-    <SiteSidebar />
+
+    <div class="container page-layout">
+      <section class="page-main">
+        <header class="list-head">
+          <h2 class="list-title">
+            最新文章
+            <span class="list-count">共 {{ total }} 篇</span>
+          </h2>
+          <RouterLink to="/archives" class="list-more">查看归档 →</RouterLink>
+        </header>
+
+        <ListSkeleton v-if="loading" />
+        <ErrorState v-else-if="error" :message="error" @retry="reload" />
+        <template v-else>
+          <div v-if="items.length" id="latest" class="post-list">
+            <div
+              v-for="(post, index) in items"
+              :key="post.id"
+              v-reveal="{ delay: Math.min(index * 45, 225) }"
+            >
+              <ArticleCard :post="post" :tint-index="index" />
+            </div>
+          </div>
+          <EmptyState
+            v-else
+            title="这里还没有文章"
+            description="博主尚未发布内容，过段时间再来看看吧。"
+          />
+          <Pagination
+            v-if="items.length"
+            :page="page"
+            :total-pages="totalPages"
+            @change="handlePageChange"
+          />
+          <MobileDiscover />
+        </template>
+      </section>
+      <SiteSidebar />
+    </div>
   </div>
 </template>
 
@@ -96,7 +95,6 @@ import ErrorState from '@/components/common/ErrorState.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import SiteSidebar from '@/components/layout/SiteSidebar.vue'
 import MobileDiscover from '@/components/common/MobileDiscover.vue'
-import { formatDate, formatNumber } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -110,12 +108,11 @@ const { loading, error, items, total, page } = list
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / list.pageSize.value)))
 
-/** 第一页的首篇置顶文章作为 Featured；无置顶时为 null，列表保持原样 */
-const featured = computed<PostSummary | null>(() =>
-  page.value === 1 && items.value[0]?.isTop ? (items.value[0] ?? null) : null
-)
-
-const restPosts = computed<PostSummary[]>(() => (featured.value ? items.value.slice(1) : items.value))
+/** Hero kicker：站点关键词优先，兜底为固定 slogan */
+const heroKicker = computed(() => {
+  const kw = site.settings.siteKeywords?.trim()
+  return kw ? `PERSONAL BLOG · ${kw}` : 'PERSONAL BLOG · GO / VUE / 工程实践'
+})
 
 async function reload(): Promise<void> {
   await site.ensureLoaded()
@@ -157,177 +154,263 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-main {
-  min-width: 0;
+.home {
+  padding-bottom: 8px;
 }
 
+/* ---------- Hero：通栏深藏蓝（p02） ---------- */
 .hero {
   position: relative;
-  padding: 18px 0 30px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--brand-navy);
+  color: #fff;
+}
+
+/* 装饰几何：粉彩圆点 + 方块 + 一条低对比弧线 */
+.hero-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.deco {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.deco-pink {
+  top: 32%;
+  right: 16%;
+  width: 16px;
+  height: 16px;
+  background: #f06bb0;
+}
+
+.deco-yellow {
+  top: 66%;
+  left: 14%;
+  width: 14px;
+  height: 14px;
+  background: #f0c85a;
+}
+
+.deco-orange {
+  top: 18%;
+  right: 26%;
+  width: 7px;
+  height: 7px;
+  background: #f0995a;
+}
+
+.deco-cyan {
+  top: 70%;
+  right: 8%;
+  width: 11px;
+  height: 11px;
+  background: #4ecfc4;
+}
+
+.deco-white {
+  top: 44%;
+  left: 27%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.deco-square {
+  position: absolute;
+  border-radius: 3px;
+}
+
+.deco-square-1 {
+  bottom: 30%;
+  left: 8%;
+  width: 17px;
+  height: 17px;
+  background: #f0c85a;
+  transform: rotate(8deg);
+}
+
+.deco-square-2 {
+  top: 26%;
+  right: 8%;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #7c6ce0;
+}
+
+.deco-orbit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-inner {
+  position: relative;
+  padding-top: 76px;
+  padding-bottom: 56px;
+  text-align: center;
+}
+
+/* mono 大写 kicker：Hero 顶部弱信息 */
+.hero-kicker {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .hero-title {
-  /* 衬线 display + 尾部 accent 句点（docs/05 §5.2） */
+  margin-top: 22px;
   font-family: var(--font-display);
-  font-weight: var(--display-weight);
+  font-weight: 700;
   font-size: var(--fs-display);
-  letter-spacing: -0.01em;
-  line-height: 1.18;
-}
-
-.hero-title::after {
-  content: '.';
-  color: var(--brand);
+  line-height: var(--lh-display);
+  letter-spacing: -0.02em;
+  color: #fff;
+  overflow-wrap: anywhere;
 }
 
 .hero-desc {
-  margin-top: 14px;
-  max-width: 560px;
-  font-size: 16px;
-  color: var(--text-2);
+  margin: 16px auto 0;
+  max-width: 620px;
+  font-size: var(--fs-base);
   line-height: 1.75;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
 }
 
-/* mono 大写统计行：编辑感弱信息 */
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+/* 深色背景上的描边按钮：白描边 + 白字 */
+.btn-hero-ghost {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: transparent;
+  color: #fff;
+}
+
+.btn-hero-ghost:hover {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* 分隔线 + mono 统计行 */
 .hero-stats {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 34px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  color: var(--text-3);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.6);
   font-variant-numeric: tabular-nums;
 }
 
-.hero-stats strong {
-  color: var(--text-2);
-  font-weight: 600;
+.hero-sep {
+  color: rgba(255, 255, 255, 0.28);
 }
 
-.hero-sep {
-  width: 1px;
-  height: 10px;
-  background: var(--border-strong);
+/* ---------- 正文列表 ---------- */
+/* 栏头：左「最新文章 · 共 N 篇」，右上「查看归档 →」 */
+.list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.list-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--fs-xl);
+  line-height: var(--lh-heading-2);
+  letter-spacing: -0.01em;
+}
+
+.list-count {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.list-more {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  transition: color var(--transition);
+}
+
+.list-more:hover {
+  color: var(--brand);
 }
 
 .post-list {
   display: flex;
   flex-direction: column;
-}
-
-/* Featured：置顶文章的第一层级 */
-.featured {
-  display: flex;
-  gap: 28px;
-  padding: 26px 0;
-  border-bottom: 1px solid var(--border);
-  align-items: stretch;
-}
-
-.featured-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.featured-flags {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.featured-kicker {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  color: var(--brand);
-}
-
-.featured-title {
-  margin-top: 10px;
-  font-family: var(--font-display);
-  font-weight: var(--display-weight);
-  font-size: clamp(22px, 2.8vw, 26px);
-  line-height: 1.4;
-}
-
-.featured-title a {
-  color: var(--text-1);
-  transition: color var(--transition);
-}
-
-.featured-title a:hover {
-  color: var(--brand);
-}
-
-.featured-summary {
-  margin-top: 10px;
-  font-size: 14.5px;
-  line-height: 1.8;
-  color: var(--text-2);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.featured-summary.placeholder {
-  color: var(--text-3);
-}
-
-.featured-meta {
-  margin-top: auto;
-  padding-top: 14px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.meta-dot {
-  color: var(--border-strong);
-}
-
-.featured-cover {
-  flex-shrink: 0;
-  align-self: center;
-  width: 344px;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--surface-2);
-}
-
-.featured-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.4s var(--ease-out-quart);
-}
-
-.featured:hover .featured-cover img {
-  transform: scale(1.03);
+  gap: 16px;
+  padding-top: 20px;
 }
 
 @media (max-width: 900px) {
-  .featured {
-    flex-direction: column-reverse;
-    gap: 14px;
+  .hero-inner {
+    padding-top: 56px;
+    padding-bottom: 44px;
   }
 
-  .featured-cover {
+  .hero-stats {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-inner.container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .hero-kicker {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    line-height: 1.7;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-actions .btn {
     width: 100%;
+  }
+
+  .hero-stats {
+    margin-top: 28px;
+    padding-top: 18px;
+    font-size: 11px;
+    gap: 6px;
   }
 }
 </style>

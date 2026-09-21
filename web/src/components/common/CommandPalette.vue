@@ -32,25 +32,35 @@
               </div>
             </div>
 
-            <!-- 有结果 / 快捷导航 -->
+            <!-- 有结果 / 快捷导航：文章 + 页面两组（p10） -->
             <template v-else-if="rows.length">
-              <p class="palette-group">{{ groupLabel }}</p>
-              <button
-                v-for="(row, i) in rows"
-                :id="`palette-opt-${i}`"
-                :key="row.to"
-                type="button"
-                class="palette-row"
-                role="option"
-                :aria-selected="i === activeIndex"
-                :class="{ active: i === activeIndex }"
-                @click="go(row)"
-                @mousemove="activeIndex = i"
-              >
-                <span v-if="row.num" class="palette-row-num">{{ row.num }}</span>
-                <span class="palette-row-title">{{ row.title }}</span>
-                <span v-if="row.meta" class="palette-row-meta">{{ row.meta }}</span>
-              </button>
+              <template v-for="group in groups" :key="group.label">
+                <p class="palette-group">{{ group.label }}</p>
+                <button
+                  v-for="row in group.rows"
+                  :id="`palette-opt-${row.index}`"
+                  :key="row.to"
+                  type="button"
+                  class="palette-row"
+                  role="option"
+                  :aria-selected="row.index === activeIndex"
+                  :class="{ active: row.index === activeIndex }"
+                  @click="go(row)"
+                  @mousemove="activeIndex = row.index"
+                >
+                  <span class="palette-row-icon" aria-hidden="true">
+                    <svg v-if="row.kind === 'page'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z" />
+                      <path d="M13 3v6h6" />
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4 6h16M4 12h16M4 18h10" />
+                    </svg>
+                  </span>
+                  <span class="palette-row-title">{{ row.title }}</span>
+                  <span v-if="row.meta" class="palette-row-meta">{{ row.meta }}</span>
+                </button>
+              </template>
             </template>
 
             <!-- 关键词无结果 / 出错：引导去搜索页 -->
@@ -60,6 +70,16 @@
                 在搜索页查看「{{ keyword }}」→
               </RouterLink>
             </div>
+          </div>
+
+          <!-- 底部帮助行（p10） -->
+          <div class="palette-footer">
+            <span class="pf-keys">
+              <span class="kbd">↑↓</span> 选择
+              <span class="kbd">→</span> 打开
+              <span class="kbd">ESC</span> 关闭
+            </span>
+            <span class="pf-brand">{{ site.settings.siteName || 'MyBlog' }} 命令面板</span>
           </div>
         </div>
       </div>
@@ -71,6 +91,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchPosts } from '@/api/post'
+import { useSiteStore } from '@/stores/site'
 import type { PostSummary } from '@/types'
 import { formatDate } from '@/utils/format'
 import { useCommandPalette } from '@/composables/useCommandPalette'
@@ -80,18 +101,20 @@ interface PaletteRow {
   to: string
   num?: string
   meta?: string
+  kind?: 'page' | 'post'
 }
 
-const QUICK_NAV: PaletteRow[] = [
-  { num: '01', title: '首页', to: '/' },
-  { num: '02', title: '归档', to: '/archives' },
-  { num: '03', title: '分类', to: '/categories' },
-  { num: '04', title: '标签', to: '/tags' },
-  { num: '05', title: '专题', to: '/series' },
-  { num: '06', title: '友链', to: '/links' }
+/** 页面组：与 p10「页面」分组一致 */
+const PAGE_ROWS: PaletteRow[] = [
+  { title: '首页', to: '/', kind: 'page' },
+  { title: '归档', to: '/archives', kind: 'page' },
+  { title: '分类与标签', to: '/categories', kind: 'page' },
+  { title: '专题', to: '/series', kind: 'page' },
+  { title: '友情链接', to: '/links', kind: 'page' }
 ]
 
 const router = useRouter()
+const site = useSiteStore()
 const { isOpen, open, close } = useCommandPalette()
 
 const keyword = ref('')
@@ -102,17 +125,23 @@ const activeIndex = ref(0)
 const inputEl = ref<HTMLInputElement | null>(null)
 
 const rows = computed<PaletteRow[]>(() => {
-  if (!keyword.value.trim()) return QUICK_NAV
+  if (!keyword.value.trim()) return PAGE_ROWS
   return posts.value.map((p) => ({
     title: p.title,
     to: `/post/${p.slug}`,
-    meta: [formatDate(p.publishedAt || p.createdAt), p.category?.name].filter(Boolean).join(' · ')
+    kind: 'post' as const,
+    meta: [p.category?.name, formatDate(p.publishedAt || p.createdAt)].filter(Boolean).join(' · ')
   }))
 })
 
-const groupLabel = computed(() =>
-  keyword.value.trim() ? `文章 · ${rows.value.length} 条结果` : '快捷导航'
-)
+/** 分组渲染：有搜索词时只出「文章」，空关键词时只出「页面」 */
+const groups = computed(() => {
+  const withIndex = rows.value.map((row, index) => ({ ...row, index }))
+  if (keyword.value.trim()) {
+    return [{ label: `文章 · ${withIndex.length} 条结果`, rows: withIndex }]
+  }
+  return [{ label: '页面', rows: withIndex }]
+})
 
 const activeId = computed(() =>
   rows.value.length ? `palette-opt-${activeIndex.value}` : undefined
@@ -241,7 +270,7 @@ html.dark .palette-overlay {
   max-height: 62vh;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
@@ -298,19 +327,30 @@ html.dark .palette-overlay {
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 48px;
+  min-height: 46px;
   padding: 8px 10px;
   border: none;
-  border-left: 2px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   text-align: left;
 }
 
-/* 选中态：与 TOC active 同语言（surface-2 底 + accent 竖线） */
+/* 选中态：浅紫底（p10 选中项） */
 .palette-row.active {
-  background: var(--surface-2);
-  border-left-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.palette-row-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  color: var(--text-3);
+}
+
+.palette-row.active .palette-row-icon {
+  color: var(--brand);
 }
 
 .palette-row-num {
@@ -332,12 +372,47 @@ html.dark .palette-overlay {
   color: var(--text-1);
 }
 
+.palette-row.active .palette-row-title {
+  color: var(--brand-hover);
+  font-weight: 500;
+}
+
 .palette-row-meta {
   flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
+}
+
+/* 底部帮助行（p10） */
+.palette-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.pf-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pf-keys .kbd {
+  font-size: 10px;
+}
+
+.pf-brand {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
 }
 
 .palette-skel {

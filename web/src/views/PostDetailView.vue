@@ -24,26 +24,35 @@
 
       <template v-else-if="post">
         <header class="post-header">
+          <nav class="post-crumbs" aria-label="面包屑">
+            <RouterLink to="/">首页</RouterLink>
+            <span class="crumb-sep">/</span>
+            <RouterLink to="/archives">归档</RouterLink>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-current">文章</span>
+          </nav>
           <div class="post-cats">
             <RouterLink
               v-if="post.category"
               :to="`/category/${post.category.slug}`"
-              class="chip"
+              class="chip chip-cat"
             >
               {{ post.category.name }}
             </RouterLink>
           </div>
           <h1 class="post-title">{{ post.title }}</h1>
           <div class="post-meta">
-            <span>发布于 {{ formatDate(post.publishedAt || post.createdAt) }}</span>
+            <span>雷龙</span>
+            <span class="dot">·</span>
+            <span>{{ formatDate(post.publishedAt || post.createdAt) }}</span>
+            <span class="dot">·</span>
+            <span>约 {{ readingMinutes }} 分钟</span>
+            <span class="dot">·</span>
+            <span>阅读 {{ formatNumber(post.viewCount) }}</span>
             <template v-if="post.updatedAt && post.updatedAt !== post.createdAt">
               <span class="dot">·</span>
               <span>更新于 {{ formatDate(post.updatedAt) }}</span>
             </template>
-            <span class="dot">·</span>
-            <span>阅读 {{ formatNumber(post.viewCount) }}</span>
-            <span class="dot">·</span>
-            <span>约 {{ readingMinutes }} 分钟</span>
             <template v-if="series">
               <span class="dot">·</span>
               <span>
@@ -77,25 +86,44 @@
               # {{ tag.name }}
             </RouterLink>
           </div>
-          <button
-            class="like-btn"
-            :class="{ liked, bursting }"
-            :aria-pressed="liked"
-            @click="onLike"
-          >
-            <span class="like-heart">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                />
-              </svg>
-              <span v-if="bursting" class="like-burst" aria-hidden="true">
-                <i v-for="i in 6" :key="i" class="burst-dot" :style="{ '--angle': `${(i - 1) * 60}deg` }"></i>
+          <!-- 操作组：点赞（浅紫胶囊）+ 收藏（描边胶囊）+ 分享（p03） -->
+          <div class="post-actions">
+            <button
+              class="btn btn-soft post-action"
+              :class="{ 'is-on': liked, bursting }"
+              :aria-pressed="liked"
+              @click="onLike"
+            >
+              <span class="like-heart">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  />
+                </svg>
+                <span v-if="bursting" class="like-burst" aria-hidden="true">
+                  <i v-for="i in 6" :key="i" class="burst-dot" :style="{ '--angle': `${(i - 1) * 60}deg` }"></i>
+                </span>
               </span>
-            </span>
-            <span>{{ formatNumber(likeCount) }}</span>
-            <span class="like-text">{{ liked ? '已赞' : '点赞' }}</span>
-          </button>
+              <span>点赞 {{ formatNumber(likeCount) }}</span>
+            </button>
+
+            <button class="btn btn-ghost post-action" type="button" @click="onFavorite">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+              </svg>
+              <span>{{ favorited ? '已收藏' : '收藏' }}</span>
+            </button>
+
+            <button class="btn btn-ghost post-action" type="button" @click="onShare">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+              </svg>
+              <span>分享</span>
+            </button>
+          </div>
         </div>
 
         <!-- 文末结束符：刊物「完」标记（docs/06 §7.1） -->
@@ -144,7 +172,7 @@
         </div>
 
         <section v-if="related.length" v-reveal="{ delay: 80 }" class="related">
-          <h2 class="related-heading">RELATED</h2>
+          <h2 class="related-heading">相关文章</h2>
           <div class="related-grid">
             <RouterLink
               v-for="item in related"
@@ -288,6 +316,7 @@ async function load(): Promise<void> {
     toc.value = rendered.toc
     likeCount.value = data.post.likeCount ?? 0
     liked.value = isPostLiked(data.post.id)
+    favorited.value = readFavorites().includes(data.post.id)
     applyDocumentTitle(data.post.title)
     setSeo({
       description: data.post.seoDescription || data.post.summary,
@@ -358,6 +387,58 @@ async function onLike(): Promise<void> {
     toast.success('感谢点赞！')
   } catch (e) {
     toast.error(e instanceof ApiError ? e.message : '点赞失败，请稍后重试')
+  }
+}
+
+/** 收藏：纯前端本地状态（无对应后端接口），刷新后保留在 localStorage */
+const favorited = ref(false)
+const FAVORITE_KEY = 'myblog:favorites'
+
+function readFavorites(): number[] {
+  try {
+    const raw = localStorage.getItem(FAVORITE_KEY)
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === 'number') : []
+  } catch {
+    return []
+  }
+}
+
+function onFavorite(): void {
+  if (!post.value) return
+  const id = post.value.id
+  const list = readFavorites()
+  const has = list.includes(id)
+  const next = has ? list.filter((n) => n !== id) : [...list, id]
+  try {
+    localStorage.setItem(FAVORITE_KEY, JSON.stringify(next))
+  } catch {
+    // 隐私模式下 localStorage 不可写：仅提示，不打断阅读
+    toast.error('当前浏览器不支持收藏')
+    return
+  }
+  favorited.value = !has
+  toast.success(has ? '已取消收藏' : '已加入收藏')
+}
+
+/** 分享：优先系统分享面板，回退到复制链接 */
+async function onShare(): Promise<void> {
+  const url = window.location.href
+  const title = post.value?.title ?? document.title
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url })
+      return
+    } catch {
+      // 用户取消分享：静默返回
+      return
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success('链接已复制')
+  } catch {
+    toast.error('复制失败，请手动复制地址栏链接')
   }
 }
 
@@ -448,22 +529,47 @@ watch(slug, () => {
   text-align: left;
 }
 
+/* 面包屑：首页 / 归档 / 文章（p03） */
+.post-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.post-crumbs a {
+  color: var(--text-2);
+}
+
+.post-crumbs a:hover {
+  color: var(--brand);
+}
+
+.crumb-sep {
+  color: var(--border-strong);
+}
+
+.crumb-current {
+  color: var(--text-2);
+}
+
 .post-cats {
   display: flex;
   gap: 8px;
+  margin-top: 18px;
   margin-bottom: 14px;
 }
 
 .post-title {
-  /* 衬线 display 标题（docs/05 §3.2），阅读列内不沿用 Hero 级字号 */
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: clamp(30px, 4.5vw, 42px);
+  font-size: clamp(28px, 4vw, 38px);
   line-height: 1.28;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
-/* meta 行：mono 字体给日期/数字以编辑感（中文回退 sans） */
+/* meta 行：mono 给日期/数字以编辑感（中文回退 sans） */
 .post-meta {
   display: flex;
   align-items: center;
@@ -471,7 +577,7 @@ watch(slug, () => {
   gap: 7px;
   margin-top: 16px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
 }
@@ -558,42 +664,23 @@ watch(slug, () => {
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 8px;
 }
 
-.like-btn {
-  display: inline-flex;
+/* 操作组：点赞 / 收藏 / 分享（p03，右下角） */
+.post-actions {
+  display: flex;
   align-items: center;
-  gap: 7px;
-  height: 38px;
-  padding: 0 18px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-2);
-  font-size: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.post-action {
   font-variant-numeric: tabular-nums;
-  transition: color var(--transition), border-color var(--transition),
-    background var(--transition), transform var(--transition);
 }
 
-.like-btn:hover {
-  color: var(--brand);
-  border-color: var(--brand);
-}
-
-.like-btn:active {
-  transform: scale(0.96);
-}
-
-.like-btn.liked {
-  color: var(--brand);
-  border-color: var(--brand-soft-border);
-  background: var(--brand-soft);
-}
-
-.like-text {
-  font-size: 13px;
+.post-action:active {
+  transform: scale(0.97);
 }
 
 /* 点赞心跳 + 粒子迸发（一次性反馈） */
@@ -602,7 +689,7 @@ watch(slug, () => {
   display: inline-flex;
 }
 
-.like-btn.liked .like-heart svg {
+.post-action.bursting .like-heart svg {
   animation: heart-pop 0.45s var(--ease-out-quart);
 }
 
@@ -762,11 +849,11 @@ a.nav-card.next:hover .nav-title {
 }
 
 .related-heading {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--text-3);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--fs-xl);
+  line-height: var(--lh-heading-2);
+  letter-spacing: -0.01em;
 }
 
 .related-grid {
