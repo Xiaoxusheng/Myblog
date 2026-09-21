@@ -5,33 +5,43 @@
    ========================================================================== */
 
 :root {
-  /* 色彩：中性层（高级白：页面底为中性近白，不用冷蓝灰；
-     卡片纯白 + 细描边 + 轻投影承担层次，而不是靠底色差拉对比） */
-  --admin-bg: #fafafa;            /* 页面底色 */
+  /* 色彩：中性层（v2 设计稿实测：页底与侧栏同色 #f5f7f7，卡片纯白靠描边浮起，
+     层次由"描边 + 极轻投影"承担，不靠底色拉对比） */
+  --admin-bg: #f5f7f7;            /* 页面底色（= 顶栏 / 侧栏底色） */
   --admin-surface: #ffffff;       /* 卡片/面板 */
-  --admin-surface-2: #f4f5f7;     /* 次级表面（内嵌区域/行悬浮/横条轨道）：须比页底略深才读得出"凹陷" */
-  --admin-border: #e5e8ef;        /* 分隔线/卡片描边 */
-  --admin-text: rgba(15, 23, 42, 0.88);
-  --admin-muted: rgba(15, 23, 42, 0.45);
+  --admin-surface-2: #f0f2f2;     /* 次级表面（内嵌区域/行悬浮/横条轨道）：须比页底略深才读得出"凹陷" */
+  --admin-surface-3: #fafbfc;     /* 表头等极浅面 */
+  --admin-border: #e3e6e8;        /* 分隔线/卡片描边（实测值） */
+  --admin-text: rgba(15, 18, 25, 0.88);
+  --admin-muted: rgba(15, 18, 25, 0.5);
 
-  /* 色彩：品牌（沿用 AntD 蓝体系） */
-  --admin-brand: #1677ff;
-  --admin-brand-hover: #4096ff;
-  --admin-brand-bg: #e8f1ff;
+  /* 色彩：品牌（设计稿实测靛蓝 #5e6ad2 —— 低饱和，浅灰底上不跳脱） */
+  --admin-brand: #5e6ad2;
+  --admin-brand-hover: #7580dd;
+  --admin-brand-active: #4c58c4;
+  --admin-brand-bg: #eef0fb;
 
-  /* 色彩：语义 */
-  --admin-warning: #fa8c16;
-  --admin-warning-text: #d46b08;
-  --admin-warning-bg: #fff7e6;
-  --admin-danger: #ff4d4f;
-  --admin-success: #52c41a;
+  /* 色彩：语义（设计稿实测成功绿 #26a645；警示底为暖米黄） */
+  --admin-warning: #d99a2b;
+  --admin-warning-text: #9a6b12;
+  --admin-warning-bg: #fcf5e3;
+  --admin-danger: #d9534f;
+  --admin-success: #26a645;
 
-  /* 深色导航：深藏青（去 AntD 默认蓝黑感，更接近 Linear/Stripe 式侧栏） */
-  --admin-sidebar: #0d1626;
+  /* 侧栏：v2 改为浅色（与页面底同色，靠描边分隔），
+     选中项 = 深色胶囊 #1a1b20 + 反白字（设计稿实测）。 */
+  --admin-sidebar: #f5f7f7;
+  --admin-sidebar-text: rgba(15, 18, 25, 0.72);
+  --admin-sidebar-text-strong: rgba(15, 18, 25, 0.92);
+  --admin-sidebar-hover: rgba(15, 18, 25, 0.045);
+  --admin-sidebar-active-bg: #1a1b20;
+  --admin-sidebar-active-text: #ffffff;
+  --admin-sidebar-border: #e3e6e8;
 
-  /* 圆角 */
+  /* 圆角（卡片 8 / 控件 6，分档以免小控件显胖） */
   --admin-radius-sm: 6px;
   --admin-radius-md: 8px;
+  --admin-radius-lg: 12px;
 
   /* 间距：全站只走这一档刻度（4 为微调，其余为栅格节拍），避免各处随手写 13/18/22 */
   --admin-space-1: 4px;
@@ -51,23 +61,36 @@
 }
 
 /* 暗色分支：布局层（背景/边框/文字灰阶）由 --admin-* 接管，控件层走 darkAlgorithm（docs/09 §8.1）
-   避免纯黑，深但有色阶：布局 #141414 → 卡片 #1f1f1f → 内嵌 #2a2a2a */
+   v2 实测：页底 #0f0f12（微紫黑，非纯黑）→ 卡片 #131417（亮一档）→ 内嵌 #1d1f23；
+   侧栏反转为"比页底更黑"#000003，选中项用品牌色文字 #818efe 而非深胶囊。 */
 html.dark {
-  --admin-bg: #141414;
-  --admin-surface: #1f1f1f;
-  --admin-surface-2: #2a2a2a;
-  --admin-border: #333333;
-  --admin-text: rgba(255, 255, 255, 0.88);
-  --admin-muted: rgba(255, 255, 255, 0.45);
+  --admin-bg: #0f0f12;
+  --admin-surface: #131417;
+  --admin-surface-2: #1d1f23;
+  --admin-surface-3: #141417;
+  --admin-border: #26282d;
+  --admin-text: rgba(255, 255, 255, 0.9);
+  --admin-muted: rgba(255, 255, 255, 0.5);
 
-  --admin-brand: #1677ff;
-  --admin-brand-hover: #4096ff;
-  --admin-brand-bg: #111a2c;
+  --admin-brand: #6f7ce0;
+  --admin-brand-hover: #8590e6;
+  --admin-brand-active: #5e6ad2;
+  --admin-brand-bg: #1b1d33;
 
-  --admin-warning-bg: #2b2111;
+  --admin-warning: #d9a441;
+  --admin-warning-text: #e8b755;
+  --admin-warning-bg: #292114;
+  --admin-danger: #e06a66;
+  --admin-success: #3fbf5c;
 
-  /* 深色导航与整体同面板色，保线性层次 */
-  --admin-sidebar: #1f1f1f;
+  /* 侧栏比页底更黑，形成"凹进去"的层次 */
+  --admin-sidebar: #000003;
+  --admin-sidebar-text: rgba(255, 255, 255, 0.66);
+  --admin-sidebar-text-strong: rgba(255, 255, 255, 0.95);
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-active-bg: #1a1c30;
+  --admin-sidebar-active-text: #818efe;
+  --admin-sidebar-border: #1c1d22;
 
   --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --admin-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
@@ -92,7 +115,7 @@ body {
    -------------------------------------------------------------------------- */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(15, 23, 42, 0.24) transparent;
+  scrollbar-color: rgba(15, 18, 25, 0.22) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -106,11 +129,11 @@ body {
 
 ::-webkit-scrollbar-thumb {
   border-radius: 4px;
-  background: rgba(15, 23, 42, 0.24);
+  background: rgba(15, 18, 25, 0.22);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 18, 25, 0.38);
 }
 
 html.dark * {
@@ -131,10 +154,11 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 /* --------------------------------------------------------------------------
-   卡片层次：内容区卡片 = 白底 + 细描边 + 极轻投影，与 #f5f6f8 页面底形成层次
+   卡片层次：内容区卡片 = 白底 + 细描边 + 极轻投影，与 #f5f7f7 页面底形成层次
    -------------------------------------------------------------------------- */
 .admin-content .ant-card {
   border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
   box-shadow: var(--admin-shadow-sm);
 }
 
@@ -142,6 +166,13 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .ant-card .ant-card-head-title {
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: -0.1px;
+}
+
+/* 卡片头 48px：设计稿的头部比 AntD 默认略高，给标题更多呼吸 */
+.admin-content .ant-card-head {
+  min-height: 48px;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 /* 标准页面容器（进场动画：淡入 + 轻微上移，路由切换不再"硬切"）
@@ -217,24 +248,18 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   gap: 8px;
 }
 
-/* 登录页 */
-.login-page,
+/* 登录页（v2：两栏，左深色品牌区 / 右浅色表单区，详见 LoginView） */
 .login {
   animation: admin-page-in 0.3s var(--admin-ease) both;
 }
 
-.login-page {
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--admin-bg);
+/* 选中行：品牌色 4% 调，与 hover 态区分（设计稿实测 #f2f3fc） */
+.table-quiet .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: color-mix(in srgb, var(--admin-brand) 6%, var(--admin-surface));
 }
 
-.login-page .ant-card {
-  border: 1px solid var(--admin-border);
-  box-shadow: var(--admin-shadow-md);
+.table-quiet .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: color-mix(in srgb, var(--admin-brand) 10%, var(--admin-surface));
 }
 
 /* 表格单元格内的辅助文字 */
@@ -258,19 +283,20 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 
 /* --------------------------------------------------------------------------
-   轻量表格：低对比表头 + 细分割线 + 行悬浮。
+   轻量表格：极浅表头 + 细分割线 + 行悬浮。
    数据面板共用一套工艺，避免每个页面各写一份 :deep(.ant-table) 覆盖。
+   v2 设计稿实测：表头为极浅面 #fafbfc（非透明），行高更紧、字重更轻。
    -------------------------------------------------------------------------- */
 .table-quiet .ant-table {
   background: transparent;
 }
 
 .table-quiet .ant-table-thead > tr > th {
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 12px;
   font-weight: 500;
   color: var(--admin-muted);
-  background: transparent;
+  background: var(--admin-surface-3);
   border-bottom: 1px solid var(--admin-border);
 }
 
@@ -313,7 +339,6 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   background: var(--admin-surface-2);
   border-radius: var(--admin-radius-sm);
 }
-
 .admin-content .ant-segmented .ant-segmented-item-label {
   font-weight: 500;
   color: var(--admin-muted);

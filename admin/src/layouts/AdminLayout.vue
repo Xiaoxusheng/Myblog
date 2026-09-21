@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useFeedback } from '@/composables/useFeedback'
 const { modal } = useFeedback()
 import { getNotifications, readAllNotifications, readNotification } from '@/api/notifications'
+import { getHealth } from '@/api/health'
 import { formatTime } from '@/utils/format'
 import type { NotificationItem } from '@/types/api'
 import {
@@ -29,6 +30,7 @@ import {
   ImportOutlined,
   RocketOutlined,
   SaveOutlined,
+  SearchOutlined,
   SettingOutlined,
   StopOutlined,
   BulbFilled,
@@ -38,6 +40,7 @@ import {
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminTheme } from '@/theme'
+import CommandPalette, { type PaletteItem } from '@/components/CommandPalette.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,6 +52,42 @@ const collapsed = ref(false)
 const isMobile = ref(false)
 const drawerOpen = ref(false)
 let mediaQuery: MediaQueryList | null = null
+
+// ---------- 顶栏「服务正常」状态点（v2 设计稿常驻位）----------
+// 复用 /admin/health 契约 #84 的 dbStatus，不新增接口。
+// 失败与"检查中"都不说谎：只有明确 ok 才显示绿色「服务正常」。
+type ServiceState = 'checking' | 'ok' | 'degraded'
+const serviceState = ref<ServiceState>('checking')
+
+async function loadServiceState() {
+  try {
+    const info = await getHealth()
+    serviceState.value = info.dbStatus === 'ok' ? 'ok' : 'degraded'
+  } catch {
+    // 拦截器已提示；失败即视为异常，但静态提示不打扰（不弹 toast）
+    serviceState.value = 'degraded'
+  }
+}
+
+const SERVICE_TEXT: Record<ServiceState, string> = {
+  checking: '检查中',
+  ok: '服务正常',
+  degraded: '服务异常',
+}
+
+/** 命令面板（⌘K / Ctrl+K）：跳转与快捷动作入口 */
+const paletteOpen = ref(false)
+
+/** 面板数据源 = 菜单树（唯一真相来源，不另维护一份跳转表） */
+const paletteItems = computed<PaletteItem[]>(() =>
+  menuGroups.flatMap((group) =>
+    group.items.map((item) => ({ key: item.key, title: item.title, group: group.label, path: item.key })),
+  ),
+)
+
+function openPalette() {
+  paletteOpen.value = true
+}
 
 /**
  * 侧栏导航的键盘可达性补齐。
@@ -254,7 +293,9 @@ onMounted(() => {
   isMobile.value = mediaQuery.matches
   mediaQuery.addEventListener('change', onMediaChange)
   void loadNotifications()
+  void loadServiceState()
   notifTimer = setInterval(() => void loadNotifications(), 60_000)
+  window.addEventListener('keydown', onGlobalKeydown)
 })
 
 onBeforeUnmount(() => {
@@ -263,7 +304,22 @@ onBeforeUnmount(() => {
     notifTimer = null
   }
   mediaQuery?.removeEventListener('change', onMediaChange)
+  window.removeEventListener('keydown', onGlobalKeydown)
 })
+
+/**
+ * ⌘K / Ctrl+K 唤起命令面板。
+ * 输入框内不劫持（用户在搜索框里按 Ctrl+K 应保持原生行为）。
+ */
+function onGlobalKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    const target = e.target as HTMLElement | null
+    const tag = target?.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return
+    e.preventDefault()
+    openPalette()
+  }
+}
 </script>
 
 <template>
@@ -274,8 +330,8 @@ onBeforeUnmount(() => {
       v-model:collapsed="collapsed"
       collapsible
       breakpoint="lg"
-      :width="200"
-      theme="dark"
+      :width="232"
+      theme="light"
       class="admin-sider"
     >
       <div class="sider-logo">
@@ -284,8 +340,22 @@ onBeforeUnmount(() => {
           MyBlog<span class="sider-logo__sub">管理后台</span>
         </span>
       </div>
+
+      <!-- 命令面板入口（v2：侧栏顶部「搜索或跳转 Ctrl K」） -->
+      <button
+        v-if="!collapsed"
+        type="button"
+        class="sider-search"
+        aria-label="搜索或跳转（Ctrl K）"
+        @click="openPalette"
+      >
+        <SearchOutlined class="sider-search__icon" />
+        <span class="sider-search__text">搜索或跳转</span>
+        <kbd class="sider-search__kbd">Ctrl K</kbd>
+      </button>
+
       <nav class="sidebar-nav" aria-label="管理菜单" tabindex="0" @keydown="onMenuKeydown">
-        <a-menu theme="dark" mode="inline" :selected-keys="[activeKey]">
+        <a-menu theme="light" mode="inline" :selected-keys="[activeKey]">
           <a-menu-item-group v-for="group in menuGroups" :key="group.key" :title="group.label">
             <a-menu-item v-for="item in group.items" :key="item.key" @click="onMenuClick(item)">
               <!-- 图标走 icon 插槽：作为子节点传入会被包进 title-content，折叠态下会被一起隐藏 -->
@@ -327,7 +397,7 @@ onBeforeUnmount(() => {
       </div>
       <nav class="sidebar-nav" aria-label="管理菜单" tabindex="0" @keydown="onMenuKeydown">
         <a-menu
-          theme="dark"
+          theme="light"
           mode="inline"
           :selected-keys="[activeKey]"
           style="border-inline-end: 0"
@@ -356,99 +426,114 @@ onBeforeUnmount(() => {
           </a-breadcrumb-item>
         </a-breadcrumb>
 
-        <!-- 通知中心（契约 #73）：60s 轮询未读数 -->
-        <!-- 主题切换:light/dark 两态,偏好持久化(docs/09 §8.2) -->
-        <a-tooltip :title="isDark ? '切换到亮色' : '切换到暗色'">
-          <a-button type="text" shape="circle" :aria-label="isDark ? '切换到亮色' : '切换到暗色'" @click="toggleTheme">
-            <template #icon>
-              <BulbFilled v-if="isDark" />
-              <BulbOutlined v-else />
-            </template>
-          </a-button>
-        </a-tooltip>
-
-        <a-popover
-          v-model:open="notifOpen"
-          trigger="click"
-          placement="bottomRight"
-          :width="330"
-        >
-          <template #content>
-            <div class="notif-panel">
-              <div class="notif-panel__head">
-                <span>通知</span>
-                <a-button v-if="notifList.length > 0" type="link" size="small" @click="onReadAll">
-                  全部已读
-                </a-button>
-              </div>
-              <a-spin :spinning="notifLoading">
-                <div v-if="notifList.length === 0" class="notif-panel__empty">暂无通知</div>
-                <div
-                  v-for="n in notifList"
-                  :key="n.id"
-                  class="notif-panel__item"
-                  :class="{ 'notif-panel__item--unread': !n.read }"
-                  role="button"
-                  tabindex="0"
-                  :aria-label="`打开通知：${n.title}`"
-                  @click="onOpenNotification(n)"
-                  @keydown.enter.prevent="onOpenNotification(n)"
-                >
-                  <div class="notif-panel__title">
-                    <a-badge v-if="!n.read" status="processing" />
-                    {{ n.title }}
-                  </div>
-                  <div class="notif-panel__content">{{ n.content }}</div>
-                  <div class="notif-panel__time">{{ formatTime(n.createdAt) }}</div>
-                </div>
-              </a-spin>
-            </div>
-          </template>
-          <a-badge :count="notifUnread" :offset="[-2, 2]" size="small">
-            <a-button type="text" shape="circle" aria-label="通知">
-              <template #icon><BellOutlined /></template>
-            </a-button>
-          </a-badge>
-        </a-popover>
-
-        <a-dropdown>
-          <div
-            class="admin-header__user"
-            role="button"
-            tabindex="0"
-            aria-label="账号菜单"
-            @keydown.enter.prevent="openUserMenu"
-            @keydown.space.prevent="openUserMenu"
+        <div class="admin-header__actions">
+          <!-- 服务状态点（v2 常驻位）：数据来自 /admin/health 契约 #84 -->
+          <RouterLink
+            to="/health"
+            class="service-pill"
+            :class="`service-pill--${serviceState}`"
+            :title="`${SERVICE_TEXT[serviceState]}（点击查看系统状态）`"
           >
-            <a-avatar :size="28" :src="auth.user?.avatar || undefined">
-              <template #icon><UserOutlined /></template>
-            </a-avatar>
-            <span class="admin-header__username">{{ auth.displayName }}</span>
-          </div>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item key="profile" @click="goProfile">
-                <UserOutlined />
-                <span style="margin-left: 8px">个人资料</span>
-              </a-menu-item>
-              <a-menu-item key="password" @click="onChangePassword">
-                <SettingOutlined />
-                <span style="margin-left: 8px">修改密码</span>
-              </a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="logout" danger @click="onLogout">
-                <LogoutOutlined />
-                <span style="margin-left: 8px">退出登录</span>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
+            <span class="service-pill__dot" aria-hidden="true"></span>
+            {{ SERVICE_TEXT[serviceState] }}
+          </RouterLink>
+
+          <!-- 主题切换:light/dark 两态,偏好持久化(docs/09 §8.2) -->
+          <a-tooltip :title="isDark ? '切换到亮色' : '切换到暗色'">
+            <a-button type="text" shape="circle" :aria-label="isDark ? '切换到亮色' : '切换到暗色'" @click="toggleTheme">
+              <template #icon>
+                <BulbFilled v-if="isDark" />
+                <BulbOutlined v-else />
+              </template>
+            </a-button>
+          </a-tooltip>
+
+          <a-popover
+            v-model:open="notifOpen"
+            trigger="click"
+            placement="bottomRight"
+            :width="330"
+          >
+            <template #content>
+              <div class="notif-panel">
+                <div class="notif-panel__head">
+                  <span>通知</span>
+                  <a-button v-if="notifList.length > 0" type="link" size="small" @click="onReadAll">
+                    全部已读
+                  </a-button>
+                </div>
+                <a-spin :spinning="notifLoading">
+                  <div v-if="notifList.length === 0" class="notif-panel__empty">暂无通知</div>
+                  <div
+                    v-for="n in notifList"
+                    :key="n.id"
+                    class="notif-panel__item"
+                    :class="{ 'notif-panel__item--unread': !n.read }"
+                    role="button"
+                    tabindex="0"
+                    :aria-label="`打开通知：${n.title}`"
+                    @click="onOpenNotification(n)"
+                    @keydown.enter.prevent="onOpenNotification(n)"
+                  >
+                    <div class="notif-panel__title">
+                      <a-badge v-if="!n.read" status="processing" />
+                      {{ n.title }}
+                    </div>
+                    <div class="notif-panel__content">{{ n.content }}</div>
+                    <div class="notif-panel__time">{{ formatTime(n.createdAt) }}</div>
+                  </div>
+                </a-spin>
+              </div>
+            </template>
+            <a-badge :count="notifUnread" :offset="[-2, 2]" size="small">
+              <a-button type="text" shape="circle" aria-label="通知">
+                <template #icon><BellOutlined /></template>
+              </a-button>
+            </a-badge>
+          </a-popover>
+
+          <a-dropdown>
+            <div
+              class="admin-header__user"
+              role="button"
+              tabindex="0"
+              aria-label="账号菜单"
+              @keydown.enter.prevent="openUserMenu"
+              @keydown.space.prevent="openUserMenu"
+            >
+              <a-avatar :size="28" :src="auth.user?.avatar || undefined">
+                <template #icon><UserOutlined /></template>
+              </a-avatar>
+              <span class="admin-header__username">{{ auth.displayName }}</span>
+            </div>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="profile" @click="goProfile">
+                  <UserOutlined />
+                  <span style="margin-left: 8px">个人资料</span>
+                </a-menu-item>
+                <a-menu-item key="password" @click="onChangePassword">
+                  <SettingOutlined />
+                  <span style="margin-left: 8px">修改密码</span>
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="logout" danger @click="onLogout">
+                  <LogoutOutlined />
+                  <span style="margin-left: 8px">退出登录</span>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </div>
       </a-layout-header>
 
       <a-layout-content class="admin-content">
         <RouterView />
       </a-layout-content>
     </a-layout>
+
+    <!-- 命令面板（⌘K）：菜单树驱动的跳转入口 -->
+    <CommandPalette v-model:open="paletteOpen" :items="paletteItems" />
   </a-layout>
 </template>
 
@@ -463,34 +548,33 @@ onBeforeUnmount(() => {
   background: var(--admin-bg);
 }
 
-/* 品牌区：与 favicon 同一套视觉（品牌色方块 + 衬线 M），是唯一允许渐变的品牌位；
-   文案双字重排版，副标与主标拉开明度差 */
+/* 品牌区：与 favicon 同一套视觉（品牌色方块 + 衬线 M）；
+   v2 侧栏改浅色，主标随之为深色文字，副标降一级明度 */
 .sider-logo {
-  height: 56px;
+  height: 64px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
-  color: #fff;
+  padding-inline: 20px;
+  color: var(--admin-sidebar-text-strong);
   white-space: nowrap;
   overflow: hidden;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 4px;
 }
 
 .sider-logo__mark {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--admin-brand), var(--admin-brand-hover));
-  /* 内描边让方块在深色侧栏上边缘清晰，不靠加重投影 */
+  background: var(--admin-brand);
+  /* 内描边让方块边缘清晰，不靠加重投影 */
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
   border-radius: 7px;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1;
   color: #fff;
@@ -500,35 +584,156 @@ onBeforeUnmount(() => {
 .sider-logo__text {
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.1px;
 }
 
 .sider-logo__sub {
   margin-left: 7px;
   font-size: 11px;
   font-weight: 400;
-  letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.6px;
+  color: var(--admin-muted);
+}
+
+/* 命令面板入口：一体化搜索条 + 右侧 kbd 提示（v2 设计稿侧栏顶部） */
+.sider-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 0 8px 0 10px;
+  height: 34px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--admin-muted);
+  text-align: left;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--admin-dur) var(--admin-ease),
+    background-color var(--admin-dur) var(--admin-ease);
+}
+
+.sider-search:hover {
+  border-color: color-mix(in srgb, var(--admin-brand) 40%, var(--admin-border));
+}
+
+.sider-search:focus-visible {
+  outline: 2px solid var(--admin-brand);
+  outline-offset: 1px;
+}
+
+.sider-search__icon {
+  flex: none;
+  font-size: 13px;
+}
+
+.sider-search__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sider-search__kbd {
+  flex: none;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
+  color: var(--admin-muted);
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-border);
+  border-radius: 4px;
 }
 
 .admin-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  height: 56px;
+  /* v2：64px（原 56px），与侧栏同色，靠 1px 描边分隔 */
+  height: 64px;
   line-height: normal;
   padding: 0 24px;
-  background: var(--admin-surface);
+  background: var(--admin-bg);
   border-bottom: 1px solid var(--admin-border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
 }
 
 .admin-header__crumbs {
   flex: 1;
   min-width: 0;
+}
+
+/* 顶栏右侧动作区：状态胶囊 + 图标按钮 + 头像，统一 16px 间距 */
+.admin-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-header__actions :deep(.ant-btn) {
+  margin-right: 0;
+}
+
+/* 服务状态胶囊：色点 + 文案，点击进系统状态页 */
+.service-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  margin-right: 8px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  transition: border-color var(--admin-dur) var(--admin-ease);
+}
+
+.service-pill:hover {
+  border-color: color-mix(in srgb, var(--admin-brand) 40%, var(--admin-border));
+}
+
+.service-pill__dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--admin-muted);
+}
+
+.service-pill--ok {
+  color: var(--admin-muted);
+}
+
+.service-pill--ok .service-pill__dot {
+  background: var(--admin-success);
+  /* 呼吸圈暗示"活着"，不刺眼 */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-success) 16%, transparent);
+}
+
+.service-pill--degraded {
+  color: var(--admin-warning-text);
+  border-color: color-mix(in srgb, var(--admin-warning) 45%, var(--admin-border));
+}
+
+.service-pill--degraded .service-pill__dot {
+  background: var(--admin-warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-pill__dot {
+    box-shadow: none;
+  }
 }
 
 .admin-header__user {
@@ -542,7 +747,7 @@ onBeforeUnmount(() => {
 }
 
 .admin-header__user:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--admin-sidebar-hover);
 }
 
 .admin-header__username {
@@ -564,35 +769,48 @@ onBeforeUnmount(() => {
     font-size: 18px;
     padding: 6px;
     cursor: pointer;
-    color: rgba(0, 0, 0, 0.72);
+    color: var(--admin-text);
   }
 
   .admin-header__username {
     display: none;
   }
+
+  /* 窄屏空间紧张：状态胶囊只留色点 */
+  .service-pill {
+    padding: 0 8px;
+    margin-right: 4px;
+    font-size: 0;
+    gap: 0;
+  }
 }
 </style>
 
 <style>
-/* 抽屉传送到 body，需全局样式：深色底 + 菜单贴合边缘 */
+/* 抽屉传送到 body，需全局样式：浅色底 + 菜单贴合边缘 */
 .admin-drawer .ant-drawer-body {
   padding: 0;
   background: var(--admin-sidebar);
 }
 
-/* 侧栏/抽屉背景单一来源 --admin-sidebar（light 深藏青 / dark 面板色），菜单透明继承（docs/09 §8.1） */
-.admin-sider.ant-layout-sider-dark {
+/* 侧栏/抽屉背景单一来源 --admin-sidebar（light #f5f7f7 / dark #000003），
+   菜单透明继承（docs/09 §8.1 + v2 设计稿） */
+.admin-sider.ant-layout-sider-light {
   background: var(--admin-sidebar);
+  border-inline-end: 1px solid var(--admin-sidebar-border);
 }
 
 /* 折叠 trigger 与侧栏同色系，hover 轻提亮 */
 .admin-sider .ant-layout-sider-trigger {
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
+  color: var(--admin-muted);
+  border-top: 1px solid var(--admin-sidebar-border);
   transition: background-color var(--admin-dur) var(--admin-ease);
 }
 
 .admin-sider .ant-layout-sider-trigger:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--admin-sidebar-hover);
+  color: var(--admin-text);
 }
 
 .admin-sider .ant-menu,
@@ -601,18 +819,17 @@ onBeforeUnmount(() => {
   border-inline-end: 0;
 }
 
-/* 抽屉 logo 复用 .sider-logo 品牌区结构，无需额外样式 */
-
-/* 菜单分组标题：统一 12px / 500 / 0.6px 字距，组间靠同一档上下留白拉节奏 */
+/* 菜单分组标题：统一 11px / 500 字距，组间靠同一档上下留白拉节奏。
+   浅色侧栏上分组标题必须是次级灰，不能沿用原白色系。 */
 .admin-sider .ant-menu-item-group-title,
 .admin-drawer .ant-menu-item-group-title {
-  padding: 12px 16px 6px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 14px 20px 6px;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 18px;
   letter-spacing: 0.6px;
-  /* 0.38 在深藏青/深灰底上对比不足，提到 0.52 保证小字可读 */
-  color: rgba(255, 255, 255, 0.52);
+  text-transform: uppercase;
+  color: var(--admin-muted);
 }
 
 /* 折叠态隐藏分组标题，仅保留图标项 */
@@ -620,55 +837,49 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* 菜单项：40px 行高；选中态 = 柔和品牌底 + 左侧 2px 指示条 + 提亮文字，
-   三重表达而非只靠一根蓝色描边 */
+/* 菜单项：36px 行高 + 两端 8px 外距，形成圆角胶囊（v2 设计稿为圆角胶囊而非通栏）。
+   选中态 = 深色胶囊 #1a1b20 + 反白字（实测值），暗色下改为品牌色文字。 */
 .admin-sider .ant-menu-item,
 .admin-drawer .ant-menu-item {
-  height: 40px;
-  line-height: 40px;
-  margin-inline: 0;
-  margin-block: 1px;
-  width: 100%;
-  padding-inline: 16px;
-  border-radius: 0;
-  color: rgba(255, 255, 255, 0.74);
+  height: 36px;
+  line-height: 36px;
+  margin-block: 2px;
+  margin-inline: 8px;
+  width: calc(100% - 16px);
+  padding-inline: 10px;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-sidebar-text);
   transition:
     color var(--admin-dur) var(--admin-ease),
     background-color var(--admin-dur) var(--admin-ease);
 }
 
-/* 图标盒宽与字号统一：不同图标字宽不同，固定 16px 盒保证文字起点对齐。
-   水平间距交给 AntD 原生规则（.ant-menu-item-icon 已带 10px），此处不再叠加。 */
+/* 图标盒宽与字号统一：不同图标字宽不同，固定 16px 盒保证文字起点对齐。 */
 .admin-sider .ant-menu-item .anticon,
 .admin-drawer .ant-menu-item .anticon {
   width: 16px;
   min-width: 16px;
-  font-size: 16px;
+  font-size: 15px;
   vertical-align: -0.2em;
 }
 
 .admin-sider .ant-menu-item:hover,
 .admin-drawer .ant-menu-item:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--admin-sidebar-text-strong);
+  background: var(--admin-sidebar-hover);
 }
 
 .admin-sider .ant-menu-item-selected,
 .admin-drawer .ant-menu-item-selected {
-  position: relative;
   font-weight: 600;
-  color: #fff;
-  background: rgba(22, 119, 255, 0.18);
+  color: var(--admin-sidebar-active-text);
+  background: var(--admin-sidebar-active-bg);
 }
 
-.admin-sider .ant-menu-item-selected::before,
-.admin-drawer .ant-menu-item-selected::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0;
-  inset-block: 0;
-  width: 2px;
-  background: var(--admin-brand);
+.admin-sider .ant-menu-item-selected:hover,
+.admin-drawer .ant-menu-item-selected:hover {
+  color: var(--admin-sidebar-active-text);
+  background: var(--admin-sidebar-active-bg);
 }
 
 /* 选中项右侧不再叠加 AntD 默认指示条 */
@@ -677,7 +888,13 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-/* 键盘焦点：深色侧栏上必须有可见焦点环。
+/* 折叠态：图标项收窄，胶囊退回居中方块 */
+.admin-sider .ant-menu-inline-collapsed .ant-menu-item {
+  width: calc(100% - 16px);
+  padding-inline: calc(50% - 24px);
+}
+
+/* 键盘焦点：侧栏上必须有可见焦点环。
    焦点环挂在自有的 nav 包装元素上（不依赖 AntD 内部节点是否可聚焦）。 */
 .sidebar-nav:focus-visible,
 .admin-sider .ant-menu-item:focus-visible,
@@ -695,7 +912,7 @@ onBeforeUnmount(() => {
   height: 100%;
   padding: 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--admin-muted);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -703,7 +920,7 @@ onBeforeUnmount(() => {
 }
 
 .sider-trigger:hover {
-  color: #fff;
+  color: var(--admin-text);
 }
 
 .sider-trigger:focus-visible {
@@ -761,9 +978,5 @@ onBeforeUnmount(() => {
   font-size: 11px;
   color: var(--admin-muted);
   margin-top: 2px;
-}
-
-.admin-header :deep(.ant-btn) {
-  margin-right: 8px;
 }
 </style>

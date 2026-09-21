@@ -354,18 +354,6 @@ onMounted(() => {
         </a-button>
       </div>
 
-      <BatchBar v-if="selectedRowKeys.length > 0" :count="selectedRowKeys.length" @clear="selectedRowKeys = []">
-        <a-button
-          size="small"
-          :loading="batchRunning"
-          @click="batchSetStatus(1)"
-        >
-          批量发布
-        </a-button>
-        <a-button size="small" :loading="batchRunning" @click="batchSetStatus(2)">批量下架</a-button>
-        <a-button size="small" danger :loading="batchRunning" @click="batchDelete">批量删除</a-button>
-      </BatchBar>
-
       <LoadError v-if="error" @retry="load" />
 
       <a-table
@@ -450,6 +438,20 @@ onMounted(() => {
           </template>
         </template>
       </a-table>
+
+      <!-- 批量条：挂在列表尾部（v2 设计稿位置） -->
+      <BatchBar
+        v-if="selectedRowKeys.length > 0"
+        :count="selectedRowKeys.length"
+        unit="篇"
+        @clear="selectedRowKeys = []"
+      >
+        <a-button size="small" type="primary" :loading="batchRunning" @click="batchSetStatus(1)">
+          批量发布
+        </a-button>
+        <a-button size="small" :loading="batchRunning" @click="batchSetStatus(2)">批量下架</a-button>
+        <a-button size="small" danger :loading="batchRunning" @click="batchDelete">批量删除</a-button>
+      </BatchBar>
     </a-card>
 
     <!-- 单篇文章分析抽屉 -->

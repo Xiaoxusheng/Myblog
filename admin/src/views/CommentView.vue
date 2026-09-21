@@ -258,13 +258,6 @@ onMounted(load)
         </a-tag>
       </div>
 
-      <BatchBar v-if="selectedRowKeys.length > 0" :count="selectedRowKeys.length" @clear="selectedRowKeys = []">
-        <a-button size="small" :loading="batchRunning" @click="runBatch('approve')">批量通过</a-button>
-        <a-button size="small" :loading="batchRunning" @click="runBatch('reject')">批量拒绝</a-button>
-        <a-button size="small" :loading="batchRunning" @click="runBatch('spam')">批量标垃圾</a-button>
-        <a-button size="small" danger :loading="batchRunning" @click="runBatch('delete')">批量删除</a-button>
-      </BatchBar>
-
       <LoadError v-if="error" @retry="load" />
 
       <a-table
@@ -333,6 +326,21 @@ onMounted(load)
           </template>
         </template>
       </a-table>
+
+      <!-- 批量条：挂在列表尾部（v2 设计稿位置） -->
+      <BatchBar
+        v-if="selectedRowKeys.length > 0"
+        :count="selectedRowKeys.length"
+        unit="条"
+        @clear="selectedRowKeys = []"
+      >
+        <a-button size="small" type="primary" :loading="batchRunning" @click="runBatch('approve')">
+          批量通过
+        </a-button>
+        <a-button size="small" :loading="batchRunning" @click="runBatch('reject')">批量拒绝</a-button>
+        <a-button size="small" :loading="batchRunning" @click="runBatch('spam')">批量标垃圾</a-button>
+        <a-button size="small" danger :loading="batchRunning" @click="runBatch('delete')">批量删除</a-button>
+      </BatchBar>
     </a-card>
 
     <!-- 评论详情 -->

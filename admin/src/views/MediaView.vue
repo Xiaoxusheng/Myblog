@@ -6,12 +6,14 @@ import {
   DeleteOutlined,
   EyeOutlined,
   ReloadOutlined,
+  SearchOutlined,
   UploadOutlined,
 } from '@ant-design/icons-vue'
 import PageHeader from '@/components/PageHeader.vue'
 import LoadError from '@/components/LoadError.vue'
 import { useFeedback } from '@/composables/useFeedback'
 import { deleteUpload, getUploads, uploadImage } from '@/api/media'
+import { getHealth } from '@/api/health'
 import { copyText, formatBytes, formatTime } from '@/utils/format'
 import type { UploadItem } from '@/types/api'
 
@@ -28,6 +30,25 @@ const pageSize = 24
 const uploading = ref(0)
 const viewMode = ref<ViewMode>('grid')
 
+// ---------- 存储用量（v2 设计稿第 7 页）----------
+// 数据来自 /admin/health 契约 #84 的 mediaCount / uploadSize。
+// 契约明确不返回磁盘配额（"不含磁盘空间等平台敏感信息"），因此这里显示**真实用量**
+// 而不画假进度条：没有真实分母就不画分母，避免用一个编造的百分比误导判断。
+const mediaCount = ref<number | null>(null)
+const uploadSize = ref<number | null>(null)
+
+async function loadStorage() {
+  try {
+    const info = await getHealth()
+    mediaCount.value = info.mediaCount
+    uploadSize.value = info.uploadSize
+  } catch {
+    // 用量为辅助信息：失败时整条隐藏，不影响媒体列表主流程
+    mediaCount.value = null
+    uploadSize.value = null
+  }
+}
+
 const viewOptions = [
   { label: '网格', value: 'grid' },
   { label: '列表', value: 'list' },
@@ -39,9 +60,12 @@ const pagination = computed(() => ({
   total: total.value,
   size: 'small' as const,
   showSizeChanger: false,
-  showTotal: (t: number) => `共 ${t} 张`,
+  showTotal: (t: number) => `共 ${t} 个文件`,
   onChange: onPageChange,
 }))
+
+/** 存储用量摘要：有真实数据才渲染整条 */
+const storageReady = computed(() => uploadSize.value !== null)
 
 async function load() {
   loading.value = true
@@ -55,6 +79,29 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 文件名过滤。
+ *
+ * 接口契约 #46 只接受 page/pageSize（无 keyword 参数），且本轮红线是零 API 变更，
+ * 因此这里**只过滤当前页**并在 UI 上如实标注「当前页」，不谎称全库搜索。
+ * 若后续要在全库范围内搜，需先在 api.md 给 #46 补 keyword 参数再改这里。
+ */
+const keywordInput = ref('')
+const keyword = ref('')
+
+const visibleList = computed(() => {
+  const q = keyword.value.trim().toLowerCase()
+  if (!q) return list.value
+  return list.value.filter((item) => item.filename.toLowerCase().includes(q))
+})
+
+/** 当前是否处于过滤态（用于区分「真空库」与「筛选无结果」两种空态文案） */
+const filtering = computed(() => keyword.value.trim().length > 0)
+
+function onSearch() {
+  keyword.value = keywordInput.value
 }
 
 function onPageChange(current: number) {
@@ -106,16 +153,19 @@ async function onCopy(item: UploadItem) {
   }
 }
 
-async function onDelete(item: UploadItem) {
-  await deleteUpload(item.id)
+async function deleteAndReload(id: number) {
+  await deleteUpload(id)
   message.success('删除成功')
   if (list.value.length === 1 && page.value > 1) {
     page.value -= 1
   }
-  await load()
+  await Promise.all([load(), loadStorage()])
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadStorage()
+})
 </script>
 
 <template>
@@ -142,15 +192,71 @@ onMounted(load)
     </PageHeader>
 
     <a-card :bordered="false">
+      <!-- 存储用量（v2 设计稿第 7 页）：只显示真实用量，无配额字段故不画假进度 -->
+      <div v-if="storageReady" class="storage">
+        <div class="storage__head">
+          <span class="storage__label">存储空间</span>
+          <span class="storage__value tabular-nums">
+            已用 {{ formatBytes(uploadSize ?? 0) }}
+            <template v-if="mediaCount !== null"> · {{ mediaCount }} 个文件</template>
+          </span>
+        </div>
+        <!-- 无真实配额：用一条纯示意刻度的轨道表达"当前不是靠容量驱动"，
+             不用百分比填充，避免用户把装饰条当成真实的余量读数 -->
+        <div class="storage__track" aria-hidden="true"></div>
+      </div>
+
+      <!-- 工具栏：搜索与视图/上传分离成行（设计稿为独立工具栏行） -->
+      <div class="table-toolbar">
+        <div class="table-toolbar__filters">
+          <a-input
+            v-model:value="keywordInput"
+            placeholder="搜索文件名"
+            style="width: 240px"
+            allow-clear
+            @press-enter="onSearch"
+          >
+            <template #prefix><SearchOutlined /></template>
+          </a-input>
+          <a-button @click="onSearch">
+            <template #icon><SearchOutlined /></template>
+            搜索
+          </a-button>
+        </div>
+        <div class="media-toolbar__right">
+          <a-segmented v-model:value="viewMode" :options="viewOptions" />
+          <a-button :loading="loading" @click="load">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
+          <a-upload
+            accept="image/*"
+            :show-upload-list="false"
+            :custom-request="customRequest"
+            :before-upload="beforeUpload"
+          >
+            <a-button type="primary" :loading="uploading > 0">
+              <template #icon><UploadOutlined /></template>
+              上传素材
+            </a-button>
+          </a-upload>
+        </div>
+      </div>
+
       <LoadError v-if="error" :message="error" @retry="load" />
 
       <a-spin v-else :spinning="loading">
-        <a-empty v-if="!loading && list.length === 0" description="媒体库暂无图片，点击右上角上传" />
+        <a-empty
+          v-if="!loading && visibleList.length === 0"
+          :description="
+            filtering ? `当前页没有匹配「${keyword}」的文件，试试调整关键词` : '媒体库暂无图片，点击右上角上传'
+          "
+        />
 
         <!-- 网格视图：4:3 缩略图，hover 显示操作 -->
         <template v-else-if="viewMode === 'grid'">
           <a-row :gutter="[16, 16]">
-            <a-col v-for="item in list" :key="item.id" :xs="12" :sm="8" :md="6" :lg="4">
+            <a-col v-for="item in visibleList" :key="item.id" :xs="12" :sm="8" :md="6" :lg="4">
               <div class="media-card">
                 <div class="media-card__thumb" @click="openPreview(item)">
                   <img :src="item.url" :alt="item.filename" loading="lazy" />
@@ -169,7 +275,7 @@ onMounted(load)
                       title="删除后不可恢复，文件将一并删除，确定删除该图片吗？"
                       ok-text="删除"
                       cancel-text="取消"
-                      @confirm="onDelete(item)"
+                      @confirm="deleteAndReload(item.id)"
                     >
                       <a-tooltip title="删除">
                         <a-button type="text" size="small" class="media-card__btn media-card__btn--danger" @click.stop>
@@ -193,7 +299,7 @@ onMounted(load)
         <!-- 列表视图：紧凑行 -->
         <template v-else>
           <div class="media-list">
-            <div v-for="item in list" :key="item.id" class="media-row">
+            <div v-for="item in visibleList" :key="item.id" class="media-row">
               <img class="media-row__thumb" :src="item.url" :alt="item.filename" loading="lazy" @click="openPreview(item)" />
               <div class="media-row__main">
                 <a-tooltip :title="item.filename">
@@ -210,7 +316,7 @@ onMounted(load)
                   title="删除后不可恢复，文件将一并删除，确定删除该图片吗？"
                   ok-text="删除"
                   cancel-text="取消"
-                  @confirm="onDelete(item)"
+                  @confirm="deleteAndReload(item.id)"
                 >
                   <a-button type="text" size="small" danger>删除</a-button>
                 </a-popconfirm>
@@ -248,6 +354,53 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* ---------- 存储用量（v2 设计稿第 7 页）---------- */
+.storage {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: var(--admin-surface-2);
+  border-radius: var(--admin-radius-md);
+}
+
+.storage__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.storage__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.storage__value {
+  font-size: 12px;
+  color: var(--admin-muted);
+}
+
+/* 无真实配额时的刻度轨：只作视觉锚点，不填充百分比 */
+.storage__track {
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--admin-border) 90%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+/* ---------- 工具栏右组 ---------- */
+.media-toolbar__right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* ---------- 网格视图 ---------- */
 .media-card__thumb {
   position: relative;
@@ -292,8 +445,12 @@ onMounted(load)
 }
 
 .media-card__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: var(--admin-text);
   white-space: nowrap;
   overflow: hidden;
